@@ -1,0 +1,3 @@
+[[PackageOverrides]]
+ignore = true
+reason = "DeepSec is local security-check tooling; application dependencies are scanned through Gradle and OWASP Dependency-Check."

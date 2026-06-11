@@ -1,0 +1,95 @@
+rules:
+  - id: corners-apart-android-allowbackup-enabled
+    languages:
+      - xml
+    severity: ERROR
+    message: android:allowBackup="true" sallii sovellusdatan varmuuskopioinnin. Corners Apartin tallennetut pelit, profiilit ja asetukset vaativat erillisen reviewn ennen backupin sallimista.
+    patterns:
+      - pattern: |
+          <application ... android:allowBackup="true" ...>
+
+  - id: corners-apart-android-cleartext-enabled
+    languages:
+      - xml
+    severity: ERROR
+    message: android:usesCleartextTraffic="true" sallii selkokielisen HTTP-liikenteen. V1-moninpeli kulkee Nearby Connectionsin kautta.
+    patterns:
+      - pattern: |
+          <application ... android:usesCleartextTraffic="true" ...>
+
+  - id: corners-apart-exported-background-component
+    languages:
+      - xml
+    severity: ERROR
+    message: Exported service, receiver, provider tai activity-alias avaa uuden Android trust boundaryn. Launcher-activity on sallittu, muut exported-komponentit vaativat reviewn.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              <activity-alias ... android:exported="true" ...>
+          - pattern: |
+              <service ... android:exported="true" ...>
+          - pattern: |
+              <receiver ... android:exported="true" ...>
+          - pattern: |
+              <provider ... android:exported="true" ...>
+
+  - id: corners-apart-fileprovider-broad-path
+    languages:
+      - xml
+    severity: ERROR
+    message: FileProvider-polku on liian levea. Kayta vain rajattuja appin omistamia alihakemistoja.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              <root-path ...>
+          - pattern: |
+              <external-path ...>
+          - pattern: |
+              <files-path ... path="." ...>
+          - pattern: |
+              <cache-path ... path="." ...>
+          - pattern: |
+              <external-files-path ... path="." ...>
+          - pattern: |
+              <external-cache-path ... path="." ...>
+
+  - id: corners-apart-raw-nearby-bypass
+    languages:
+      - kotlin
+    severity: ERROR
+    message: V1-moninpeli kayttaa Google Play services Nearby Connectionsia. Raaka Bluetooth, Wi-Fi Direct tai Wi-Fi Aware -toteutus ei kuulu v1-rajaukseen.
+    paths:
+      include:
+        - app/src/main/java/**
+      exclude:
+        - app/src/test/**
+        - app/src/androidTest/**
+    patterns:
+      - pattern-regex: \b(BluetoothAdapter|BluetoothManager|BluetoothSocket|BluetoothServerSocket|WifiP2pManager|WifiAwareManager)\b
+
+  - id: corners-apart-sensitive-android-log
+    languages:
+      - kotlin
+    severity: WARNING
+    message: Android log call may disclose game, profile, Nearby endpoint, payload, save, or board state. Keep release-safe logging redacted.
+    paths:
+      include:
+        - app/src/main/java/**
+      exclude:
+        - app/src/test/**
+        - app/src/androidTest/**
+    patterns:
+      - pattern-either:
+          - pattern: Log.v(..., $MSG)
+          - pattern: Log.d(..., $MSG)
+          - pattern: Log.i(..., $MSG)
+          - pattern: Log.w(..., $MSG)
+          - pattern: Log.e(..., $MSG)
+          - pattern: android.util.Log.v(..., $MSG)
+          - pattern: android.util.Log.d(..., $MSG)
+          - pattern: android.util.Log.i(..., $MSG)
+          - pattern: android.util.Log.w(..., $MSG)
+          - pattern: android.util.Log.e(..., $MSG)
+      - metavariable-regex:
+          metavariable: $MSG
+          regex: (?i).*(nearby|endpoint|payload|profile|player|saved|settings|board|move|token|corners).*

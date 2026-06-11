@@ -1,0 +1,52 @@
+package com.finnvek.cornersapart.viewmodel
+
+import com.finnvek.cornersapart.model.BoardSnapshot
+import com.finnvek.cornersapart.model.BonusTile
+import com.finnvek.cornersapart.model.CellOffset
+import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.PieceDef
+
+data class GameUiState(
+    val gameMode: GameMode,
+    val board: BoardSnapshot,
+    val bonusTiles: List<BonusTile>,
+    val players: List<PlayerUiState>,
+    val currentPlayerIndex: Int,
+    val selectedPieceId: String,
+    val selectedOrientationIndex: Int,
+    val selectedCells: List<CellOffset>,
+    val pieces: List<PiecePanelItem>,
+    val isGameOver: Boolean,
+    val soundEnabled: Boolean = true,
+    val hapticsEnabled: Boolean = true,
+    val reducedMotionEnabled: Boolean = false,
+    val gameDurationSeconds: Int = 0,
+) {
+    val currentPlayer: PlayerUiState
+        get() = players[currentPlayerIndex]
+}
+
+data class PlayerUiState(
+    val index: Int,
+    val name: String,
+    val colorIndex: Int,
+    val ownerIndex: Int,
+    val startRow: Int,
+    val startCol: Int,
+    val totalScore: Int,
+    val placedCellPoints: Int,
+    val bonusTilePoints: Int,
+    val completionBonus: Int,
+    val claimedBonusTiles: Int,
+    val piecesPlaced: Int,
+    val piecesRemaining: Int,
+    val hasPassed: Boolean,
+    val isCurrentTurn: Boolean,
+    val isComputerControlled: Boolean,
+)
+
+data class PiecePanelItem(
+    val piece: PieceDef,
+    val isSelected: Boolean,
+    val isUsed: Boolean,
+)

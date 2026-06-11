@@ -1,0 +1,20 @@
+---
+ignore-paths:
+  - .gradle
+  - .idea
+  - .deepsec/data
+  - .deepsec/findings
+  - .deepsec/node_modules
+  - app/build
+  - app/src/androidTest
+  - app/src/test
+  - build
+  - captures
+  - reports
+
+ignore-rules:
+  - android_task_hijacking2
+
+severity-filter:
+  - WARNING
+  - ERROR

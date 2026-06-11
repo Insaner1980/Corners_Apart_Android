@@ -332,7 +332,7 @@ naming:
     active: true
     parameterPattern: '[a-z][A-Za-z0-9]*'
     privateParameterPattern: '[a-z][A-Za-z0-9]*'
-    # Exclude Room DAO result row classes that use snake_case column names
+    # Exclude generated-style data row classes that use snake_case column names
     excludeClassPattern: '.*Row$|.*Entity$'
   EnumNaming:
     active: true

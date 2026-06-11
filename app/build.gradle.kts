@@ -1,13 +1,15 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.owasp.dependency.check)
 }
 
-val releaseSigningEnvPrefix = "APP" // Change to your app name, e.g. "KNITTOOLS"
+val releaseSigningEnvPrefix = "CORNERS_APART"
 
 val releaseSigningEnvNames =
     listOf(
@@ -27,13 +29,13 @@ fun requiredReleaseEnv(name: String): String =
         ?: error("Release signing requires the $name environment variable.")
 
 android {
-    namespace = "com.finnvek.template"
+    namespace = "com.finnvek.cornersapart"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.finnvek.template"
-        minSdk = 29
-        targetSdk = 35
+        applicationId = "com.finnvek.cornersapart"
+        minSdk = 26
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
@@ -115,6 +117,12 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
 gradle.taskGraph.whenReady {
     val releaseArtifactsRequested =
         allTasks.any { task ->
@@ -134,10 +142,6 @@ gradle.taskGraph.whenReady {
                 releaseSigningEnvNames.joinToString(),
         )
     }
-}
-
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 hilt {
@@ -161,6 +165,66 @@ detekt {
     parallel = true
 }
 
+dependencyCheck {
+    formats = listOf("HTML", "JSON")
+    outputDirectory = rootProject.layout.projectDirectory.dir("reports")
+    suppressionFile =
+        rootProject.layout.projectDirectory
+            .file("config/dependency-check/suppressions.xml")
+            .asFile.absolutePath
+    data {
+        val defaultDataDirectory =
+            rootProject.layout.projectDirectory
+                .dir(".gradle/dependency-check-data")
+                .asFile.absolutePath
+
+        directory =
+            providers
+                .environmentVariable("DEPENDENCY_CHECK_DATA_DIRECTORY")
+                .orElse(defaultDataDirectory)
+                .get()
+    }
+    autoUpdate =
+        providers
+            .environmentVariable("DEPENDENCY_CHECK_AUTO_UPDATE")
+            .map {
+                it.equals("true", ignoreCase = true) ||
+                    it == "1" ||
+                    it.equals("yes", ignoreCase = true)
+            }
+            .getOrElse(true)
+    failBuildOnCVSS =
+        providers
+            .environmentVariable("DEPENDENCY_CHECK_FAIL_BUILD_ON_CVSS")
+            .map { it.toFloatOrNull() ?: 7f }
+            .getOrElse(7f)
+    scanConfigurations = listOf("debugRuntimeClasspath", "releaseRuntimeClasspath")
+    skipTestGroups = true
+    analyzers {
+        ossIndex {
+            enabled = false
+        }
+    }
+    nvd {
+        providers.environmentVariable("NVD_API_KEY").orNull?.let { apiKey = it }
+        delay =
+            providers
+                .environmentVariable("NVD_API_DELAY_MS")
+                .map { it.toIntOrNull() ?: 6_000 }
+                .getOrElse(6_000)
+        maxRetryCount =
+            providers
+                .environmentVariable("NVD_API_MAX_RETRY_COUNT")
+                .map { it.toIntOrNull() ?: 20 }
+                .getOrElse(20)
+        validForHours =
+            providers
+                .environmentVariable("NVD_VALID_FOR_HOURS")
+                .map { it.toIntOrNull() ?: 24 }
+                .getOrElse(24)
+    }
+}
+
 tasks.configureEach {
     if (name.startsWith("hiltJavaCompile") && name.endsWith("UnitTest")) {
         enabled = false
@@ -168,15 +232,6 @@ tasks.configureEach {
 }
 
 dependencies {
-    constraints {
-        implementation(libs.kotlinx.serialization.core) {
-            because("Room 2.8.x migration helpers require kotlinx.serialization 1.8.1")
-        }
-        implementation(libs.kotlinx.serialization.json) {
-            because("Room 2.8.x migration helpers require kotlinx.serialization 1.8.1")
-        }
-    }
-
     // Compose BOM
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
@@ -188,22 +243,20 @@ dependencies {
     implementation(libs.compose.animation)
     implementation(libs.compose.foundation)
     debugImplementation(libs.compose.ui.tooling)
+    debugImplementation(libs.compose.ui.test.manifest)
 
     // Navigation
     implementation(libs.navigation.compose)
 
     // Lifecycle
+    implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
-
-    // Room
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
 
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    ksp(libs.kotlin.metadata.jvm)
     implementation(libs.hilt.navigation.compose)
 
     // Coroutines
@@ -211,11 +264,19 @@ dependencies {
     implementation(libs.coroutines.android)
 
     // DataStore
+    implementation(libs.datastore)
     implementation(libs.datastore.preferences)
+
+    // Serialization
+    implementation(libs.kotlinx.serialization.core)
+    implementation(libs.kotlinx.serialization.json)
 
     // Core
     implementation(libs.core.ktx)
     implementation(libs.activity.compose)
+
+    // Nearby
+    implementation(libs.play.services.nearby)
 
     // Detekt plugins
     detektPlugins(libs.detekt.compose.rules)
@@ -224,7 +285,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.mockk)
+    androidTestImplementation(composeBom)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.compose.ui.test.junit4)
 }

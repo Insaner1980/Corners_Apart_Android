@@ -1,51 +1,58 @@
-# Android Kotlin Starter
+# Corners Apart Android
 
-Finnvek Android project template. Kotlin + Jetpack Compose + Material Design 3.
+Corners Apart is an Android polyomino strategy game built with Kotlin, Jetpack Compose, Hilt, DataStore, and kotlinx.serialization.
 
-## Quick Start
+## Build
 
-1. Click **Use this template** on GitHub (or clone the repo)
-2. Replace `com.finnvek.template` with your package name
-3. Replace `MyApp` in `settings.gradle.kts` and `strings.xml`
-4. Update `releaseSigningEnvPrefix` in `app/build.gradle.kts`
+- `.\gradlew.bat assembleDebug` - debug build
+- `.\gradlew.bat test` - unit tests
+- `.\gradlew.bat :app:detekt` - static analysis
+- `.\gradlew.bat lint` - Android lint
 
-## What's Included
+## Project Identity
 
-- **Gradle**: Version catalog, R8, signing config with env var placeholders
-- **Compose**: BOM, Material 3, Navigation, Animation, Foundation
-- **Architecture**: Hilt DI, Room, DataStore, Coroutines, Lifecycle
-- **Quality**: detekt (with Compose rules), ktlint, Android Lint
-- **CI/CD**: GitHub Actions (build, test, CodeQL)
-- **Theme**: Minimal M3 setup (dynamic colors, default typography/shapes)
+- Root project: `CornersApart`
+- Namespace and application ID: `com.finnvek.cornersapart`
+- App name: `Corners Apart`
+- Release signing environment prefix: `CORNERS_APART`
 
-## What's NOT Included
+## Architecture Baseline
 
-- Navigation, screens, UI components, business logic
-- Dark/light theme selection or custom color palettes
-- `lint-check` / `security-check` scripts (global tools in `~/bin/`)
+- Compose UI with centralized Corners Apart theme tokens.
+- Hilt for dependency injection.
+- DataStore plus kotlinx.serialization JSON for v1 persistence.
+- Room is intentionally not part of v1.
+- `data/` wraps JSON DataStore access behind `GameRepository`, `ProfileRepository`, and `SettingsRepository`; UI and ViewModels should depend on repositories, not raw DataStore.
+- Nearby Connections uses Google Play services `play-services-nearby`; raw Bluetooth or Wi-Fi Direct fallback is not part of v1.
+- AGP 9 built-in Kotlin is used; do not apply `org.jetbrains.kotlin.android` in the app module.
+- Game engine code is pure Kotlin and independent from Android UI.
+- Serializable save/network models live in `model/`; board state uses a flat immutable `BoardSnapshot`.
+- `model/SavedGameData.kt`, `model/ProfilesData`, and `model/GameSettings.kt` are the persisted JSON roots for saved games, profiles/history, and preferences.
+- `model/LocalAvatarGenerator.kt` generates deterministic local-only avatar descriptors for initials, geometric, mosaic, and rings styles.
+- `model/HistoryStatsCalculator.kt` owns higher-is-better history and stats aggregation.
+- `model/GameModeConfig.kt` is the single source of truth for mode defaults: board size, bonus count, color slots, start corners, computer slots, and color owner mapping.
+- `engine/` owns placement validation, corner-candidate generation, bonus tile layout generation, scoring, ranking, turn advancement, and game-over checks.
+- Two-Color Duel keeps turn order as color slots 0-3 while `Player.ownerIndex` maps colors 0/2 to Player 1 and 1/3 to Player 2; rankings aggregate by owner.
+- `opponents/` owns local computer turns through `MoveGenerator`, `MoveEvaluator`, and `ComputerOpponentEngine`; decisions use seeded randomness from game state and always return a legal move or pass.
+- `multiplayer/LocalSession` is the current playable session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations.
+- `multiplayer/GameProtocol` is the JSON message boundary for Nearby sessions.
+- `multiplayer/HostGameCoordinator` owns host-authoritative Nearby validation and broadcasts accepted moves with full authoritative state.
+- `multiplayer/NearbySession` sends client move/pass requests to the host, applies host sync messages, and exposes `NearbyLobbyState` for reconnect tracking.
+- `viewmodel/GameViewModel` exposes `StateFlow<GameUiState>` and delegates all rule changes through `LocalSession`.
+- `ui/screens/GameScreen.kt` is the first playable Compose surface: Canvas board, mode chips, Nearby create/find actions, History/Stats dialog entry, player score bar, rotate/flip/pass controls, selected-piece preview, and piece strip.
+- UI, sessions, persistence, and computer opponents must call `GameEngine` instead of duplicating rule logic.
 
 ## Project Structure
 
 ```
-app/src/main/java/com/finnvek/template/
-├── ui/
-│   ├── screens/        # App screens
-│   ├── components/     # Shared UI components
-│   ├── theme/          # M3 theme (Theme.kt, Type.kt, Shapes.kt)
-│   ├── navigation/     # Navigation graph
-│   ├── state/          # UI state classes
-│   └── viewmodel/      # ViewModels
-├── data/
-│   ├── local/          # Room database, DAOs, entities
-│   └── datastore/      # DataStore preferences
-├── domain/
-│   ├── usecase/        # Use cases
-│   └── model/          # Domain models
-├── repository/         # Repository pattern
-├── di/                 # Hilt modules
-└── util/
-    ├── extensions/     # Kotlin extensions
-    └── constants/      # App constants
+app/src/main/java/com/finnvek/cornersapart/
+├── model/              # Serializable game, mode config, piece, profile, history, stats, settings, and save-state models
+├── engine/             # Pure rules, move validation, scoring, ranking, and bonus layouts
+├── opponents/          # Move generation, move evaluation, and seeded local opponents
+├── multiplayer/        # Local and Nearby sessions, protocol, host validation, lobby state
+├── ui/                 # Compose UI, theme, screens, components, dialogs, sheets
+├── viewmodel/          # StateFlow-based game UI state and ViewModels
+└── data/               # JSON DataStore serializers, Hilt bindings, and repositories
 ```
 
 ## Release Signing
@@ -53,13 +60,11 @@ app/src/main/java/com/finnvek/template/
 Set environment variables before release build:
 
 ```bash
-export APP_KEYSTORE_PATH=/path/to/keystore.jks
-export APP_KEYSTORE_PASSWORD=password
-export APP_KEY_ALIAS=alias
-export APP_KEY_PASSWORD=password
+export CORNERS_APART_KEYSTORE_PATH=/path/to/keystore.jks
+export CORNERS_APART_KEYSTORE_PASSWORD=password
+export CORNERS_APART_KEY_ALIAS=alias
+export CORNERS_APART_KEY_PASSWORD=password
 ```
-
-Change `APP` prefix in `app/build.gradle.kts` to match your app.
 
 ## License
 
