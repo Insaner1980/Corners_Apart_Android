@@ -1,0 +1,49 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Check SonarCloud token
+        id: sonar-token
+        shell: bash
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::SONAR_TOKEN secret puuttuu. Lisaa se GitHubin repository secrets -asetuksiin, jotta SonarCloud-scan kaynnistyy."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Build, test, and scan with Gradle
+        if: steps.sonar-token.outputs.available == 'true'
+        run: ./gradlew --no-configuration-cache assembleDebug jacocoDebugUnitTestReport sonar --no-daemon --console=plain
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

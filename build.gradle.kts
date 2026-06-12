@@ -7,6 +7,58 @@ plugins {
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.owasp.dependency.check) apply false
+    alias(libs.plugins.sonarqube)
+}
+
+val sonarProjectProperties =
+    java.util.Properties().apply {
+        val file = rootProject.file("sonar-project.properties")
+        if (file.isFile) {
+            file.inputStream().use(::load)
+        }
+    }
+
+val gradleManagedSonarProperties =
+    setOf(
+        "sonar.sources",
+        "sonar.tests",
+        "sonar.java.binaries",
+        "sonar.java.test.binaries",
+        "sonar.java.libraries",
+        "sonar.java.test.libraries",
+        "sonar.kotlin.binaries",
+        "sonar.coverage.jacoco.xmlReportPaths",
+    )
+
+sonar {
+    properties {
+        property("sonar.host.url", sonarProjectProperties.getProperty("sonar.host.url", "https://sonarcloud.io"))
+        sonarProjectProperties.forEach { key, value ->
+            val propertyName = key.toString()
+            if (propertyName !in gradleManagedSonarProperties) {
+                property(propertyName, value.toString())
+            }
+        }
+    }
+}
+
+project(":app") {
+    sonar {
+        properties {
+            property(
+                "sonar.coverage.jacoco.xmlReportPaths",
+                layout.buildDirectory
+                    .file("reports/jacoco/jacocoDebugUnitTestReport/jacocoDebugUnitTestReport.xml")
+                    .get()
+                    .asFile
+                    .absolutePath,
+            )
+        }
+    }
+}
+
+tasks.named("sonar") {
+    dependsOn(":app:assembleDebug", ":app:jacocoDebugUnitTestReport")
 }
 
 ktlint {

@@ -17,11 +17,13 @@ androidxTestExtJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
 kotlinxSerialization = "1.11.0"
 playServicesNearby = "19.3.0"
+jacoco = "0.8.15"
 
 ktlintGradle = "14.2.0"
 detekt = "1.23.8"
 detektComposeRules = "0.4.27"
 owaspDependencyCheck = "12.2.2"
+sonarqube = "7.3.1.8318"
 
 # Uncomment when needed:
 # billing = "8.3.0"
@@ -103,3 +105,4 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 owasp-dependency-check = { id = "org.owasp.dependencycheck", version.ref = "owaspDependencyCheck" }
+sonarqube = { id = "org.sonarqube", version.ref = "sonarqube" }
