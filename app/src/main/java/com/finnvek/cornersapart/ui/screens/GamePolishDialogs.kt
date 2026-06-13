@@ -19,6 +19,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
@@ -142,6 +143,7 @@ fun GameOverDialog(
     onPlayAgain: () -> Unit,
     onShowStats: () -> Unit,
 ) {
+    val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val rankedPlayers =
         players.sortedWith(
             compareByDescending<PlayerUiState> { player ->
@@ -166,7 +168,7 @@ fun GameOverDialog(
                     )
                 }
                 Text(
-                    text = stringResource(R.string.game_over_duration, durationSeconds),
+                    text = stringResource(R.string.game_over_duration, duration),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 ScoreBreakdownLabels()
@@ -206,6 +208,7 @@ private fun PlayerScoreBreakdown(
     rank: Int,
     player: PlayerUiState,
 ) {
+    val score = pluralStringResource(R.plurals.points_count, player.totalScore, player.totalScore)
     Column(
         modifier =
             Modifier
@@ -215,7 +218,7 @@ private fun PlayerScoreBreakdown(
     ) {
         HorizontalDivider()
         Text(
-            text = stringResource(R.string.game_over_ranked_player, rank, player.name, player.totalScore),
+            text = stringResource(R.string.game_over_ranked_player, rank, player.name, score),
             style = MaterialTheme.typography.titleSmall,
         )
         Text(

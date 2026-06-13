@@ -12,7 +12,15 @@
     <string name="history_tab">History</string>
     <string name="stats_tab">Stats</string>
     <string name="history_empty">No finished games yet</string>
-    <string name="history_row">%1$s · Rank %2$d · %3$d points · Difficulty %4$d · %5$d seconds</string>
+    <string name="history_row">%1$s · Rank %2$d · %3$s · Difficulty %4$d · %5$s</string>
+    <plurals name="points_count">
+        <item quantity="one">%d point</item>
+        <item quantity="other">%d points</item>
+    </plurals>
+    <plurals name="seconds_count">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
     <string name="stats_total_games">Total games</string>
     <string name="stats_wins">Wins</string>
     <string name="stats_average_score">Average score</string>
@@ -43,16 +51,16 @@
     <string name="help_nearby_body">Create a nearby game to host from this device, or find a nearby game to join another host.</string>
     <string name="game_over_title">Game over</string>
     <string name="game_over_winner">%1$s wins</string>
-    <string name="game_over_duration">Duration: %1$d seconds</string>
+    <string name="game_over_duration">Duration: %1$s</string>
     <string name="game_over_placed_cells">Placed cells</string>
     <string name="game_over_bonus_tiles">Bonus tiles</string>
     <string name="game_over_completion_bonus">Completion bonus</string>
     <string name="game_over_claimed_bonus_tiles">Claimed bonus tiles</string>
-    <string name="game_over_ranked_player">%1$d. %2$s, %3$d points</string>
+    <string name="game_over_ranked_player">%1$d. %2$s, %3$s</string>
     <string name="game_over_breakdown_values">Placed: %1$d · Bonus: %2$d · Completion: %3$d · Claimed: %4$d · Pieces placed: %5$d · Remaining: %6$d</string>
     <string name="game_over_play_again">Play again</string>
-    <string name="accessibility_score_gained">%1$s gained %2$d points</string>
-    <string name="accessibility_bonus_claimed">%1$s gained %2$d points. Bonus tile claimed, plus %3$d.</string>
+    <string name="accessibility_score_gained">%1$s gained %2$s</string>
+    <string name="accessibility_bonus_claimed">%1$s gained %2$s. Bonus tile claimed, plus %3$s.</string>
     <string name="accessibility_move_rejected">Move rejected</string>
     <string name="accessibility_game_over">Game over</string>
     <string name="game_board_content_description">Game board</string>

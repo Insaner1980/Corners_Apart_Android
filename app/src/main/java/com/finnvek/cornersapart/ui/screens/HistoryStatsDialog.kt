@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.HistoryEntry
@@ -71,15 +72,17 @@ private fun HistoryTab(history: List<HistoryEntry>) {
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
             history.takeLast(HISTORY_ROW_LIMIT).forEach { entry ->
+                val points = pluralStringResource(R.plurals.points_count, entry.totalScore, entry.totalScore)
+                val seconds = pluralStringResource(R.plurals.seconds_count, entry.timeSeconds, entry.timeSeconds)
                 Text(
                     text =
                         stringResource(
                             R.string.history_row,
                             entry.date,
                             entry.rank,
-                            entry.totalScore,
+                            points,
                             entry.difficulty,
-                            entry.timeSeconds,
+                            seconds,
                         ),
                 )
             }

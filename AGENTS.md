@@ -48,3 +48,12 @@
 - All strings in `res/values/strings.xml` for localization
 - No hardcoded colors/dimensions — use theme tokens
 - Finnish in commit messages and comments
+
+
+<claude-mem-context>
+# Memory Context
+
+# [Corners_Apart_Android] recent context, 2026-06-12 9:34am GMT+3
+
+No previous sessions found.
+</claude-mem-context>

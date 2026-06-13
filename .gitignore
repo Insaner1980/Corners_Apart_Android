@@ -19,6 +19,14 @@
 .remember/
 /reports/
 
+# Paikalliset Gradle/Android-check-cachehakemistot
+/android/
+/caches/
+/daemon/
+/kotlin-profile/
+/native/
+/notifications/
+
 # Prevent CLAUDE.md files from breaking Android resource merger
 **/src/main/res/**/CLAUDE.md
 

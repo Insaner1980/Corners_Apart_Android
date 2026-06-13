@@ -200,8 +200,7 @@ dependencyCheck {
                 it.equals("true", ignoreCase = true) ||
                     it == "1" ||
                     it.equals("yes", ignoreCase = true)
-            }
-            .getOrElse(true)
+            }.getOrElse(true)
     failBuildOnCVSS =
         providers
             .environmentVariable("DEPENDENCY_CHECK_FAIL_BUILD_ON_CVSS")

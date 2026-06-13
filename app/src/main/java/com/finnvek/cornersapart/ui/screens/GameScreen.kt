@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -68,6 +69,35 @@ import com.finnvek.cornersapart.viewmodel.GameUiState
 import com.finnvek.cornersapart.viewmodel.GameViewModel
 import com.finnvek.cornersapart.viewmodel.PiecePanelItem
 
+data class GameScreenActions(
+    val onModeSelected: (GameMode) -> Unit = {},
+    val onCreateNearbyGame: () -> Unit = {},
+    val onFindNearbyGame: () -> Unit = {},
+    val onShowHistoryStats: () -> Unit = {},
+)
+
+data class GamePieceActions(
+    val onSelectPiece: (String) -> Unit = {},
+    val onRotateCounterClockwise: () -> Unit = {},
+    val onRotateClockwise: () -> Unit = {},
+    val onFlip: () -> Unit = {},
+    val onPass: () -> Unit = {},
+    val onPlaceCell: (row: Int, col: Int) -> Unit = { _, _ -> },
+)
+
+data class GameSettingsActions(
+    val onSoundEnabledChange: (Boolean) -> Unit = {},
+    val onHapticsEnabledChange: (Boolean) -> Unit = {},
+    val onReducedMotionEnabledChange: (Boolean) -> Unit = {},
+)
+
+data class GameDialogState(
+    val accessibilityAnnouncement: String? = null,
+    val showHistoryStatsDialog: Boolean = false,
+    val history: List<HistoryEntry> = emptyList(),
+    val onDismissHistoryStats: () -> Unit = {},
+)
+
 @Composable
 fun GameRoute(
     viewModel: GameViewModel = hiltViewModel(),
@@ -81,36 +111,9 @@ fun GameRoute(
     val accessibilityAnnouncementText = accessibilityAnnouncement?.toAnnouncementText()
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
-            when (effect) {
-                is GameEffect.MoveAccepted -> {
-                    accessibilityAnnouncement =
-                        AccessibilityAnnouncement.ScoreGained(
-                            playerName = effect.playerName,
-                            scoreDelta = effect.scoreDelta,
-                            bonusTileClaimed = effect.bonusTileClaimed,
-                        )
-                    if (hapticsEnabled) {
-                        hapticFeedback.performHapticFeedback(
-                            if (effect.bonusTileClaimed) {
-                                HapticFeedbackType.LongPress
-                            } else {
-                                HapticFeedbackType.TextHandleMove
-                            },
-                        )
-                    }
-                }
-                is GameEffect.MoveRejected -> {
-                    accessibilityAnnouncement = AccessibilityAnnouncement.MoveRejected
-                    if (hapticsEnabled) {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }
-                }
-                GameEffect.GameOver -> {
-                    accessibilityAnnouncement = AccessibilityAnnouncement.GameOver
-                    if (hapticsEnabled) {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }
-                }
+            accessibilityAnnouncement = effect.toAccessibilityAnnouncement()
+            if (hapticsEnabled) {
+                hapticFeedback.performHapticFeedback(effect.hapticFeedbackType())
             }
         }
     }
@@ -123,37 +126,49 @@ fun GameRoute(
 
     GameScreenContent(
         state = state,
-        onModeSelected = viewModel::startGame,
-        onCreateNearbyGame = onRequestNearbyPermissions,
-        onFindNearbyGame = onRequestNearbyPermissions,
-        onShowHistoryStats = { showHistoryStats = true },
-        onSoundEnabledChange = viewModel::setSoundEnabled,
-        onHapticsEnabledChange = viewModel::setHapticsEnabled,
-        onReducedMotionEnabledChange = viewModel::setReducedMotionEnabled,
-        accessibilityAnnouncement = accessibilityAnnouncementText,
-        onSelectPiece = { pieceId ->
-            performInputHaptic(HapticFeedbackType.TextHandleMove)
-            viewModel.selectPiece(pieceId)
-        },
-        onRotateCounterClockwise = {
-            performInputHaptic(HapticFeedbackType.TextHandleMove)
-            viewModel.rotateSelectedCounterClockwise()
-        },
-        onRotateClockwise = {
-            performInputHaptic(HapticFeedbackType.TextHandleMove)
-            viewModel.rotateSelectedClockwise()
-        },
-        onFlip = {
-            performInputHaptic(HapticFeedbackType.TextHandleMove)
-            viewModel.flipSelected()
-        },
-        onPass = {
-            performInputHaptic(HapticFeedbackType.LongPress)
-            viewModel.passCurrentPlayer()
-        },
-        onPlaceCell = viewModel::placeSelectedAt,
-        showHistoryStatsDialog = showHistoryStats,
-        onDismissHistoryStats = { showHistoryStats = false },
+        screenActions =
+            GameScreenActions(
+                onModeSelected = viewModel::startGame,
+                onCreateNearbyGame = onRequestNearbyPermissions,
+                onFindNearbyGame = onRequestNearbyPermissions,
+                onShowHistoryStats = { showHistoryStats = true },
+            ),
+        pieceActions =
+            GamePieceActions(
+                onSelectPiece = { pieceId ->
+                    performInputHaptic(HapticFeedbackType.TextHandleMove)
+                    viewModel.selectPiece(pieceId)
+                },
+                onRotateCounterClockwise = {
+                    performInputHaptic(HapticFeedbackType.TextHandleMove)
+                    viewModel.rotateSelectedCounterClockwise()
+                },
+                onRotateClockwise = {
+                    performInputHaptic(HapticFeedbackType.TextHandleMove)
+                    viewModel.rotateSelectedClockwise()
+                },
+                onFlip = {
+                    performInputHaptic(HapticFeedbackType.TextHandleMove)
+                    viewModel.flipSelected()
+                },
+                onPass = {
+                    performInputHaptic(HapticFeedbackType.LongPress)
+                    viewModel.passCurrentPlayer()
+                },
+                onPlaceCell = viewModel::placeSelectedAt,
+            ),
+        settingsActions =
+            GameSettingsActions(
+                onSoundEnabledChange = viewModel::setSoundEnabled,
+                onHapticsEnabledChange = viewModel::setHapticsEnabled,
+                onReducedMotionEnabledChange = viewModel::setReducedMotionEnabled,
+            ),
+        dialogState =
+            GameDialogState(
+                accessibilityAnnouncement = accessibilityAnnouncementText,
+                showHistoryStatsDialog = showHistoryStats,
+                onDismissHistoryStats = { showHistoryStats = false },
+            ),
     )
 }
 
@@ -169,20 +184,53 @@ private sealed interface AccessibilityAnnouncement {
     data object GameOver : AccessibilityAnnouncement
 }
 
+private fun GameEffect.toAccessibilityAnnouncement(): AccessibilityAnnouncement =
+    when (this) {
+        is GameEffect.MoveAccepted ->
+            AccessibilityAnnouncement.ScoreGained(
+                playerName = playerName,
+                scoreDelta = scoreDelta,
+                bonusTileClaimed = bonusTileClaimed,
+            )
+        is GameEffect.MoveRejected -> AccessibilityAnnouncement.MoveRejected
+        GameEffect.GameOver -> AccessibilityAnnouncement.GameOver
+    }
+
+private fun GameEffect.hapticFeedbackType(): HapticFeedbackType =
+    when (this) {
+        is GameEffect.MoveAccepted ->
+            if (bonusTileClaimed) {
+                HapticFeedbackType.LongPress
+            } else {
+                HapticFeedbackType.TextHandleMove
+            }
+        is GameEffect.MoveRejected,
+        GameEffect.GameOver,
+        -> HapticFeedbackType.LongPress
+    }
+
 @Composable
 private fun AccessibilityAnnouncement.toAnnouncementText(): String =
     when (this) {
-        is AccessibilityAnnouncement.ScoreGained ->
+        is AccessibilityAnnouncement.ScoreGained -> {
+            val scoreText = pluralStringResource(R.plurals.points_count, scoreDelta, scoreDelta)
+            val bonusText =
+                pluralStringResource(
+                    R.plurals.points_count,
+                    GameConstants.BONUS_TILE_POINTS,
+                    GameConstants.BONUS_TILE_POINTS,
+                )
             if (bonusTileClaimed) {
                 stringResource(
                     R.string.accessibility_bonus_claimed,
                     playerName,
-                    scoreDelta,
-                    GameConstants.BONUS_TILE_POINTS,
+                    scoreText,
+                    bonusText,
                 )
             } else {
-                stringResource(R.string.accessibility_score_gained, playerName, scoreDelta)
+                stringResource(R.string.accessibility_score_gained, playerName, scoreText)
             }
+        }
         AccessibilityAnnouncement.MoveRejected -> stringResource(R.string.accessibility_move_rejected)
         AccessibilityAnnouncement.GameOver -> stringResource(R.string.accessibility_game_over)
     }
@@ -190,31 +238,18 @@ private fun AccessibilityAnnouncement.toAnnouncementText(): String =
 @Composable
 fun GameScreenContent(
     state: GameUiState,
-    onModeSelected: (GameMode) -> Unit,
-    onSelectPiece: (String) -> Unit,
-    onRotateCounterClockwise: () -> Unit,
-    onRotateClockwise: () -> Unit,
-    onFlip: () -> Unit,
-    onPass: () -> Unit,
-    onPlaceCell: (row: Int, col: Int) -> Unit,
     modifier: Modifier = Modifier,
-    onCreateNearbyGame: () -> Unit = {},
-    onFindNearbyGame: () -> Unit = {},
-    onShowHistoryStats: () -> Unit = {},
-    onSoundEnabledChange: (Boolean) -> Unit = {},
-    onHapticsEnabledChange: (Boolean) -> Unit = {},
-    onReducedMotionEnabledChange: (Boolean) -> Unit = {},
-    accessibilityAnnouncement: String? = null,
-    showHistoryStatsDialog: Boolean = false,
-    history: List<HistoryEntry> = emptyList(),
-    onDismissHistoryStats: () -> Unit = {},
+    screenActions: GameScreenActions = GameScreenActions(),
+    pieceActions: GamePieceActions = GamePieceActions(),
+    settingsActions: GameSettingsActions = GameSettingsActions(),
+    dialogState: GameDialogState = GameDialogState(),
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
-    if (showHistoryStatsDialog) {
+    if (dialogState.showHistoryStatsDialog) {
         HistoryStatsDialog(
-            history = history,
-            onDismiss = onDismissHistoryStats,
+            history = dialogState.history,
+            onDismiss = dialogState.onDismissHistoryStats,
         )
     }
     if (showSettings) {
@@ -222,9 +257,9 @@ fun GameScreenContent(
             soundEnabled = state.soundEnabled,
             hapticsEnabled = state.hapticsEnabled,
             reducedMotionEnabled = state.reducedMotionEnabled,
-            onSoundEnabledChange = onSoundEnabledChange,
-            onHapticsEnabledChange = onHapticsEnabledChange,
-            onReducedMotionEnabledChange = onReducedMotionEnabledChange,
+            onSoundEnabledChange = settingsActions.onSoundEnabledChange,
+            onHapticsEnabledChange = settingsActions.onHapticsEnabledChange,
+            onReducedMotionEnabledChange = settingsActions.onReducedMotionEnabledChange,
             onDismiss = { showSettings = false },
         )
     }
@@ -235,8 +270,8 @@ fun GameScreenContent(
         GameOverDialog(
             players = state.players,
             durationSeconds = state.gameDurationSeconds,
-            onPlayAgain = { onModeSelected(state.gameMode) },
-            onShowStats = onShowHistoryStats,
+            onPlayAgain = { screenActions.onModeSelected(state.gameMode) },
+            onShowStats = screenActions.onShowHistoryStats,
         )
     }
     BoxWithConstraints(
@@ -252,19 +287,11 @@ fun GameScreenContent(
             GameLayoutMode.COMPACT ->
                 CompactGameLayout(
                     state = state,
-                    accessibilityAnnouncement = accessibilityAnnouncement,
-                    onModeSelected = onModeSelected,
-                    onCreateNearbyGame = onCreateNearbyGame,
-                    onFindNearbyGame = onFindNearbyGame,
-                    onShowHistoryStats = onShowHistoryStats,
+                    accessibilityAnnouncement = dialogState.accessibilityAnnouncement,
+                    screenActions = screenActions,
+                    pieceActions = pieceActions,
                     onShowSettings = { showSettings = true },
                     onShowHelp = { showHelp = true },
-                    onRotateCounterClockwise = onRotateCounterClockwise,
-                    onRotateClockwise = onRotateClockwise,
-                    onFlip = onFlip,
-                    onPass = onPass,
-                    onSelectPiece = onSelectPiece,
-                    onPlaceCell = onPlaceCell,
                     modifier =
                         Modifier
                             .verticalScroll(scrollState)
@@ -273,19 +300,11 @@ fun GameScreenContent(
             GameLayoutMode.EXPANDED ->
                 ExpandedGameLayout(
                     state = state,
-                    accessibilityAnnouncement = accessibilityAnnouncement,
-                    onModeSelected = onModeSelected,
-                    onCreateNearbyGame = onCreateNearbyGame,
-                    onFindNearbyGame = onFindNearbyGame,
-                    onShowHistoryStats = onShowHistoryStats,
+                    accessibilityAnnouncement = dialogState.accessibilityAnnouncement,
+                    screenActions = screenActions,
+                    pieceActions = pieceActions,
                     onShowSettings = { showSettings = true },
                     onShowHelp = { showHelp = true },
-                    onRotateCounterClockwise = onRotateCounterClockwise,
-                    onRotateClockwise = onRotateClockwise,
-                    onFlip = onFlip,
-                    onPass = onPass,
-                    onSelectPiece = onSelectPiece,
-                    onPlaceCell = onPlaceCell,
                     modifier =
                         Modifier
                             .verticalScroll(scrollState)
@@ -299,49 +318,41 @@ fun GameScreenContent(
 private fun CompactGameLayout(
     state: GameUiState,
     accessibilityAnnouncement: String?,
-    onModeSelected: (GameMode) -> Unit,
-    onCreateNearbyGame: () -> Unit,
-    onFindNearbyGame: () -> Unit,
-    onShowHistoryStats: () -> Unit,
+    screenActions: GameScreenActions,
+    pieceActions: GamePieceActions,
     onShowSettings: () -> Unit,
     onShowHelp: () -> Unit,
-    onRotateCounterClockwise: () -> Unit,
-    onRotateClockwise: () -> Unit,
-    onFlip: () -> Unit,
-    onPass: () -> Unit,
-    onSelectPiece: (String) -> Unit,
-    onPlaceCell: (row: Int, col: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
     ) {
-        Header(state = state, onModeSelected = onModeSelected)
+        Header(state = state, onModeSelected = screenActions.onModeSelected)
         NearbyActions(
-            onCreateNearbyGame = onCreateNearbyGame,
-            onFindNearbyGame = onFindNearbyGame,
+            onCreateNearbyGame = screenActions.onCreateNearbyGame,
+            onFindNearbyGame = screenActions.onFindNearbyGame,
         )
         UtilityActions(
-            onShowHistoryStats = onShowHistoryStats,
+            onShowHistoryStats = screenActions.onShowHistoryStats,
             onShowSettings = onShowSettings,
             onShowHelp = onShowHelp,
         )
         PlayerScoreBar(players = state.players)
-        GameBoard(state = state, onPlaceCell = onPlaceCell)
+        GameBoard(state = state, onPlaceCell = pieceActions.onPlaceCell)
         AccessibilityAnnouncementNode(accessibilityAnnouncement)
         StatusLine(state)
         ControlBar(
-            onRotateCounterClockwise = onRotateCounterClockwise,
-            onRotateClockwise = onRotateClockwise,
-            onFlip = onFlip,
-            onPass = onPass,
+            onRotateCounterClockwise = pieceActions.onRotateCounterClockwise,
+            onRotateClockwise = pieceActions.onRotateClockwise,
+            onFlip = pieceActions.onFlip,
+            onPass = pieceActions.onPass,
         )
         SelectedPiecePreview(state)
         PiecePanel(
             pieces = state.pieces,
             colorIndex = state.currentPlayer.colorIndex,
-            onSelectPiece = onSelectPiece,
+            onSelectPiece = pieceActions.onSelectPiece,
         )
     }
 }
@@ -350,18 +361,10 @@ private fun CompactGameLayout(
 private fun ExpandedGameLayout(
     state: GameUiState,
     accessibilityAnnouncement: String?,
-    onModeSelected: (GameMode) -> Unit,
-    onCreateNearbyGame: () -> Unit,
-    onFindNearbyGame: () -> Unit,
-    onShowHistoryStats: () -> Unit,
+    screenActions: GameScreenActions,
+    pieceActions: GamePieceActions,
     onShowSettings: () -> Unit,
     onShowHelp: () -> Unit,
-    onRotateCounterClockwise: () -> Unit,
-    onRotateClockwise: () -> Unit,
-    onFlip: () -> Unit,
-    onPass: () -> Unit,
-    onSelectPiece: (String) -> Unit,
-    onPlaceCell: (row: Int, col: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -372,13 +375,13 @@ private fun ExpandedGameLayout(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
         ) {
-            Header(state = state, onModeSelected = onModeSelected)
+            Header(state = state, onModeSelected = screenActions.onModeSelected)
             NearbyActions(
-                onCreateNearbyGame = onCreateNearbyGame,
-                onFindNearbyGame = onFindNearbyGame,
+                onCreateNearbyGame = screenActions.onCreateNearbyGame,
+                onFindNearbyGame = screenActions.onFindNearbyGame,
             )
             UtilityActions(
-                onShowHistoryStats = onShowHistoryStats,
+                onShowHistoryStats = screenActions.onShowHistoryStats,
                 onShowSettings = onShowSettings,
                 onShowHelp = onShowHelp,
             )
@@ -386,10 +389,10 @@ private fun ExpandedGameLayout(
             AccessibilityAnnouncementNode(accessibilityAnnouncement)
             StatusLine(state)
             ControlBar(
-                onRotateCounterClockwise = onRotateCounterClockwise,
-                onRotateClockwise = onRotateClockwise,
-                onFlip = onFlip,
-                onPass = onPass,
+                onRotateCounterClockwise = pieceActions.onRotateCounterClockwise,
+                onRotateClockwise = pieceActions.onRotateClockwise,
+                onFlip = pieceActions.onFlip,
+                onPass = pieceActions.onPass,
             )
             SelectedPiecePreview(state)
         }
@@ -397,11 +400,11 @@ private fun ExpandedGameLayout(
             modifier = Modifier.weight(1.2f),
             verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
         ) {
-            GameBoard(state = state, onPlaceCell = onPlaceCell)
+            GameBoard(state = state, onPlaceCell = pieceActions.onPlaceCell)
             PiecePanel(
                 pieces = state.pieces,
                 colorIndex = state.currentPlayer.colorIndex,
-                onSelectPiece = onSelectPiece,
+                onSelectPiece = pieceActions.onSelectPiece,
             )
         }
     }

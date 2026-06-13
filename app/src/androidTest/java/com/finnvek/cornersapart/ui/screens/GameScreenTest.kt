@@ -31,13 +31,6 @@ class GameScreenTest {
             CornersApartTheme {
                 GameScreenContent(
                     state = testUiState(),
-                    onModeSelected = {},
-                    onSelectPiece = {},
-                    onRotateCounterClockwise = {},
-                    onRotateClockwise = {},
-                    onFlip = {},
-                    onPass = {},
-                    onPlaceCell = { _, _ -> },
                 )
             }
         }
@@ -55,13 +48,6 @@ class GameScreenTest {
             CornersApartTheme {
                 GameScreenContent(
                     state = testUiState(),
-                    onModeSelected = {},
-                    onSelectPiece = {},
-                    onRotateCounterClockwise = {},
-                    onRotateClockwise = {},
-                    onFlip = {},
-                    onPass = {},
-                    onPlaceCell = { _, _ -> },
                 )
             }
         }
@@ -79,13 +65,6 @@ class GameScreenTest {
             CornersApartTheme {
                 GameScreenContent(
                     state = testUiState(),
-                    onModeSelected = {},
-                    onSelectPiece = {},
-                    onRotateCounterClockwise = {},
-                    onRotateClockwise = {},
-                    onFlip = {},
-                    onPass = {},
-                    onPlaceCell = { _, _ -> },
                 )
             }
         }
@@ -103,13 +82,6 @@ class GameScreenTest {
             CornersApartTheme {
                 GameScreenContent(
                     state = testUiState(),
-                    onModeSelected = {},
-                    onSelectPiece = {},
-                    onRotateCounterClockwise = {},
-                    onRotateClockwise = {},
-                    onFlip = {},
-                    onPass = {},
-                    onPlaceCell = { _, _ -> },
                 )
             }
         }
@@ -127,13 +99,6 @@ class GameScreenTest {
             CornersApartTheme {
                 GameScreenContent(
                     state = testUiState(isGameOver = true),
-                    onModeSelected = {},
-                    onSelectPiece = {},
-                    onRotateCounterClockwise = {},
-                    onRotateClockwise = {},
-                    onFlip = {},
-                    onPass = {},
-                    onPlaceCell = { _, _ -> },
                 )
             }
         }
