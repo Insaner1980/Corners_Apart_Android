@@ -6,6 +6,8 @@ hilt = "2.59.2"
 hiltAndroidx = "1.3.0"
 composeBom = "2026.05.01"
 composeNavigation = "2.9.8"
+composeStabilityAnalyzer = "0.10.0"
+androidSecurityLints = "1.0.4"
 lifecycle = "2.10.0"
 coroutines = "1.11.0"
 datastore = "1.2.1"
@@ -89,6 +91,9 @@ androidx-test-runner = { group = "androidx.test", name = "runner", version.ref =
 # Detekt plugins
 detekt-compose-rules = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "detektComposeRules" }
 
+# Lint-lisaosat
+android-security-lints = { module = "com.android.security.lint:lint", version.ref = "androidSecurityLints" }
+
 # Uncomment when needed:
 # billing = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
 # glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
@@ -99,6 +104,7 @@ detekt-compose-rules = { group = "io.nlopez.compose.rules", name = "detekt", ver
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+stability-analyzer = { id = "com.github.skydoves.compose.stability.analyzer", version.ref = "composeStabilityAnalyzer" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 

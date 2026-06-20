@@ -12,7 +12,7 @@ The app package, namespace, and application id are `com.finnvek.cornersapart`. T
 
 The current implementation has a working pure Kotlin game engine, local sessions, a playable Compose game screen, rule-based computer opponents for Solo mode, multiple mode configurations, JSON DataStore repository scaffolding, a Nearby session/protocol abstraction, Android runtime permission handling for Nearby, polish dialogs, history/stat calculation models, unit tests, instrumented Compose tests, CI workflows, and several local static-analysis/security wrappers.
 
-Important current limitation: several systems exist as architecture-ready code but are not fully wired into the running UI yet. `GameViewModel` currently owns a `LocalSession` directly and keeps settings in memory. The DataStore repositories are provided by Hilt but are not used by `GameViewModel` for save/resume, settings, active profiles, or history. Nearby create/find UI buttons currently request runtime permissions, but there is no concrete Google Play services advertising/discovery/connection implementation in the app code.
+Current non-release state: `GameViewModel` is repository-backed for settings, saved games, active profiles, history, and Nearby UI state. Local sessions are created through `LocalSessionFactory`, saved games include a settings snapshot, resume/profile/settings/history/game-over flows are wired into Compose, and Nearby has a concrete Google Play services adapter behind `NearbyConnectionsCoordinator` and `ConnectionsClientFacade`. Release-only items such as privacy placeholders, Compact Duel physical play-test coverage, two-device Nearby stress testing, and Play Store data-safety remain outside this non-release implementation pass.
 
 ## Repository Identity
 
@@ -57,28 +57,25 @@ Implemented now:
 - Five game modes: Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player.
 - Rule-based local computer opponents with 3 styles and 5 difficulty levels.
 - `LocalSession` for local play and Solo computer turns.
-- Nearby protocol/session abstractions: `GameMessage`, `GameProtocol`, `HostGameCoordinator`, `NearbySession`, `NearbyTransport`, lobby reconnect state, and host-authoritative validation.
+- Nearby protocol/session abstractions and concrete adapter: `GameMessage`, `GameProtocol`, `HostGameCoordinator`, `NearbySession`, `NearbyTransport`, `NearbyConnectionsCoordinator`, `ConnectionsClientFacade`, `PlayServicesConnectionsClientFacade`, lobby reconnect state, and host-authoritative validation.
 - Nearby runtime permission policy and manifest permission declarations for current target SDK bands.
 - JSON DataStore repository layer for saved game, profiles, and settings.
-- Compose game UI with board, score bar, mode chips, piece strip, selected-piece preview, rotate/flip/pass controls, settings/help/history dialogs, game-over dialog, haptics, and accessibility announcements.
+- Compose game UI with board, score bar, mode chips, piece strip, selected-piece preview, rotate/flip/pass controls, resume/profile/settings/help/history dialogs, game-over dialog, haptics, local sound cues, and accessibility announcements.
+- Repository-backed `GameViewModel` flow for settings, save/resume, active profile history, ranked game-over state, and Nearby state.
+- Settings dialog for difficulty, preferred mode, sound, haptics, and reduced motion.
+- Profile dialog for local profile selection, creation, and editing with local avatar styles.
+- Saved-game resume dialog backed by `SavedGameData` settings snapshots.
+- Game-over and history entries use `Scoring.rankPlayers` so Two-Color Duel owner aggregation is preserved.
 - Centralized theme tokens for colors, spacing, shapes, typography, alpha, and animation durations.
 - Unit and instrumented tests across model, engine, opponents, multiplayer, data, ViewModel, UI policy, UI screen smoke, theme, and release identity.
 - GitHub Actions build/test/lint workflow, SonarCloud workflow, CodeQL workflow for Actions, Gradle dependency verification metadata, detekt config, Semgrep config, DeepSec config, MobSF config, OSV config, Dependency-Check config, and Android-check wrapper scripts.
 
-Scaffolded or partially wired:
+Remaining or release-only:
 
-- DataStore repositories are Hilt-provided but not wired into `GameViewModel`.
-- `GameRepository.saveGame`, `clearSavedGame`, and `savedGame` are implemented but not used by the UI flow.
-- `ProfileRepository.activeProfile`, `upsertProfile`, `setActiveProfile`, and `appendHistory` are implemented but not used by the UI flow.
-- `SettingsRepository` is implemented, but current settings toggles in `GameViewModel` are in-memory only.
-- `GameSettings.preferredDifficulty`, `preferredMode`, and `preferredRuleset` exist, but the visible settings dialog currently exposes only sound, haptics, and reduced motion.
-- `HistoryStatsDialog` exists and calculates stats from a supplied list, but `GameRoute` currently passes the default empty `history` list.
-- Nearby buttons request permissions but do not create or join an actual Play Services Nearby session.
-- `NearbySession` uses an abstract `NearbyTransport`; there is no concrete `ConnectionsClient` adapter in current app code.
-- `MotionPolicy` exists and is tested, but no broad animation system currently consumes it.
-- `GameConstants.MAX_HISTORY_ENTRIES` exists, but `ProfileRepository.appendHistory` currently appends without trimming.
-- `Scoring.rankPlayers` is the canonical engine ranking helper; `GameOverDialog` currently sorts displayed `PlayerUiState` rows by individual total score and index.
 - `navigation-compose` is a dependency, but there is currently a single `MainActivity`/`GameRoute` surface rather than a navigation graph.
+- `MotionPolicy` and `GameSoundPolicy` are wired for reduced-motion durations and local event sound policy, but additional visual animation polish can still be expanded.
+- Physical two-device Nearby stress testing remains a manual/release verification item.
+- Compact Duel still needs manual play-test coverage before release claims.
 - `PRIVACY-POLICY.md` is present but still contains placeholders (`[App Name]`, `[your email]`, `[date]`).
 
 ## Build System
@@ -234,9 +231,8 @@ Backup and device-transfer policy:
 - Extends `ComponentActivity`.
 - Annotated with `@AndroidEntryPoint`.
 - Calls `enableEdgeToEdge()`.
-- Creates an `ActivityResultContracts.RequestMultiplePermissions` launcher for Nearby permissions.
 - Sets Compose content to `CornersApartTheme`, `Surface(fillMaxSize())`, and `GameRoute`.
-- `requestNearbyPermissions()` obtains `NearbyPermissions.requiredRuntimePermissions()` and launches the permission request when non-empty.
+- Nearby runtime permission launcher lives in `GameRoute`, not in `MainActivity`.
 
 ## Package Structure
 
@@ -256,8 +252,8 @@ Main package areas:
 
 Current source counts:
 
-- Main Kotlin source files: 70
-- Unit-test Kotlin source files: 32
+- Main Kotlin source files: 79
+- Unit-test Kotlin source files: 34
 - Instrumented-test Kotlin source files: 1
 
 ## Domain Constants
@@ -518,7 +514,7 @@ Turn and game-end behavior:
   4. Fewer remaining pieces.
   5. Lower owner index.
 
-Review note: this canonical engine ranking currently differs from `GameOverDialog`, which sorts `PlayerUiState` rows by individual total score and index. Review Two-Color Duel results carefully if changing game-over presentation.
+`GameOverDialog` and history entries consume this canonical ranking through ViewModel-prepared `rankedScores`, so Two-Color Duel owner aggregation is preserved in end-of-game presentation.
 
 ## Bonus Tile Generation
 
@@ -687,7 +683,24 @@ Generation:
 `NearbyTransport`:
 
 - Functional interface with `send(target, message)`.
-- Current code has no concrete Play Services transport adapter.
+- Concrete Google Play services sends are handled by `NearbyConnectionsCoordinator` through `ConnectionsClientFacade`.
+
+`NearbyConnectionsCoordinator`:
+
+- Owns service id `com.finnvek.cornersapart`.
+- Uses `Strategy.P2P_STAR` for advertising and discovery.
+- Wraps concrete Play Services APIs behind `ConnectionsClientFacade`.
+- Stores pending endpoint name and authentication digits before accept/reject.
+- Accepts only BYTES payloads through the facade and decodes them with `GameProtocol`.
+- Routes decoded messages into the current `NearbySession`.
+- Sends `MessageTarget.Broadcast`, `MessageTarget.Host`, and endpoint-targeted messages as encoded BYTES payloads.
+- Marks decode and payload failures as `ConnectionState.FAILED`.
+
+`PlayServicesConnectionsClientFacade`:
+
+- Uses `AdvertisingOptions.Builder().setStrategy(...)` and `DiscoveryOptions.Builder().setStrategy(...)`.
+- Translates Play Services connection, discovery, and payload callbacks into testable project callbacks.
+- Uses `Payload.fromBytes(...)` for outgoing messages.
 
 ## Nearby Permissions
 
@@ -818,16 +831,24 @@ Hilt module:
 `GameViewModel`:
 
 - Annotated with `@HiltViewModel`.
-- Inject constructor currently delegates to `LocalSession()`.
-- Has an internal constructor for tests with a supplied `LocalSession`.
+- Injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, `TimeProvider`, and `NearbyConnectionsCoordinator`.
 - Exposes `uiState: StateFlow<GameUiState>`.
 - Exposes `effects: SharedFlow<GameEffect>`.
 - Defaults selected piece to `one-dot`.
 - Defaults orientation index to 0.
-- Keeps `GameSettings()` in memory.
-- Tracks game start time with `System.currentTimeMillis()`.
-- Starts new games by mode through `LocalSession.defaultConfigFor(mode)`.
+- Collects settings from `SettingsRepository` and clamps persisted difficulty through `OpponentDifficultyMapper`.
+- Collects saved-game data from `GameRepository`.
+- Collects profiles from `ProfileRepository` and creates active default profile `local-default` when the store is empty.
+- Collects Nearby UI state from `NearbyConnectionsCoordinator`.
+- Tracks game start time through `TimeProvider`.
+- Starts new local games through `LocalSessionFactory`.
 - Resets selected piece/orientation on new game.
+- Persists `preferredMode` when a new game starts.
+- Saves unfinished accepted turns through `GameRepository.saveGame(state, settings, now)`.
+- Restores saved games through `LocalSession.replaceState`.
+- Records game-over history once through `ProfileRepository.appendHistory`.
+- Clears saved game after game over.
+- Exposes profile creation, profile update, active-profile selection, Nearby host/discovery/connect/accept/reject/disconnect actions.
 - Selects only pieces available to the current player.
 - Rotate clockwise increments orientation index modulo orientation count.
 - Rotate counterclockwise subtracts one modulo orientation count.
@@ -835,13 +856,13 @@ Hilt module:
 - Places selected piece by sending `Move` to the session.
 - Emits `GameEffect.MoveRejected` from session rejection reason names.
 - Emits `GameEffect.MoveAccepted` when score delta is positive.
-- Emits `GameEffect.GameOver` when accepted move ends the game.
-- Passes current player through `session.sendPass`.
+- Emits `GameEffect.GameOver` when an accepted move or pass ends the game.
+- Passes current player through `session.sendPass`; pass is ignored after game over.
 - Normalizes selection when the selected piece has been used by the current player.
 
 `GameUiState`:
 
-- Contains game mode, board, bonus tiles, players, current player index, selected piece id, selected orientation index, selected cells, piece panel items, game over flag, sound/haptics/reduced motion flags, and game duration seconds.
+- Contains game mode, board, bonus tiles, players, current player index, selected piece id, selected orientation index, selected cells, piece panel items, game over flag, sound/haptics/reduced motion flags, game duration seconds, preferred difficulty/mode, active profile history/name, saved-game resume summary, ranked scores, Nearby state, and profiles.
 - `currentPlayer` returns `players[currentPlayerIndex]`; current configs currently keep player indexes aligned with list indexes.
 
 `PlayerUiState`:
@@ -862,15 +883,18 @@ Hilt module:
 - Collects state with `collectAsStateWithLifecycle()`.
 - Collects effects in `LaunchedEffect`.
 - Performs haptic feedback when enabled.
+- Plays local event sounds through `GameSoundPolicy` and `GameSoundPlayer` when sound is enabled.
 - Holds local dialog state for history/stats and accessibility announcement.
-- Wires Nearby create/find actions to the `onRequestNearbyPermissions` callback.
-- Does not currently pass real persisted history to `HistoryStatsDialog`.
+- Owns the Nearby runtime permission launcher and continues host/discover only after required permissions are granted.
+- Passes active-profile history to `HistoryStatsDialog`.
 
 `GameScreenContent`:
 
-- Owns local `showSettings` and `showHelp`.
+- Owns local `showSettings`, `showProfiles`, and `showHelp`.
+- Shows `ResumeGameDialog` when a saved game is available and no continue/new-game decision has been made.
 - Shows `HistoryStatsDialog` when requested.
-- Shows `GameSettingsDialog` for sound, haptics, and reduced motion.
+- Shows `GameSettingsDialog` for difficulty, preferred mode, sound, haptics, and reduced motion.
+- Shows `ProfilesDialog` for local profile selection, creation, and editing.
 - Shows `GameHelpDialog`.
 - Shows `GameOverDialog` when `state.isGameOver`.
 - Uses compact or expanded layout based on `GameLayoutPolicy.modeForWidthDp`.
@@ -884,7 +908,7 @@ Primary visible controls:
 
 - Mode chips: Four players, Solo, Two-color duel, Compact duel, Three players.
 - Nearby actions: Create nearby game, Find nearby game.
-- Utility actions: History & stats, Settings, Help.
+- Utility actions: History & stats, Profiles, Settings, Help.
 - Score cards by player.
 - Canvas board.
 - Status line showing current turn or game over.
@@ -921,9 +945,23 @@ Accessibility and haptics:
 
 `GameSettingsDialog`:
 
+- Difficulty selector 1-5.
+- Preferred mode selector.
 - Sound switch.
 - Haptics switch.
 - Reduced motion switch.
+
+`ProfilesDialog`:
+
+- Lists local profiles and marks the active profile.
+- Can switch the active profile.
+- Can add or update local profile name, color index, and avatar style.
+
+`ResumeGameDialog`:
+
+- Shows saved time, mode, leader, claimed bonus count, and difficulty from the saved-game snapshot.
+- Continue restores saved state.
+- New game clears saved data and starts the preferred mode.
 
 `GameHelpDialog`:
 
@@ -940,7 +978,7 @@ Accessibility and haptics:
 
 - Shows winner, duration, score categories, per-player breakdown, play-again button, and stats button.
 - Does not dismiss by outside request.
-- Current ranking uses UI player total score and index, not `Scoring.rankPlayers`.
+- Ranking rows are supplied as `List<PlayerScore>` from `Scoring.rankPlayers`.
 
 `HistoryStatsDialog`:
 
@@ -1077,8 +1115,9 @@ Unit tests cover:
 - Move evaluator bonus preference.
 - Computer opponent deterministic seed behavior, legality across difficulties, pass fallback.
 - Data repositories and JSON serializer.
-- GameViewModel initial state, placing, rotation, Solo flow, supported modes, and polish settings toggles.
-- Game layout policy and motion policy.
+- GameViewModel initial state, placing, rotation, Solo flow, supported modes, repository-backed settings, saved-game persistence, game-over history, and polish settings toggles.
+- Game layout policy, motion policy, and sound policy.
+- Nearby Connections coordinator facade calls, discovery state, accept/reject, BYTES decode routing, disconnect state.
 - Theme token values.
 - Release identity guardrails.
 
@@ -1275,16 +1314,11 @@ Do not:
 
 These are current-state items worth asking precise code-review questions about:
 
-- Should `GameViewModel` be injected with and collect `SettingsRepository`, `GameRepository`, and `ProfileRepository` instead of using in-memory settings and a direct `LocalSession()`?
-- Should game-over history entries be generated and appended through `ProfileRepository.appendHistory`?
-- Should `ProfileRepository.appendHistory` enforce `GameConstants.MAX_HISTORY_ENTRIES`?
-- Should `GameSettings.preferredDifficulty` map to `OpponentDifficulty` and be exposed in settings UI?
-- Should `GameSettings.preferredMode` and `preferredRuleset` drive new game defaults?
-- Should `GameOverDialog` use `Scoring.rankPlayers` or an already-prepared ranked model to preserve Two-Color Duel owner aggregation?
-- Should `HistoryStatsDialog` receive active profile history through ViewModel state?
-- Should `NearbySession` get a concrete Play Services `ConnectionsClient` transport adapter, advertising/discovery lifecycle, endpoint mapping, and error handling?
+- Should `NearbyConnectionsCoordinator` expose richer lobby/player mapping before two-device stress testing?
+- Should `GameSoundPlayer` move from generated platform tones to original `res/raw` assets before release polish?
+- Should `ProfilesDialog` get a denser edit workflow or stay as a compact local v1 editor?
 - Should `NearbyPermissions` SDK 37 local-network branch be paired with a manifest declaration when compile/target SDK move beyond 36?
-- Should `MotionPolicy` be wired into actual animations or removed until needed?
+- Should `MotionPolicy` be applied to more visible board/piece animations before release?
 - Should `PRIVACY-POLICY.md` be finalized before release?
 - Should `sonar` task dependency on `assembleDebug` stay, or should analysis avoid artifact build coupling if release/signing/Firebase-style gates are added later?
 

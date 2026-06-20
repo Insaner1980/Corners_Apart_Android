@@ -52,6 +52,13 @@ class NearbySession private constructor(
         publish(state)
     }
 
+    override fun replaceState(state: GameState) {
+        if (role == NearbyRole.HOST) {
+            coordinator?.replaceState(state)
+        }
+        publish(state)
+    }
+
     suspend fun applyRemoteMessage(
         endpointId: String,
         message: GameMessage,

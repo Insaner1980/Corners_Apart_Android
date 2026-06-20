@@ -12,6 +12,6 @@ data class GameSettings(
     val preferredRuleset: Ruleset = Ruleset.STANDARD,
 ) {
     companion object {
-        const val DEFAULT_DIFFICULTY = 2
+        const val DEFAULT_DIFFICULTY = 3
     }
 }

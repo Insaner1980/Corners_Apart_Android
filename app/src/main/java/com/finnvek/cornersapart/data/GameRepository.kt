@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.data
 
+import com.finnvek.cornersapart.model.GameSettings
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.SavedGameData
 import kotlinx.coroutines.flow.Flow
@@ -13,12 +14,14 @@ class GameRepository(
 
     suspend fun saveGame(
         state: GameState,
+        settings: GameSettings,
         savedAtEpochMillis: Long,
     ) {
         store.update {
             SavedGameData(
                 gameState = state,
                 savedAtEpochMillis = savedAtEpochMillis,
+                settings = settings,
             )
         }
     }

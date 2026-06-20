@@ -6,4 +6,5 @@ import kotlinx.serialization.Serializable
 data class SavedGameData(
     val gameState: GameState? = null,
     val savedAtEpochMillis: Long = 0L,
+    val settings: GameSettings = GameSettings(),
 )

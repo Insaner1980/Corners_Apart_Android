@@ -5,9 +5,11 @@ import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameModeConfigs
+import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.MutableBoard
 import com.finnvek.cornersapart.model.PieceCatalog
+import com.finnvek.cornersapart.model.Player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -108,22 +110,15 @@ class GameEngineScoringTest {
 
     @Test
     fun rankingSortsHigherTotalScoreFirst() {
-        val standardState = EngineTestFixtures.standardState(engine)
         val state =
-            standardState.copy(
-                players =
-                    standardState.players.map { player ->
-                        when (player.index) {
-                            0 -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 8, bonusPoints = 0))
-                            1 -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 5, bonusPoints = 6))
-                            2 -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 10, bonusPoints = 0))
-                            else ->
-                                player.copy(
-                                    scoreBreakdown = ScoreFixtures.breakdown(totalCells = 2, bonusPoints = 0),
-                                )
-                        }
-                    },
-            )
+            standardStateWithPlayers { player ->
+                when (player.index) {
+                    0 -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 8, bonusPoints = 0))
+                    1 -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 5, bonusPoints = 6))
+                    2 -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 10, bonusPoints = 0))
+                    else -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 2, bonusPoints = 0))
+                }
+            }
 
         val rankings = Scoring.rankPlayers(state)
 
@@ -133,33 +128,31 @@ class GameEngineScoringTest {
 
     @Test
     fun rankingUsesFewerRemainingPiecesAsTieBreaker() {
-        val standardState = EngineTestFixtures.standardState(engine)
         val state =
-            standardState.copy(
-                players =
-                    standardState.players.map { player ->
-                        when (player.index) {
-                            0 ->
-                                player.copy(
-                                    scoreBreakdown = ScoreFixtures.breakdown(totalCells = 8, bonusPoints = 0),
-                                    usedPieceIds = setOf(PieceCatalog.THREE_BEND_ID),
-                                )
-                            1 ->
-                                player.copy(
-                                    scoreBreakdown = ScoreFixtures.breakdown(totalCells = 8, bonusPoints = 0),
-                                    usedPieceIds = setOf(PieceCatalog.THREE_BEND_ID, PieceCatalog.TWO_LINE_ID),
-                                )
-                            else ->
-                                player.copy(
-                                    scoreBreakdown = ScoreFixtures.breakdown(totalCells = 1, bonusPoints = 0),
-                                )
-                        }
-                    },
-            )
+            standardStateWithPlayers { player ->
+                when (player.index) {
+                    0 ->
+                        player.copy(
+                            scoreBreakdown = ScoreFixtures.breakdown(totalCells = 8, bonusPoints = 0),
+                            usedPieceIds = setOf(PieceCatalog.THREE_BEND_ID),
+                        )
+                    1 ->
+                        player.copy(
+                            scoreBreakdown = ScoreFixtures.breakdown(totalCells = 8, bonusPoints = 0),
+                            usedPieceIds = setOf(PieceCatalog.THREE_BEND_ID, PieceCatalog.TWO_LINE_ID),
+                        )
+                    else -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 1, bonusPoints = 0))
+                }
+            }
 
         val rankings = Scoring.rankPlayers(state)
 
         assertEquals(listOf("Amber", "Indigo"), rankings.take(2).map { score -> score.name })
+    }
+
+    private fun standardStateWithPlayers(transform: (Player) -> Player): GameState {
+        val standardState = EngineTestFixtures.standardState(engine)
+        return standardState.copy(players = standardState.players.map(transform))
     }
 
     @Test

@@ -1,9 +1,9 @@
 package com.finnvek.cornersapart.model
 
 class MutableBoard(
-    val size: Int,
+    override val size: Int,
     private val cells: IntArray = IntArray(size * size) { BoardSnapshot.EMPTY },
-) {
+) : BoardView {
     init {
         require(size > 0) { "Board size must be positive." }
         require(cells.size == size * size) { "Board cells must match board size." }
@@ -14,27 +14,7 @@ class MutableBoard(
         cells = snapshot.cells.toIntArray(),
     )
 
-    fun contains(
-        row: Int,
-        col: Int,
-    ): Boolean = row in 0 until size && col in 0 until size
-
-    fun contains(position: CellPosition): Boolean = contains(row = position.row, col = position.col)
-
-    fun index(
-        row: Int,
-        col: Int,
-    ): Int {
-        require(contains(row, col)) { "Cell is outside board bounds." }
-        return row * size + col
-    }
-
-    fun get(
-        row: Int,
-        col: Int,
-    ): Int = cells[index(row, col)]
-
-    fun get(position: CellPosition): Int = get(row = position.row, col = position.col)
+    override fun cellAt(index: Int): Int = cells[index]
 
     fun set(
         row: Int,
