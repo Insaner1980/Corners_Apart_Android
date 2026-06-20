@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { type DeepsecPlugin, defineConfig } from "deepsec/config";
 import { androidExportedComponent } from "./matchers/android-exported-component.js";
+import { androidSecurityBoundarySurface } from "./matchers/android-security-boundary-surface.js";
 import { androidUriShareWithoutClipData } from "./matchers/android-uri-share-without-clipdata.js";
 import { fileproviderBroadPath } from "./matchers/fileprovider-broad-path.js";
 import { rawNearbyBypass } from "./matchers/raw-nearby-bypass.js";
@@ -15,6 +16,7 @@ function cornersApartPlugin(): DeepsecPlugin {
     name: "corners-apart-android",
     matchers: [
       androidExportedComponent,
+      androidSecurityBoundarySurface,
       fileproviderBroadPath,
       androidUriShareWithoutClipData,
       rawNearbyBypass,

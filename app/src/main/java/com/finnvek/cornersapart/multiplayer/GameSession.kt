@@ -18,4 +18,6 @@ interface GameSession {
     suspend fun sendPass(playerIndex: Int): Result<Unit>
 
     fun startNewGame(config: GameConfig)
+
+    fun replaceState(state: GameState)
 }

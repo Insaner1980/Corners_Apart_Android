@@ -1,5 +1,8 @@
 package com.finnvek.cornersapart.ui.screens
 
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.RotateLeft
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Button
@@ -46,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -53,12 +58,15 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.HistoryEntry
+import com.finnvek.cornersapart.model.LocalAvatarStyle
+import com.finnvek.cornersapart.multiplayer.NearbyPermissions
 import com.finnvek.cornersapart.ui.components.PieceShape
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
@@ -74,6 +82,8 @@ data class GameScreenActions(
     val onCreateNearbyGame: () -> Unit = {},
     val onFindNearbyGame: () -> Unit = {},
     val onShowHistoryStats: () -> Unit = {},
+    val onResumeSavedGame: () -> Unit = {},
+    val onDiscardSavedGameAndStartNewGame: () -> Unit = {},
 )
 
 data class GamePieceActions(
@@ -89,6 +99,15 @@ data class GameSettingsActions(
     val onSoundEnabledChange: (Boolean) -> Unit = {},
     val onHapticsEnabledChange: (Boolean) -> Unit = {},
     val onReducedMotionEnabledChange: (Boolean) -> Unit = {},
+    val onPreferredDifficultyChange: (Int) -> Unit = {},
+    val onPreferredModeChange: (GameMode) -> Unit = {},
+)
+
+data class GameProfileActions(
+    val onSetActiveProfile: (String) -> Unit = {},
+    val onAddProfile: (name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit = { _, _, _ -> },
+    val onUpdateProfile: (profileId: String, name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit =
+        { _, _, _, _ -> },
 )
 
 data class GameDialogState(
@@ -98,20 +117,56 @@ data class GameDialogState(
     val onDismissHistoryStats: () -> Unit = {},
 )
 
+private data class GameLayoutContent(
+    val state: GameUiState,
+    val accessibilityAnnouncement: String?,
+    val screenActions: GameScreenActions,
+    val pieceActions: GamePieceActions,
+    val onShowSettings: () -> Unit,
+    val onShowProfiles: () -> Unit,
+    val onShowHelp: () -> Unit,
+)
+
 @Composable
-fun GameRoute(
-    viewModel: GameViewModel = hiltViewModel(),
-    onRequestNearbyPermissions: () -> Unit = {},
-) {
+fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showHistoryStats by remember { mutableStateOf(false) }
     var accessibilityAnnouncement by remember { mutableStateOf<AccessibilityAnnouncement?>(null) }
+    var pendingNearbyAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
+    val soundPlayer = rememberGameSoundPlayer()
     val hapticsEnabled by rememberUpdatedState(state.hapticsEnabled)
+    val soundEnabled by rememberUpdatedState(state.soundEnabled)
     val accessibilityAnnouncementText = accessibilityAnnouncement?.toAnnouncementText()
+    val nearbyPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grantResults ->
+            val action = pendingNearbyAction
+            pendingNearbyAction = null
+            if (grantResults.values.all { granted -> granted }) {
+                action?.invoke()
+            }
+        }
+
+    fun runWithNearbyPermissions(action: () -> Unit) {
+        val missingPermissions =
+            NearbyPermissions
+                .requiredRuntimePermissions()
+                .filter { permission ->
+                    ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
+                }
+        if (missingPermissions.isEmpty()) {
+            action()
+        } else {
+            pendingNearbyAction = action
+            nearbyPermissionLauncher.launch(missingPermissions.toTypedArray())
+        }
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             accessibilityAnnouncement = effect.toAccessibilityAnnouncement()
+            GameSoundPolicy.eventFor(effect, soundEnabled)?.let(soundPlayer::play)
             if (hapticsEnabled) {
                 hapticFeedback.performHapticFeedback(effect.hapticFeedbackType())
             }
@@ -129,9 +184,11 @@ fun GameRoute(
         screenActions =
             GameScreenActions(
                 onModeSelected = viewModel::startGame,
-                onCreateNearbyGame = onRequestNearbyPermissions,
-                onFindNearbyGame = onRequestNearbyPermissions,
+                onCreateNearbyGame = { runWithNearbyPermissions(viewModel::startNearbyHosting) },
+                onFindNearbyGame = { runWithNearbyPermissions(viewModel::startNearbyDiscovery) },
                 onShowHistoryStats = { showHistoryStats = true },
+                onResumeSavedGame = viewModel::resumeSavedGame,
+                onDiscardSavedGameAndStartNewGame = viewModel::discardSavedGameAndStartNewGame,
             ),
         pieceActions =
             GamePieceActions(
@@ -162,6 +219,14 @@ fun GameRoute(
                 onSoundEnabledChange = viewModel::setSoundEnabled,
                 onHapticsEnabledChange = viewModel::setHapticsEnabled,
                 onReducedMotionEnabledChange = viewModel::setReducedMotionEnabled,
+                onPreferredDifficultyChange = viewModel::setPreferredDifficulty,
+                onPreferredModeChange = viewModel::setPreferredMode,
+            ),
+        profileActions =
+            GameProfileActions(
+                onSetActiveProfile = viewModel::setActiveProfile,
+                onAddProfile = viewModel::addProfile,
+                onUpdateProfile = viewModel::updateProfile,
             ),
         dialogState =
             GameDialogState(
@@ -242,25 +307,46 @@ fun GameScreenContent(
     screenActions: GameScreenActions = GameScreenActions(),
     pieceActions: GamePieceActions = GamePieceActions(),
     settingsActions: GameSettingsActions = GameSettingsActions(),
+    profileActions: GameProfileActions = GameProfileActions(),
     dialogState: GameDialogState = GameDialogState(),
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
+    var showProfiles by remember { mutableStateOf(false) }
+    if (state.hasSavedGame && state.resumeSummary != null) {
+        ResumeGameDialog(
+            summary = state.resumeSummary,
+            onContinue = screenActions.onResumeSavedGame,
+            onNewGame = screenActions.onDiscardSavedGameAndStartNewGame,
+        )
+    }
     if (dialogState.showHistoryStatsDialog) {
         HistoryStatsDialog(
-            history = dialogState.history,
+            history = state.history,
             onDismiss = dialogState.onDismissHistoryStats,
         )
     }
     if (showSettings) {
         GameSettingsDialog(
-            soundEnabled = state.soundEnabled,
-            hapticsEnabled = state.hapticsEnabled,
-            reducedMotionEnabled = state.reducedMotionEnabled,
-            onSoundEnabledChange = settingsActions.onSoundEnabledChange,
-            onHapticsEnabledChange = settingsActions.onHapticsEnabledChange,
-            onReducedMotionEnabledChange = settingsActions.onReducedMotionEnabledChange,
+            settings =
+                GameSettingsDialogState(
+                    soundEnabled = state.soundEnabled,
+                    hapticsEnabled = state.hapticsEnabled,
+                    reducedMotionEnabled = state.reducedMotionEnabled,
+                    preferredDifficulty = state.preferredDifficulty,
+                    preferredMode = state.preferredMode,
+                ),
+            actions = settingsActions,
             onDismiss = { showSettings = false },
+        )
+    }
+    if (showProfiles) {
+        ProfilesDialog(
+            profiles = state.profiles,
+            onSetActiveProfile = profileActions.onSetActiveProfile,
+            onAddProfile = profileActions.onAddProfile,
+            onUpdateProfile = profileActions.onUpdateProfile,
+            onDismiss = { showProfiles = false },
         )
     }
     if (showHelp) {
@@ -268,7 +354,7 @@ fun GameScreenContent(
     }
     if (state.isGameOver) {
         GameOverDialog(
-            players = state.players,
+            rankedScores = state.rankedScores,
             durationSeconds = state.gameDurationSeconds,
             onPlayAgain = { screenActions.onModeSelected(state.gameMode) },
             onShowStats = screenActions.onShowHistoryStats,
@@ -283,32 +369,30 @@ fun GameScreenContent(
     ) {
         val scrollState = rememberScrollState()
         val layoutMode = GameLayoutPolicy.modeForWidthDp(maxWidth.value.toInt())
+        val layoutContent =
+            GameLayoutContent(
+                state = state,
+                accessibilityAnnouncement = dialogState.accessibilityAnnouncement,
+                screenActions = screenActions,
+                pieceActions = pieceActions,
+                onShowSettings = { showSettings = true },
+                onShowProfiles = { showProfiles = true },
+                onShowHelp = { showHelp = true },
+            )
+        val layoutModifier =
+            Modifier
+                .verticalScroll(scrollState)
+                .padding(CornersApartSpacing.ScreenPadding)
         when (layoutMode) {
             GameLayoutMode.COMPACT ->
                 CompactGameLayout(
-                    state = state,
-                    accessibilityAnnouncement = dialogState.accessibilityAnnouncement,
-                    screenActions = screenActions,
-                    pieceActions = pieceActions,
-                    onShowSettings = { showSettings = true },
-                    onShowHelp = { showHelp = true },
-                    modifier =
-                        Modifier
-                            .verticalScroll(scrollState)
-                            .padding(CornersApartSpacing.ScreenPadding),
+                    content = layoutContent,
+                    modifier = layoutModifier,
                 )
             GameLayoutMode.EXPANDED ->
                 ExpandedGameLayout(
-                    state = state,
-                    accessibilityAnnouncement = dialogState.accessibilityAnnouncement,
-                    screenActions = screenActions,
-                    pieceActions = pieceActions,
-                    onShowSettings = { showSettings = true },
-                    onShowHelp = { showHelp = true },
-                    modifier =
-                        Modifier
-                            .verticalScroll(scrollState)
-                            .padding(CornersApartSpacing.ScreenPadding),
+                    content = layoutContent,
+                    modifier = layoutModifier,
                 )
         }
     }
@@ -316,55 +400,30 @@ fun GameScreenContent(
 
 @Composable
 private fun CompactGameLayout(
-    state: GameUiState,
-    accessibilityAnnouncement: String?,
-    screenActions: GameScreenActions,
-    pieceActions: GamePieceActions,
-    onShowSettings: () -> Unit,
-    onShowHelp: () -> Unit,
+    content: GameLayoutContent,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
     ) {
-        Header(state = state, onModeSelected = screenActions.onModeSelected)
-        NearbyActions(
-            onCreateNearbyGame = screenActions.onCreateNearbyGame,
-            onFindNearbyGame = screenActions.onFindNearbyGame,
-        )
-        UtilityActions(
-            onShowHistoryStats = screenActions.onShowHistoryStats,
-            onShowSettings = onShowSettings,
-            onShowHelp = onShowHelp,
-        )
-        PlayerScoreBar(players = state.players)
-        GameBoard(state = state, onPlaceCell = pieceActions.onPlaceCell)
-        AccessibilityAnnouncementNode(accessibilityAnnouncement)
-        StatusLine(state)
-        ControlBar(
-            onRotateCounterClockwise = pieceActions.onRotateCounterClockwise,
-            onRotateClockwise = pieceActions.onRotateClockwise,
-            onFlip = pieceActions.onFlip,
-            onPass = pieceActions.onPass,
-        )
-        SelectedPiecePreview(state)
+        GameHeaderActions(content)
+        GameBoard(state = content.state, onPlaceCell = content.pieceActions.onPlaceCell)
+        AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
+        StatusLine(content.state)
+        ControlBar(content.pieceActions)
+        SelectedPiecePreview(content.state)
         PiecePanel(
-            pieces = state.pieces,
-            colorIndex = state.currentPlayer.colorIndex,
-            onSelectPiece = pieceActions.onSelectPiece,
+            pieces = content.state.pieces,
+            colorIndex = content.state.currentPlayer.colorIndex,
+            onSelectPiece = content.pieceActions.onSelectPiece,
         )
     }
 }
 
 @Composable
 private fun ExpandedGameLayout(
-    state: GameUiState,
-    accessibilityAnnouncement: String?,
-    screenActions: GameScreenActions,
-    pieceActions: GamePieceActions,
-    onShowSettings: () -> Unit,
-    onShowHelp: () -> Unit,
+    content: GameLayoutContent,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -375,39 +434,52 @@ private fun ExpandedGameLayout(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
         ) {
-            Header(state = state, onModeSelected = screenActions.onModeSelected)
-            NearbyActions(
-                onCreateNearbyGame = screenActions.onCreateNearbyGame,
-                onFindNearbyGame = screenActions.onFindNearbyGame,
-            )
-            UtilityActions(
-                onShowHistoryStats = screenActions.onShowHistoryStats,
-                onShowSettings = onShowSettings,
-                onShowHelp = onShowHelp,
-            )
-            PlayerScoreBar(players = state.players)
-            AccessibilityAnnouncementNode(accessibilityAnnouncement)
-            StatusLine(state)
-            ControlBar(
-                onRotateCounterClockwise = pieceActions.onRotateCounterClockwise,
-                onRotateClockwise = pieceActions.onRotateClockwise,
-                onFlip = pieceActions.onFlip,
-                onPass = pieceActions.onPass,
-            )
-            SelectedPiecePreview(state)
+            GameHeaderActions(content)
+            AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
+            StatusLine(content.state)
+            ControlBar(content.pieceActions)
+            SelectedPiecePreview(content.state)
         }
         Column(
             modifier = Modifier.weight(1.2f),
             verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
         ) {
-            GameBoard(state = state, onPlaceCell = pieceActions.onPlaceCell)
+            GameBoard(state = content.state, onPlaceCell = content.pieceActions.onPlaceCell)
             PiecePanel(
-                pieces = state.pieces,
-                colorIndex = state.currentPlayer.colorIndex,
-                onSelectPiece = pieceActions.onSelectPiece,
+                pieces = content.state.pieces,
+                colorIndex = content.state.currentPlayer.colorIndex,
+                onSelectPiece = content.pieceActions.onSelectPiece,
             )
         }
     }
+}
+
+@Composable
+private fun GameHeaderActions(content: GameLayoutContent) {
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+        Header(state = content.state, onModeSelected = content.screenActions.onModeSelected)
+        NearbyActions(
+            onCreateNearbyGame = content.screenActions.onCreateNearbyGame,
+            onFindNearbyGame = content.screenActions.onFindNearbyGame,
+        )
+        UtilityActions(
+            onShowHistoryStats = content.screenActions.onShowHistoryStats,
+            onShowSettings = content.onShowSettings,
+            onShowProfiles = content.onShowProfiles,
+            onShowHelp = content.onShowHelp,
+        )
+        PlayerScoreBar(players = content.state.players)
+    }
+}
+
+@Composable
+private fun ControlBar(pieceActions: GamePieceActions) {
+    ControlBar(
+        onRotateCounterClockwise = pieceActions.onRotateCounterClockwise,
+        onRotateClockwise = pieceActions.onRotateClockwise,
+        onFlip = pieceActions.onFlip,
+        onPass = pieceActions.onPass,
+    )
 }
 
 @Composable
@@ -494,6 +566,7 @@ private fun NearbyActions(
 private fun UtilityActions(
     onShowHistoryStats: () -> Unit,
     onShowSettings: () -> Unit,
+    onShowProfiles: () -> Unit,
     onShowHelp: () -> Unit,
 ) {
     Row(
@@ -510,6 +583,13 @@ private fun UtilityActions(
         ) {
             Icon(Icons.Filled.History, contentDescription = null)
             Text(text = stringResource(R.string.history_stats_title))
+        }
+        Button(
+            onClick = onShowProfiles,
+            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
+        ) {
+            Icon(Icons.Filled.Person, contentDescription = null)
+            Text(text = stringResource(R.string.profiles_title))
         }
         Button(
             onClick = onShowSettings,

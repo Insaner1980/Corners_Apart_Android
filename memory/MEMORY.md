@@ -20,7 +20,8 @@
 - Compose UI must use centralized Corners Apart theme tokens from `com.finnvek.cornersapart.ui.theme`.
 - Shared game constants are centralized in `com.finnvek.cornersapart.model.GameConstants`.
 - Serializable game/save models live under `com.finnvek.cornersapart.model`; `BoardSnapshot` uses a flat immutable cell list.
-- Persisted JSON roots are `SavedGameData`, `ProfilesData`, and `GameSettings`.
+- `BoardView` owns shared read-only board access helpers (`contains`, `index`, `get`) for `BoardSnapshot` and `MutableBoard`.
+- Persisted JSON roots are `SavedGameData`, `ProfilesData`, and `GameSettings`; saved games include a `GameSettings` snapshot for resume.
 - Profiles support local-only v1 avatars through `LocalAvatarStyle` and `LocalAvatarGenerator`; remote avatar services are out of scope.
 - `HistoryStatsCalculator` owns higher-is-better history and statistics aggregation.
 - `GameModeConfig` / `GameModeConfigs` is the single source of truth for mode defaults: board size, bonus count, color slots, start corners, computer slots, and color owner mapping.
@@ -31,12 +32,16 @@
 - Two-Color Duel keeps turn order as color slots 0-3 while `Player.ownerIndex` maps colors 0/2 to Player 1 and 1/3 to Player 2; rankings aggregate by owner.
 - `opponents/` owns local computer turns through `MoveGenerator`, `MoveEvaluator`, and `ComputerOpponentEngine`.
 - Opponent decisions use seeded randomness from `GameState.randomSeed`, support 3 styles and 5 difficulty levels, and always return a legal move or pass.
-- `LocalSession` is the current playable session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations.
+- `OpponentDifficultyMapper` maps persisted difficulty `1..5` to `OpponentDifficulty` and clamps invalid values.
+- `LocalSessionFactory` creates `LocalSession` instances from a `GameConfig` and persisted difficulty; ViewModels should not call `LocalSession()` directly.
+- `LocalSession` is the current playable session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations and supports `replaceState` for restore.
 - `GameProtocol` is the kotlinx.serialization JSON message boundary for Nearby sessions: place move, accepted/rejected move, pass, full sync, player join/left, config, ping, and pong.
 - `HostGameCoordinator` owns host-authoritative Nearby validation and broadcasts accepted moves with full authoritative state.
 - `NearbySession` sends client move/pass requests to the host, applies host sync messages, and exposes `NearbyLobbyState` for reconnect tracking.
-- `GameViewModel` exposes `StateFlow<GameUiState>` and `SharedFlow<GameEffect>`; it delegates rule changes through `LocalSession`.
-- `GameScreen` is the Compose entry screen and provides the Canvas board, mode chips, Nearby create/find actions, History/Stats dialog entry, player score bar, rotate/flip/pass controls, selected-piece preview, and piece strip.
+- `NearbyConnectionsCoordinator` plus `ConnectionsClientFacade` owns the concrete Google Play services Nearby advertising/discovery/connection adapter, auth-token pending state, BYTES payload decoding, and endpoint sends.
+- `GameViewModel` is Hilt-injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, `TimeProvider`, and `NearbyConnectionsCoordinator`; it exposes repository-backed `StateFlow<GameUiState>` and `SharedFlow<GameEffect>`.
+- `GameScreen` is the Compose entry screen and provides the Canvas board, mode chips, permission-gated Nearby create/find actions, resume/profile/settings/help/history dialogs, player score bar, rotate/flip/pass controls, selected-piece preview, and piece strip.
+- `ProfileRepository.appendHistory` trims to the latest `GameConstants.MAX_HISTORY_ENTRIES`; game-over history uses `Scoring.rankPlayers`.
 - UI, session, persistence, and future computer-opponent code should call the engine/model APIs instead of duplicating rule logic.
 
 ## Verification Notes

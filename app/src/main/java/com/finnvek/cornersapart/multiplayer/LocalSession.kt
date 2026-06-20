@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class LocalSession(
     private val engine: GameEngine = GameEngine(),
     private val opponentEngine: ComputerOpponentEngine = ComputerOpponentEngine(gameEngine = engine),
-    private val opponentDifficulty: OpponentDifficulty = OpponentDifficulty.MEDIUM,
+    internal val opponentDifficulty: OpponentDifficulty = OpponentDifficulty.MEDIUM,
     initialConfig: GameConfig = defaultFourPlayerConfig(),
 ) : GameSession {
     private val _gameState = MutableStateFlow(engine.newGame(initialConfig))
@@ -47,6 +47,10 @@ class LocalSession(
 
     override fun startNewGame(config: GameConfig) {
         publish(engine.newGame(config))
+    }
+
+    override fun replaceState(state: GameState) {
+        publish(state)
     }
 
     private fun publish(state: GameState) {

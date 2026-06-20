@@ -50,6 +50,38 @@ class ProfileRepositoryTest {
             assertEquals(1, profiles.single { profile -> profile.id == "second" }.history.size)
         }
 
+    @Test
+    fun appendHistoryKeepsMostRecentMaxHistoryEntries() =
+        runTest {
+            val store =
+                InMemoryJsonStateStore(
+                    ProfilesData(
+                        profiles =
+                            listOf(
+                                Profile(
+                                    id = "active",
+                                    name = "Player",
+                                    active = true,
+                                ),
+                            ),
+                    ),
+                )
+            val repository = ProfileRepository(store)
+
+            repeat(com.finnvek.cornersapart.model.GameConstants.MAX_HISTORY_ENTRIES + 5) { index ->
+                repository.appendHistory("active", historyEntry(totalScore = index, rank = 1))
+            }
+
+            val history =
+                repository.profiles
+                    .first()
+                    .single()
+                    .history
+            assertEquals(com.finnvek.cornersapart.model.GameConstants.MAX_HISTORY_ENTRIES, history.size)
+            assertEquals(5, history.first().totalScore)
+            assertEquals(54, history.last().totalScore)
+        }
+
     private fun historyEntry(
         totalScore: Int,
         rank: Int,

@@ -6,6 +6,7 @@ import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
+import com.finnvek.cornersapart.opponents.OpponentDifficulty
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -87,4 +88,62 @@ class LocalSessionTest {
                     .all { player -> player.usedPieceIds.isNotEmpty() },
             )
         }
+
+    @Test
+    fun localSessionFactoryCreatesSoloSessionWithPersistedMediumDifficulty() {
+        val session =
+            LocalSessionFactory(
+                engine = GameEngine(),
+                opponentEngine =
+                    com.finnvek.cornersapart.opponents
+                        .ComputerOpponentEngine(),
+            ).create(
+                initialConfig =
+                    GameConfig(
+                        mode = GameMode.SOLO,
+                        boardSize = GameConstants.STANDARD_BOARD_SIZE,
+                        randomSeed = 23L,
+                        bonusTiles = emptyList(),
+                    ),
+                persistedDifficulty = 3,
+            )
+
+        assertEquals(OpponentDifficulty.MEDIUM, session.opponentDifficulty)
+    }
+
+    @Test
+    fun replaceStatePublishesBoardPlayersAndCurrentTurn() {
+        val engine = GameEngine()
+        val original =
+            engine.newGame(
+                GameConfig(
+                    mode = GameMode.FOUR_PLAYER,
+                    randomSeed = 31L,
+                    bonusTiles = emptyList(),
+                ),
+            )
+        val replacement =
+            engine
+                .applyMove(
+                    original,
+                    Move(
+                        playerIndex = 0,
+                        pieceId = PieceCatalog.SINGLE_CELL_ID,
+                        anchorRow = 0,
+                        anchorCol = 0,
+                        orientationIndex = 0,
+                    ),
+                ).let { result ->
+                    check(result is com.finnvek.cornersapart.engine.MoveResult.Accepted)
+                    result.state
+                }
+        val session = LocalSession(engine = engine)
+
+        session.replaceState(replacement)
+
+        assertEquals(replacement.board, session.gameState.value.board)
+        assertEquals(replacement.players, session.gameState.value.players)
+        assertEquals(replacement.currentPlayerIndex, session.gameState.value.currentPlayerIndex)
+        assertEquals(replacement.players[0].usedPieceIds.size, session.players.value[0].usedPieceCount)
+    }
 }

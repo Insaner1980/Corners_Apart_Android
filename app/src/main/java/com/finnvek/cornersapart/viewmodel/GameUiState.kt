@@ -4,7 +4,11 @@ import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.BonusTile
 import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.HistoryEntry
+import com.finnvek.cornersapart.model.LocalAvatarStyle
 import com.finnvek.cornersapart.model.PieceDef
+import com.finnvek.cornersapart.model.PlayerScore
+import com.finnvek.cornersapart.multiplayer.NearbyUiState
 
 data class GameUiState(
     val gameMode: GameMode,
@@ -21,6 +25,15 @@ data class GameUiState(
     val hapticsEnabled: Boolean = true,
     val reducedMotionEnabled: Boolean = false,
     val gameDurationSeconds: Int = 0,
+    val preferredDifficulty: Int = 3,
+    val preferredMode: GameMode = GameMode.FOUR_PLAYER,
+    val history: List<HistoryEntry> = emptyList(),
+    val activeProfileName: String = "Player",
+    val hasSavedGame: Boolean = false,
+    val resumeSummary: ResumeGameSummary? = null,
+    val rankedScores: List<PlayerScore> = emptyList(),
+    val nearbyState: NearbyUiState = NearbyUiState(),
+    val profiles: List<ProfileUiState> = emptyList(),
 ) {
     val currentPlayer: PlayerUiState
         get() = players[currentPlayerIndex]
@@ -49,4 +62,21 @@ data class PiecePanelItem(
     val piece: PieceDef,
     val isSelected: Boolean,
     val isUsed: Boolean,
+)
+
+data class ResumeGameSummary(
+    val savedAtEpochMillis: Long,
+    val gameMode: GameMode,
+    val leadingPlayerName: String,
+    val leadingScore: Int,
+    val claimedBonusTiles: Int,
+    val difficulty: Int,
+)
+
+data class ProfileUiState(
+    val id: String,
+    val name: String,
+    val colorIndex: Int,
+    val avatarStyle: LocalAvatarStyle,
+    val active: Boolean,
 )

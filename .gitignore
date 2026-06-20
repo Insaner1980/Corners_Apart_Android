@@ -18,6 +18,7 @@
 .claude/
 .remember/
 /reports/
+/.tmp/
 
 # Paikalliset Gradle/Android-check-cachehakemistot
 /android/

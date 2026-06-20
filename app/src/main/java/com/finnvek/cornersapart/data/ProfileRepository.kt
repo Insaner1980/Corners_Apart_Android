@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.data
 
+import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.Profile
 import com.finnvek.cornersapart.model.ProfilesData
@@ -51,7 +52,9 @@ class ProfileRepository(
                 profiles =
                     data.profiles.map { profile ->
                         if (profile.id == profileId) {
-                            profile.copy(history = profile.history + entry)
+                            profile.copy(
+                                history = (profile.history + entry).takeLast(GameConstants.MAX_HISTORY_ENTRIES),
+                            )
                         } else {
                             profile
                         }

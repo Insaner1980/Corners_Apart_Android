@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.stability.analyzer)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
@@ -347,6 +348,9 @@ dependencies {
 
     // Detekt plugins
     detektPlugins(libs.detekt.compose.rules)
+
+    // Android lint -lisaosat
+    lintChecks(libs.android.security.lints)
 
     // Testing
     testImplementation(libs.junit)

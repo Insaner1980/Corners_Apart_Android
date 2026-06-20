@@ -27,19 +27,20 @@ Corners Apart is an Android polyomino strategy game built with Kotlin, Jetpack C
 - AGP 9 built-in Kotlin is used; do not apply `org.jetbrains.kotlin.android` in the app module.
 - Game engine code is pure Kotlin and independent from Android UI.
 - Serializable save/network models live in `model/`; board state uses a flat immutable `BoardSnapshot`.
-- `model/SavedGameData.kt`, `model/ProfilesData`, and `model/GameSettings.kt` are the persisted JSON roots for saved games, profiles/history, and preferences.
+- `model/SavedGameData.kt`, `model/ProfilesData`, and `model/GameSettings.kt` are the persisted JSON roots for saved games, profiles/history, and preferences; saved games include a settings snapshot for resume.
 - `model/LocalAvatarGenerator.kt` generates deterministic local-only avatar descriptors for initials, geometric, mosaic, and rings styles.
 - `model/HistoryStatsCalculator.kt` owns higher-is-better history and stats aggregation.
 - `model/GameModeConfig.kt` is the single source of truth for mode defaults: board size, bonus count, color slots, start corners, computer slots, and color owner mapping.
 - `engine/` owns placement validation, corner-candidate generation, bonus tile layout generation, scoring, ranking, turn advancement, and game-over checks.
 - Two-Color Duel keeps turn order as color slots 0-3 while `Player.ownerIndex` maps colors 0/2 to Player 1 and 1/3 to Player 2; rankings aggregate by owner.
 - `opponents/` owns local computer turns through `MoveGenerator`, `MoveEvaluator`, and `ComputerOpponentEngine`; decisions use seeded randomness from game state and always return a legal move or pass.
-- `multiplayer/LocalSession` is the current playable session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations.
+- `multiplayer/LocalSessionFactory` creates local sessions with the persisted difficulty mapping; `LocalSession` supports state replacement for saved-game restore.
 - `multiplayer/GameProtocol` is the JSON message boundary for Nearby sessions.
 - `multiplayer/HostGameCoordinator` owns host-authoritative Nearby validation and broadcasts accepted moves with full authoritative state.
 - `multiplayer/NearbySession` sends client move/pass requests to the host, applies host sync messages, and exposes `NearbyLobbyState` for reconnect tracking.
-- `viewmodel/GameViewModel` exposes `StateFlow<GameUiState>` and delegates all rule changes through `LocalSession`.
-- `ui/screens/GameScreen.kt` is the first playable Compose surface: Canvas board, mode chips, Nearby create/find actions, History/Stats dialog entry, player score bar, rotate/flip/pass controls, selected-piece preview, and piece strip.
+- `multiplayer/NearbyConnectionsCoordinator` wraps Google Play services Nearby through `ConnectionsClientFacade` for advertising, discovery, auth-token confirmation, BYTES payloads, and endpoint sends.
+- `viewmodel/GameViewModel` exposes repository-backed `StateFlow<GameUiState>` and delegates rules through `LocalSessionFactory`, repositories, and the Nearby coordinator.
+- `ui/screens/GameScreen.kt` is the first playable Compose surface: Canvas board, mode chips, permission-gated Nearby create/find actions, resume/profile/settings/help/history dialogs, player score bar, rotate/flip/pass controls, selected-piece preview, and piece strip.
 - UI, sessions, persistence, and computer opponents must call `GameEngine` instead of duplicating rule logic.
 
 ## Project Structure
@@ -49,7 +50,7 @@ app/src/main/java/com/finnvek/cornersapart/
 ├── model/              # Serializable game, mode config, piece, profile, history, stats, settings, and save-state models
 ├── engine/             # Pure rules, move validation, scoring, ranking, and bonus layouts
 ├── opponents/          # Move generation, move evaluation, and seeded local opponents
-├── multiplayer/        # Local and Nearby sessions, protocol, host validation, lobby state
+├── multiplayer/        # Local and Nearby sessions, protocol, host validation, Play Services adapter, lobby state
 ├── ui/                 # Compose UI, theme, screens, components, dialogs, sheets
 ├── viewmodel/          # StateFlow-based game UI state and ViewModels
 └── data/               # JSON DataStore serializers, Hilt bindings, and repositories

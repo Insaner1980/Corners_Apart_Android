@@ -1,6 +1,7 @@
 package com.finnvek.cornersapart.opponents
 
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.SeedMixer
 import com.finnvek.cornersapart.model.GameState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -100,18 +101,7 @@ class ComputerOpponentEngine(
                 (playerIndex.toLong() shl PLAYER_SHIFT) xor
                 difficulty.ordinal.toLong() xor
                 (style.ordinal.toLong() shl STYLE_SHIFT)
-        ).mixedUnitInterval()
-
-    private fun Long.mixedUnitInterval(): Double {
-        val mixed =
-            this
-                .let { value -> value xor (value ushr FIRST_MIX_SHIFT) }
-                .let { value -> value * FIRST_MIX_MULTIPLIER }
-                .let { value -> value xor (value ushr SECOND_MIX_SHIFT) }
-                .let { value -> value * SECOND_MIX_MULTIPLIER }
-                .let { value -> value xor (value ushr THIRD_MIX_SHIFT) }
-        return (mixed ushr DOUBLE_FRACTION_SHIFT) * DOUBLE_UNIT
-    }
+        ).let(SeedMixer::unitInterval)
 
     private data class EvaluatedMove(
         val candidate: MoveCandidate,
@@ -132,12 +122,5 @@ class ComputerOpponentEngine(
         private const val STYLE_SHIFT = 4
         private const val LOW_TEMPERATURE_THRESHOLD = 0.25
         private const val MIN_WEIGHT = 0.000_001
-        private const val FIRST_MIX_SHIFT = 33
-        private const val SECOND_MIX_SHIFT = 29
-        private const val THIRD_MIX_SHIFT = 32
-        private const val DOUBLE_FRACTION_SHIFT = 11
-        private const val FIRST_MIX_MULTIPLIER = 6_364_136_223_846_793_005L
-        private const val SECOND_MIX_MULTIPLIER = 1_442_695_040_888_963_407L
-        private const val DOUBLE_UNIT = 1.0 / (1L shl 53)
     }
 }

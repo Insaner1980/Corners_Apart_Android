@@ -14,12 +14,6 @@ class NearbyConfigurationTest {
         val appBuildFile = root.resolve("app/build.gradle.kts").toFile().readText()
         val manifest = root.resolve("app/src/main/AndroidManifest.xml").toFile().readText()
         val strings = root.resolve("app/src/main/res/values/strings.xml").toFile().readText()
-        val mainActivity =
-            root
-                .resolve(
-                    "app/src/main/java/com/finnvek/cornersapart/MainActivity.kt",
-                ).toFile()
-                .readText()
         val gameScreen =
             root
                 .resolve(
@@ -50,8 +44,9 @@ class NearbyConfigurationTest {
         assertTrue(strings.contains("<string name=\"create_nearby_game\">Create nearby game</string>"))
         assertTrue(strings.contains("<string name=\"find_nearby_game\">Find nearby game</string>"))
 
-        assertTrue(mainActivity.contains("ActivityResultContracts.RequestMultiplePermissions"))
-        assertTrue(mainActivity.contains("NearbyPermissions.requiredRuntimePermissions"))
+        assertTrue(gameScreen.contains("ActivityResultContracts.RequestMultiplePermissions"))
+        assertTrue(gameScreen.contains("NearbyPermissions"))
+        assertTrue(gameScreen.contains("requiredRuntimePermissions"))
         assertTrue(gameScreen.contains("R.string.nearby_game"))
         assertTrue(gameScreen.contains("R.string.create_nearby_game"))
         assertTrue(gameScreen.contains("R.string.find_nearby_game"))
