@@ -1,18 +1,24 @@
 package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.MoveResult
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameModeConfigs
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.Move
+import com.finnvek.cornersapart.model.hasValidIndexDomains
+import com.finnvek.cornersapart.model.toSnapshotCopy
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
 import com.finnvek.cornersapart.opponents.OpponentAction
 import com.finnvek.cornersapart.opponents.OpponentDifficulty
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicInteger
 
 class LocalSession(
     private val engine: GameEngine = GameEngine(),
@@ -20,9 +26,11 @@ class LocalSession(
     internal val opponentDifficulty: OpponentDifficulty = OpponentDifficulty.MEDIUM,
     initialConfig: GameConfig = defaultFourPlayerConfig(),
 ) : GameSession {
-    private val _gameState = MutableStateFlow(engine.newGame(initialConfig))
+    private val _gameState = MutableStateFlow(engine.newGame(initialConfig).toSnapshotCopy())
     private val _players = MutableStateFlow(_gameState.value.toSessionPlayers())
     private val _connectionState = MutableStateFlow(ConnectionState.CONNECTED)
+    private val mutationMutex = Mutex()
+    private val replacementVersion = AtomicInteger(0)
 
     override val sessionType: SessionType = SessionType.LOCAL
     override val players: StateFlow<List<SessionPlayer>> = _players.asStateFlow()
@@ -32,30 +40,47 @@ class LocalSession(
         get() = _gameState.value.gameMode
 
     override suspend fun sendMove(move: Move): Result<Unit> =
-        when (val result = engine.applyMove(_gameState.value, move)) {
-            is MoveResult.Accepted -> {
-                publish(result.state.withComputerActions())
-                Result.success(Unit)
+        mutationMutex.withLock {
+            val version = replacementVersion.get()
+            when (val result = engine.applyMove(_gameState.value, move)) {
+                is MoveResult.Accepted -> {
+                    val nextState = result.state.withComputerActions()
+                    if (version == replacementVersion.get()) {
+                        publish(nextState)
+                        Result.success(Unit)
+                    } else {
+                        Result.failure(IllegalStateException(SESSION_REPLACED_MESSAGE))
+                    }
+                }
+                is MoveResult.Rejected -> Result.failure(MoveRejectedException(result.reason))
             }
-            is MoveResult.Rejected -> Result.failure(IllegalArgumentException(result.reason.name))
         }
 
     override suspend fun sendPass(playerIndex: Int): Result<Unit> =
-        runCatching {
-            publish(engine.pass(_gameState.value, playerIndex).withComputerActions())
+        mutationMutex.withLock {
+            runCatching {
+                val version = replacementVersion.get()
+                val nextState = engine.pass(_gameState.value, playerIndex).withComputerActions()
+                check(version == replacementVersion.get()) { SESSION_REPLACED_MESSAGE }
+                publish(nextState)
+            }
         }
 
     override fun startNewGame(config: GameConfig) {
+        replacementVersion.incrementAndGet()
         publish(engine.newGame(config))
     }
 
     override fun replaceState(state: GameState) {
+        if (!state.hasValidIndexDomains()) return
+        replacementVersion.incrementAndGet()
         publish(state)
     }
 
     private fun publish(state: GameState) {
-        _gameState.value = state
-        _players.value = state.toSessionPlayers()
+        val snapshot = state.toSnapshotCopy()
+        _gameState.value = snapshot
+        _players.value = snapshot.toSessionPlayers()
     }
 
     private suspend fun GameState.withComputerActions(): GameState {
@@ -78,8 +103,7 @@ class LocalSession(
     }
 
     private fun GameState.shouldPlayComputerTurn(): Boolean =
-        gameMode == GameMode.SOLO &&
-            !isGameOver &&
+        !isGameOver &&
             players[currentPlayerIndex].isComputerControlled
 
     private fun GameState.applyComputerMove(move: Move): GameState =
@@ -102,6 +126,8 @@ class LocalSession(
         }
 
     companion object {
+        private const val SESSION_REPLACED_MESSAGE = "Session state changed while applying action."
+
         fun defaultFourPlayerConfig(): GameConfig = defaultConfigFor(GameMode.FOUR_PLAYER)
 
         fun defaultSoloConfig(): GameConfig = defaultConfigFor(GameMode.SOLO)

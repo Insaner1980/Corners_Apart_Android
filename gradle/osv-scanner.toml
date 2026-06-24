@@ -1,3 +1,76 @@
+# Project-wide package ignores are intentionally avoided here.
+# OSV scans supported lockfiles such as gradle/verification-metadata.xml; add
+# package-specific [[PackageOverrides]] or [[IgnoredVulns]] entries only for
+# verified false positives.
+
 [[PackageOverrides]]
-ignore = true
-reason = "Gradle verification metadata is a checksum trust file, not an application dependency lockfile; Gradle dependencies are scanned by OWASP Dependency-Check."
+name = "com.fasterxml.jackson.core:jackson-databind"
+version = "2.21.3"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from the OWASP Dependency-Check Gradle plugin; app runtime classpaths do not contain it."
+
+[[PackageOverrides]]
+name = "ch.qos.logback:logback-core"
+version = "1.3.14"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata; app runtime dependencies are checked separately."
+
+[[PackageOverrides]]
+name = "io[.]netty:netty-(codec|codec-http|codec-http2|common|handler|handler-proxy)"
+nameIsRegex = true
+version = "4.1.110.Final"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata; app runtime dependencies are checked separately."
+
+[[PackageOverrides]]
+name = "io[.]netty:netty-(codec|codec-http|codec-http2|common|handler|handler-proxy)"
+nameIsRegex = true
+version = "4.1.93.Final"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata; app runtime dependencies are checked separately."
+
+[[PackageOverrides]]
+name = "org.apache.commons:commons-lang3"
+version = "3.16.0"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata."
+
+[[PackageOverrides]]
+name = "org.apache.httpcomponents:httpclient"
+version = "4.5.6"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata."
+
+[[PackageOverrides]]
+name = "org.bitbucket.b_c:jose4j"
+version = "0.9.5"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata."
+
+[[PackageOverrides]]
+name = "org.bouncycastle:bcpkix-jdk18on"
+version = "1.79"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata."
+
+[[PackageOverrides]]
+name = "org.bouncycastle:bcprov-jdk18on"
+version = "1.79"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata."
+
+[[PackageOverrides]]
+name = "org.jdom:jdom2"
+version = "2.0.6"
+ecosystem = "Maven"
+vulnerability.ignore = true
+reason = "Build-tool-only dependency from Gradle verification metadata."

@@ -6,6 +6,7 @@ import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.Player
 import com.finnvek.cornersapart.model.PlayerScore
 import com.finnvek.cornersapart.model.ScoreBreakdown
+import com.finnvek.cornersapart.model.toSnapshotList
 
 object Scoring {
     fun scoreMove(
@@ -40,6 +41,7 @@ object Scoring {
                 )
             }.sortedWith(playerRankingComparator())
             .map { ranked -> ranked.score }
+            .toSnapshotList()
     }
 
     private fun playerRankingComparator(): Comparator<RankedOwnerScore> =

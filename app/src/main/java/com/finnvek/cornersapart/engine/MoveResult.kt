@@ -29,6 +29,10 @@ enum class MoveRejectionReason {
     NO_DIAGONAL_TOUCH,
 }
 
+class MoveRejectedException(
+    val reason: MoveRejectionReason,
+) : IllegalArgumentException(reason.name)
+
 data class PlacementPreview(
     val isValid: Boolean,
     val targetCells: List<CellPosition>,

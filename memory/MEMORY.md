@@ -34,12 +34,12 @@
 - Opponent decisions use seeded randomness from `GameState.randomSeed`, support 3 styles and 5 difficulty levels, and always return a legal move or pass.
 - `OpponentDifficultyMapper` maps persisted difficulty `1..5` to `OpponentDifficulty` and clamps invalid values.
 - `LocalSessionFactory` creates `LocalSession` instances from a `GameConfig` and persisted difficulty; ViewModels should not call `LocalSession()` directly.
-- `LocalSession` is the current playable session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations and supports `replaceState` for restore.
-- `GameProtocol` is the kotlinx.serialization JSON message boundary for Nearby sessions: place move, accepted/rejected move, pass, full sync, player join/left, config, ping, and pong.
+- `LocalSession` is the current playable session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations, serializes local move/pass mutations, and supports `replaceState` for restore.
+- `GameProtocol` is the kotlinx.serialization JSON message boundary for Nearby sessions: place move, accepted/rejected move with typed `MoveRejectionReason`, pass, full sync, player join/left, config, ping, and pong.
 - `HostGameCoordinator` owns host-authoritative Nearby validation and broadcasts accepted moves with full authoritative state.
-- `NearbySession` sends client move/pass requests to the host, applies host sync messages, and exposes `NearbyLobbyState` for reconnect tracking.
-- `NearbyConnectionsCoordinator` plus `ConnectionsClientFacade` owns the concrete Google Play services Nearby advertising/discovery/connection adapter, auth-token pending state, BYTES payload decoding, and endpoint sends.
-- `GameViewModel` is Hilt-injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, `TimeProvider`, and `NearbyConnectionsCoordinator`; it exposes repository-backed `StateFlow<GameUiState>` and `SharedFlow<GameEffect>`.
+- `NearbySession` sends client move/pass requests to the host, applies host sync messages, exposes `NearbyLobbyState` for reconnect tracking plus `GameSessionEvent` one-shot failures, and only allows host-side `replaceState`.
+- `NearbyConnectionsCoordinator` owns Nearby session orchestration, auth-token pending state, BYTES payload decoding, operation/status-code failure reporting, and endpoint sends through `ConnectionsClientFacade`; concrete Google Play services types and the `P2P_STAR` strategy are contained in `PlayServicesConnectionsClientFacade`.
+- `GameViewModel` is Hilt-injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, `TimeProvider`, and `NearbyConnectionsCoordinator`; it exposes repository-backed `StateFlow<GameUiState>` and `SharedFlow<GameEffect>`, renders the active Nearby session state/effects when present, and keeps saved-game/history persistence scoped to local gameplay.
 - `GameScreen` is the Compose entry screen and provides the Canvas board, mode chips, permission-gated Nearby create/find actions, resume/profile/settings/help/history dialogs, player score bar, rotate/flip/pass controls, selected-piece preview, and piece strip.
 - `ProfileRepository.appendHistory` trims to the latest `GameConstants.MAX_HISTORY_ENTRIES`; game-over history uses `Scoring.rankPlayers`.
 - UI, session, persistence, and future computer-opponent code should call the engine/model APIs instead of duplicating rule logic.

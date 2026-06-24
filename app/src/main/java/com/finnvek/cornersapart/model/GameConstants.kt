@@ -29,9 +29,9 @@ object GameConstants {
     const val MAX_AVATAR_DIMENSION = 160
     const val MAX_AVATAR_FILE_SIZE = 5 * 1024 * 1024
 
-    val STANDARD_CORNERS = listOf(0 to 0, 0 to 19, 19 to 19, 19 to 0)
-    val COMPACT_DUEL_CORNERS = listOf(0 to 0, 13 to 13)
+    val STANDARD_CORNERS = listOf(0 to 0, 0 to 19, 19 to 19, 19 to 0).toSnapshotList()
+    val COMPACT_DUEL_CORNERS = listOf(0 to 0, 13 to 13).toSnapshotList()
 
-    val PLAYER_NAMES = listOf("Indigo", "Amber", "Coral", "Teal")
-    val PLAYER_COLORS = listOf("Indigo", "Amber", "Coral", "Teal")
+    val PLAYER_NAMES = listOf("Indigo", "Amber", "Coral", "Teal").toSnapshotList()
+    val PLAYER_COLORS = listOf("Indigo", "Amber", "Coral", "Teal").toSnapshotList()
 }

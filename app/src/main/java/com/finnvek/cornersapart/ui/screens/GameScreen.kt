@@ -246,6 +246,10 @@ private sealed interface AccessibilityAnnouncement {
 
     data object MoveRejected : AccessibilityAnnouncement
 
+    data class ActionFailed(
+        val message: String,
+    ) : AccessibilityAnnouncement
+
     data object GameOver : AccessibilityAnnouncement
 }
 
@@ -258,6 +262,7 @@ private fun GameEffect.toAccessibilityAnnouncement(): AccessibilityAnnouncement 
                 bonusTileClaimed = bonusTileClaimed,
             )
         is GameEffect.MoveRejected -> AccessibilityAnnouncement.MoveRejected
+        is GameEffect.ActionFailed -> AccessibilityAnnouncement.ActionFailed(message)
         GameEffect.GameOver -> AccessibilityAnnouncement.GameOver
     }
 
@@ -270,6 +275,7 @@ private fun GameEffect.hapticFeedbackType(): HapticFeedbackType =
                 HapticFeedbackType.TextHandleMove
             }
         is GameEffect.MoveRejected,
+        is GameEffect.ActionFailed,
         GameEffect.GameOver,
         -> HapticFeedbackType.LongPress
     }
@@ -297,6 +303,7 @@ private fun AccessibilityAnnouncement.toAnnouncementText(): String =
             }
         }
         AccessibilityAnnouncement.MoveRejected -> stringResource(R.string.accessibility_move_rejected)
+        is AccessibilityAnnouncement.ActionFailed -> stringResource(R.string.accessibility_action_failed, message)
         AccessibilityAnnouncement.GameOver -> stringResource(R.string.accessibility_game_over)
     }
 
@@ -500,31 +507,13 @@ private fun Header(
                     .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
         ) {
-            ModeChip(
-                text = stringResource(R.string.game_mode_four_player),
-                selected = state.gameMode == GameMode.FOUR_PLAYER,
-                onClick = { onModeSelected(GameMode.FOUR_PLAYER) },
-            )
-            ModeChip(
-                text = stringResource(R.string.game_mode_solo),
-                selected = state.gameMode == GameMode.SOLO,
-                onClick = { onModeSelected(GameMode.SOLO) },
-            )
-            ModeChip(
-                text = stringResource(R.string.game_mode_two_color_duel),
-                selected = state.gameMode == GameMode.TWO_COLOR_DUEL,
-                onClick = { onModeSelected(GameMode.TWO_COLOR_DUEL) },
-            )
-            ModeChip(
-                text = stringResource(R.string.game_mode_compact_duel),
-                selected = state.gameMode == GameMode.COMPACT_DUEL,
-                onClick = { onModeSelected(GameMode.COMPACT_DUEL) },
-            )
-            ModeChip(
-                text = stringResource(R.string.game_mode_three_player),
-                selected = state.gameMode == GameMode.THREE_PLAYER,
-                onClick = { onModeSelected(GameMode.THREE_PLAYER) },
-            )
+            GameModeUiOptions.modes.forEach { mode ->
+                ModeChip(
+                    text = stringResource(mode.labelRes()),
+                    selected = state.gameMode == mode,
+                    onClick = { onModeSelected(mode) },
+                )
+            }
         }
     }
 }

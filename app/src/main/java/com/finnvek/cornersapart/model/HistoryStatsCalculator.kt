@@ -39,7 +39,11 @@ object HistoryStatsCalculator {
             averageClaimedBonusTiles = entries.averageOf { entry -> entry.claimedBonusTiles },
             completionBonusCount = entries.count { entry -> entry.scoreBreakdown.completionBonus > 0 },
             favoriteDifficulty = entries.favoriteDifficulty(),
-            scoreTrend = entries.takeLast(RECENT_GAME_LIMIT).map { entry -> entry.totalScore },
+            scoreTrend =
+                entries
+                    .takeLast(RECENT_GAME_LIMIT)
+                    .map { entry -> entry.totalScore }
+                    .toSnapshotList(),
             statsPerDifficulty = entries.statsPerDifficulty(),
         )
     }
@@ -54,15 +58,16 @@ object HistoryStatsCalculator {
             )?.key
 
     private fun List<HistoryEntry>.statsPerDifficulty(): Map<Int, DifficultyHistoryStats> =
-        groupBy { entry -> entry.difficulty }.mapValues { (difficulty, entries) ->
-            DifficultyHistoryStats(
-                difficulty = difficulty,
-                gamesPlayed = entries.size,
-                wins = entries.count { entry -> entry.rank == 1 },
-                averageScore = entries.averageOf { entry -> entry.totalScore },
-                bestScore = entries.maxOf { entry -> entry.totalScore },
-            )
-        }
+        groupBy { entry -> entry.difficulty }
+            .mapValues { (difficulty, entries) ->
+                DifficultyHistoryStats(
+                    difficulty = difficulty,
+                    gamesPlayed = entries.size,
+                    wins = entries.count { entry -> entry.rank == 1 },
+                    averageScore = entries.averageOf { entry -> entry.totalScore },
+                    bestScore = entries.maxOf { entry -> entry.totalScore },
+                )
+            }.toSnapshotMap()
 
     private fun List<HistoryEntry>.averageOf(selector: (HistoryEntry) -> Int): Double =
         sumOf(selector).toDouble() / size

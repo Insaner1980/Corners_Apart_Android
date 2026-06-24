@@ -34,7 +34,7 @@ class MutableBoard(
     fun toSnapshot(): BoardSnapshot =
         BoardSnapshot(
             size = size,
-            cells = cells.toList(),
+            cells = cells.toList().toSnapshotList(),
         )
 
     override fun equals(other: Any?): Boolean =

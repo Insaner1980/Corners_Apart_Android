@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.finnvek.cornersapart.data.GameRepository
 import com.finnvek.cornersapart.data.ProfileRepository
 import com.finnvek.cornersapart.data.SettingsRepository
-import com.finnvek.cornersapart.engine.MoveRejectionReason
+import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.Scoring
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
@@ -16,14 +16,23 @@ import com.finnvek.cornersapart.model.LocalAvatarStyle
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
+import com.finnvek.cornersapart.model.Player
 import com.finnvek.cornersapart.model.Profile
 import com.finnvek.cornersapart.model.SavedGameData
+import com.finnvek.cornersapart.model.ScoreBreakdown
+import com.finnvek.cornersapart.model.hasValidIndexDomains
+import com.finnvek.cornersapart.model.toSnapshotCopy
+import com.finnvek.cornersapart.model.toSnapshotList
+import com.finnvek.cornersapart.multiplayer.GameSession
+import com.finnvek.cornersapart.multiplayer.GameSessionEvent
 import com.finnvek.cornersapart.multiplayer.LocalSession
 import com.finnvek.cornersapart.multiplayer.LocalSessionFactory
 import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
+import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.opponents.OpponentDifficultyMapper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -32,6 +41,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.finnvek.cornersapart.multiplayer.toSnapshotCopy as toNearbySnapshotCopy
 
 @HiltViewModel
 @Suppress("TooManyFunctions")
@@ -53,11 +63,16 @@ class GameViewModel
         private var profiles: List<Profile> = emptyList()
         private var nearbyState: NearbyUiState = NearbyUiState()
         private var gameStartedAtMillis: Long = timeProvider.nowEpochMillis()
-        private var session: LocalSession = createLocalSession(settings)
+        private var localSession: LocalSession = createLocalSession(settings)
+        private var nearbySession: GameSession? = null
+        private var nearbyGameStateJob: Job? = null
+        private var nearbyEventsJob: Job? = null
         private var resumeDecisionMade: Boolean = false
         private var recordedGameOverTurn: Int? = null
         private var defaultProfileCreationRequested: Boolean = false
         private val _uiState: MutableStateFlow<GameUiState> = MutableStateFlow(session.gameState.value.toUiState())
+        private val session: GameSession
+            get() = nearbySession ?: localSession
 
         val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
         val effects: SharedFlow<GameEffect> = _effects.asSharedFlow()
@@ -71,7 +86,12 @@ class GameViewModel
             }
             viewModelScope.launch {
                 gameRepository.savedGameData.collect { data ->
-                    savedGameData = data
+                    if (data.gameState?.hasValidIndexDomains() == false) {
+                        savedGameData = SavedGameData()
+                        gameRepository.clearSavedGame()
+                    } else {
+                        savedGameData = data
+                    }
                     refreshUiState()
                 }
             }
@@ -85,6 +105,36 @@ class GameViewModel
             viewModelScope.launch {
                 nearbyConnectionsCoordinator.nearbyState.collect { state ->
                     nearbyState = state
+                    refreshUiState()
+                }
+            }
+            viewModelScope.launch {
+                nearbyConnectionsCoordinator.currentSession.collect { currentSession ->
+                    nearbyGameStateJob?.cancel()
+                    nearbyEventsJob?.cancel()
+                    nearbySession = currentSession
+                    if (currentSession != null) {
+                        resumeDecisionMade = true
+                        selectedPieceId = PieceCatalog.SINGLE_CELL_ID
+                        selectedOrientationIndex = 0
+                        gameStartedAtMillis = timeProvider.nowEpochMillis()
+                        recordedGameOverTurn = null
+                        nearbyGameStateJob =
+                            viewModelScope.launch {
+                                currentSession.gameState.collect {
+                                    refreshUiState()
+                                }
+                            }
+                        nearbyEventsJob =
+                            viewModelScope.launch {
+                                currentSession.events.collect { event ->
+                                    _effects.tryEmit(event.toEffect())
+                                }
+                            }
+                    } else {
+                        nearbyGameStateJob = null
+                        nearbyEventsJob = null
+                    }
                     refreshUiState()
                 }
             }
@@ -102,6 +152,7 @@ class GameViewModel
             val nextSettings = settings.copy(preferredMode = mode).normalized()
             settings = nextSettings
             resumeDecisionMade = true
+            leaveNearbySessionForLocalPlay()
             startLocalSession(nextSettings)
             viewModelScope.launch {
                 settingsRepository.updateSettings { it.copy(preferredMode = mode).normalized() }
@@ -112,11 +163,18 @@ class GameViewModel
         fun resumeSavedGame() {
             viewModelScope.launch {
                 val savedState = savedGameData.gameState ?: return@launch
+                if (!savedState.hasValidIndexDomains()) {
+                    gameRepository.clearSavedGame()
+                    savedGameData = SavedGameData()
+                    refreshUiState()
+                    return@launch
+                }
                 val savedSettings = savedGameData.settings.normalized()
                 settings = savedSettings
+                leaveNearbySessionForLocalPlay()
                 settingsRepository.updateSettings { savedSettings }
-                session = createLocalSession(savedSettings.copy(preferredMode = savedState.gameMode))
-                session.replaceState(savedState)
+                localSession = createLocalSession(savedSettings.copy(preferredMode = savedState.gameMode))
+                localSession.replaceState(savedState)
                 selectedPieceId = PieceCatalog.SINGLE_CELL_ID
                 selectedOrientationIndex = 0
                 gameStartedAtMillis = timeProvider.nowEpochMillis()
@@ -130,6 +188,7 @@ class GameViewModel
             viewModelScope.launch {
                 gameRepository.clearSavedGame()
                 resumeDecisionMade = true
+                leaveNearbySessionForLocalPlay()
                 startLocalSession(settings)
             }
         }
@@ -155,10 +214,12 @@ class GameViewModel
         }
 
         fun startNearbyHosting() {
+            prepareForNearbySession()
             nearbyConnectionsCoordinator.startHosting(LocalSession.defaultConfigFor(settings.preferredMode))
         }
 
         fun startNearbyDiscovery() {
+            prepareForNearbySession()
             nearbyConnectionsCoordinator.startDiscovery()
         }
 
@@ -264,10 +325,11 @@ class GameViewModel
             col: Int,
         ) {
             viewModelScope.launch {
-                val stateBefore = session.gameState.value
+                val gameplaySession = session
+                val stateBefore = gameplaySession.gameState.value
                 val currentPlayer = stateBefore.players[stateBefore.currentPlayerIndex]
                 val result =
-                    session.sendMove(
+                    gameplaySession.sendMove(
                         Move(
                             playerIndex = currentPlayer.index,
                             pieceId = selectedPieceId,
@@ -278,29 +340,35 @@ class GameViewModel
                     )
                 if (result.isSuccess) {
                     refreshUiState()
-                    emitAcceptedEffect(stateBefore)
-                    persistAfterAcceptedTurn(session.gameState.value)
+                    emitAcceptedEffect(gameplaySession, stateBefore)
+                    val stateAfter = gameplaySession.gameState.value
+                    if (gameplaySession.sessionType == SessionType.LOCAL) {
+                        persistAfterAcceptedTurn(stateAfter)
+                    }
                 } else {
-                    _effects.tryEmit(GameEffect.MoveRejected(result.moveRejectionReason()))
+                    _effects.tryEmit(result.toFailureEffect())
                 }
             }
         }
 
         fun passCurrentPlayer() {
             viewModelScope.launch {
-                val stateBefore = session.gameState.value
+                val gameplaySession = session
+                val stateBefore = gameplaySession.gameState.value
                 if (stateBefore.isGameOver) return@launch
                 val playerIndex = stateBefore.currentPlayerIndex
-                val result = session.sendPass(playerIndex)
+                val result = gameplaySession.sendPass(playerIndex)
                 if (result.isSuccess) {
                     refreshUiState()
-                    val stateAfter = session.gameState.value
+                    val stateAfter = gameplaySession.gameState.value
                     if (!stateBefore.isGameOver && stateAfter.isGameOver) {
                         _effects.tryEmit(GameEffect.GameOver)
                     }
-                    persistAfterAcceptedTurn(stateAfter)
+                    if (gameplaySession.sessionType == SessionType.LOCAL) {
+                        persistAfterAcceptedTurn(stateAfter)
+                    }
                 } else {
-                    _effects.tryEmit(GameEffect.MoveRejected(result.moveRejectionReason()))
+                    _effects.tryEmit(result.toFailureEffect())
                 }
             }
         }
@@ -319,8 +387,25 @@ class GameViewModel
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
             recordedGameOverTurn = null
-            session = createLocalSession(nextSettings)
+            localSession = createLocalSession(nextSettings)
             refreshUiState()
+        }
+
+        private fun prepareForNearbySession() {
+            selectedPieceId = PieceCatalog.SINGLE_CELL_ID
+            selectedOrientationIndex = 0
+            gameStartedAtMillis = timeProvider.nowEpochMillis()
+            recordedGameOverTurn = null
+            resumeDecisionMade = true
+        }
+
+        private fun leaveNearbySessionForLocalPlay() {
+            nearbyGameStateJob?.cancel()
+            nearbyGameStateJob = null
+            nearbyEventsJob?.cancel()
+            nearbyEventsJob = null
+            nearbySession = null
+            nearbyConnectionsCoordinator.disconnect()
         }
 
         private fun createLocalSession(nextSettings: GameSettings): LocalSession =
@@ -373,9 +458,8 @@ class GameViewModel
             )
         }
 
-        private fun List<com.finnvek.cornersapart.model.Player>.combinedScoreBreakdown():
-            com.finnvek.cornersapart.model.ScoreBreakdown =
-            com.finnvek.cornersapart.model.ScoreBreakdown(
+        private fun List<Player>.combinedScoreBreakdown(): ScoreBreakdown =
+            ScoreBreakdown(
                 placedCellPoints = sumOf { player -> player.scoreBreakdown.placedCellPoints },
                 bonusTilePoints = sumOf { player -> player.scoreBreakdown.bonusTilePoints },
                 completionBonus = sumOf { player -> player.scoreBreakdown.completionBonus },
@@ -394,36 +478,18 @@ class GameViewModel
             val activeProfile = activeProfile()
             return GameUiState(
                 gameMode = gameMode,
-                board = board,
-                bonusTiles = bonusTiles,
-                players =
-                    players.map { player ->
-                        val claimedBonusTiles =
-                            bonusTiles.count { tile -> tile.claimedByPlayerIndex == player.index }
-                        PlayerUiState(
-                            index = player.index,
-                            name = player.name,
-                            colorIndex = player.colorIndex,
-                            ownerIndex = player.ownerIndex,
-                            startRow = player.startCorner.row,
-                            startCol = player.startCorner.col,
-                            totalScore = player.scoreBreakdown.total,
-                            placedCellPoints = player.scoreBreakdown.placedCellPoints,
-                            bonusTilePoints = player.scoreBreakdown.bonusTilePoints,
-                            completionBonus = player.scoreBreakdown.completionBonus,
-                            claimedBonusTiles = claimedBonusTiles,
-                            piecesPlaced = player.usedPieceIds.size,
-                            piecesRemaining = PieceCatalog.all.size - player.usedPieceIds.size,
-                            hasPassed = player.passed,
-                            isCurrentTurn = player.index == currentPlayer.index,
-                            isComputerControlled = player.isComputerControlled,
-                        )
-                    },
+                board = board.toSnapshotCopy(),
+                bonusTiles = bonusTiles.toSnapshotList(),
+                players = toPlayerUiStates(currentPlayer),
                 currentPlayerIndex = currentPlayer.index,
                 selectedPieceId = selectedPieceId,
                 selectedOrientationIndex = selectedOrientationIndex,
-                selectedCells = selectedCells,
-                pieces = PieceCatalog.all.map { piece -> piece.toPanelItem(currentPlayer.usedPieceIds) },
+                selectedCells = selectedCells.toSnapshotList(),
+                pieces =
+                    PieceCatalog.all
+                        .map { piece ->
+                            piece.toPanelItem(currentPlayer.usedPieceIds)
+                        }.toSnapshotList(),
                 isGameOver = isGameOver,
                 soundEnabled = settings.soundEnabled,
                 hapticsEnabled = settings.hapticsEnabled,
@@ -431,18 +497,61 @@ class GameViewModel
                 gameDurationSeconds = elapsedGameSeconds(),
                 preferredDifficulty = settings.preferredDifficulty,
                 preferredMode = settings.preferredMode,
-                history = activeProfile?.history.orEmpty(),
+                history = activeProfile.historyUiState(),
                 activeProfileName = activeProfile?.name ?: DEFAULT_PROFILE_NAME,
-                hasSavedGame = savedGameData.gameState != null && !resumeDecisionMade,
+                hasSavedGame = savedGameData.gameState?.hasValidIndexDomains() == true && !resumeDecisionMade,
                 resumeSummary = savedGameData.toResumeSummary(),
-                rankedScores = Scoring.rankPlayers(this),
-                nearbyState = nearbyState,
-                profiles = profiles.map { profile -> profile.toUiState() },
+                rankedScores =
+                    Scoring
+                        .rankPlayers(this)
+                        .toSnapshotList(),
+                nearbyState = nearbyState.toNearbySnapshotCopy(),
+                profiles = profilesUiState(),
             )
         }
 
+        private fun GameState.toPlayerUiStates(currentPlayer: Player): List<PlayerUiState> =
+            players
+                .map { player ->
+                    player.toUiState(
+                        claimedBonusTiles = bonusTiles.count { tile -> tile.claimedByPlayerIndex == player.index },
+                        isCurrentTurn = player.index == currentPlayer.index,
+                    )
+                }.toSnapshotList()
+
+        private fun Player.toUiState(
+            claimedBonusTiles: Int,
+            isCurrentTurn: Boolean,
+        ): PlayerUiState =
+            PlayerUiState(
+                index = index,
+                name = name,
+                colorIndex = colorIndex,
+                ownerIndex = ownerIndex,
+                startRow = startCorner.row,
+                startCol = startCorner.col,
+                totalScore = scoreBreakdown.total,
+                placedCellPoints = scoreBreakdown.placedCellPoints,
+                bonusTilePoints = scoreBreakdown.bonusTilePoints,
+                completionBonus = scoreBreakdown.completionBonus,
+                claimedBonusTiles = claimedBonusTiles,
+                piecesPlaced = usedPieceIds.size,
+                piecesRemaining = PieceCatalog.all.size - usedPieceIds.size,
+                hasPassed = passed,
+                isCurrentTurn = isCurrentTurn,
+                isComputerControlled = isComputerControlled,
+            )
+
+        private fun Profile?.historyUiState(): List<HistoryEntry> =
+            this
+                ?.history
+                .orEmpty()
+                .map { entry -> entry.toSnapshotCopy() }
+                .toSnapshotList()
+
         private fun SavedGameData.toResumeSummary(): ResumeGameSummary? {
             val state = gameState ?: return null
+            if (!state.hasValidIndexDomains()) return null
             if (resumeDecisionMade) return null
             val rankedScores = Scoring.rankPlayers(state)
             val leader = rankedScores.firstOrNull()
@@ -465,6 +574,11 @@ class GameViewModel
                 active = active,
             )
 
+        private fun profilesUiState(): List<ProfileUiState> =
+            profiles
+                .map { profile -> profile.toUiState() }
+                .toSnapshotList()
+
         private fun com.finnvek.cornersapart.model.PieceDef.toPanelItem(usedPieceIds: Set<String>): PiecePanelItem =
             PiecePanelItem(
                 piece = this,
@@ -485,8 +599,11 @@ class GameViewModel
             return PieceCatalog.find(pieceId) != null && pieceId !in currentPlayer.usedPieceIds
         }
 
-        private fun emitAcceptedEffect(stateBefore: GameState) {
-            val stateAfter = session.gameState.value
+        private fun emitAcceptedEffect(
+            gameplaySession: GameSession,
+            stateBefore: GameState,
+        ) {
+            val stateAfter = gameplaySession.gameState.value
             val playerBefore = stateBefore.players[stateBefore.currentPlayerIndex]
             val playerAfter = stateAfter.players[playerBefore.index]
             val delta = playerAfter.scoreBreakdown.total - playerBefore.scoreBreakdown.total
@@ -506,11 +623,17 @@ class GameViewModel
             }
         }
 
-        private fun Result<Unit>.moveRejectionReason(): MoveRejectionReason {
-            val message = exceptionOrNull()?.message.orEmpty()
-            return MoveRejectionReason.entries.firstOrNull { reason -> reason.name == message }
-                ?: MoveRejectionReason.CELL_OCCUPIED
-        }
+        private fun Result<Unit>.toFailureEffect(): GameEffect =
+            when (val error = exceptionOrNull()) {
+                is MoveRejectedException -> GameEffect.MoveRejected(error.reason)
+                else -> GameEffect.ActionFailed(error?.message ?: ACTION_FAILED_MESSAGE)
+            }
+
+        private fun GameSessionEvent.toEffect(): GameEffect =
+            when (this) {
+                is GameSessionEvent.MoveRejected -> GameEffect.MoveRejected(reason)
+                is GameSessionEvent.ActionFailed -> GameEffect.ActionFailed(message)
+            }
 
         private fun activeProfile(): Profile? = profiles.firstOrNull { profile -> profile.active }
 
@@ -543,3 +666,4 @@ private const val DEFAULT_PROFILE_ID = "local-default"
 private const val DEFAULT_PROFILE_NAME = "Player"
 private const val DEFAULT_PROFILE_OWNER_INDEX = 0
 private const val MILLIS_PER_SECOND = 1_000L
+private const val ACTION_FAILED_MESSAGE = "Action failed."

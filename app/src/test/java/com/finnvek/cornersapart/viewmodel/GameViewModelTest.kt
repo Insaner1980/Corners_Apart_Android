@@ -5,25 +5,33 @@ import com.finnvek.cornersapart.data.InMemoryJsonStateStore
 import com.finnvek.cornersapart.data.ProfileRepository
 import com.finnvek.cornersapart.data.SettingsRepository
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.MoveRejectionReason
+import com.finnvek.cornersapart.engine.MoveResult
 import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameSettings
+import com.finnvek.cornersapart.model.INVALID_GAME_STATE_INDEX_DOMAINS
 import com.finnvek.cornersapart.model.LocalAvatarStyle
+import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.ProfilesData
 import com.finnvek.cornersapart.model.SavedGameData
-import com.finnvek.cornersapart.multiplayer.ConnectionsClientFacade
 import com.finnvek.cornersapart.multiplayer.ConnectionState
+import com.finnvek.cornersapart.multiplayer.ConnectionsClientFacade
+import com.finnvek.cornersapart.multiplayer.GameMessage
+import com.finnvek.cornersapart.multiplayer.GameProtocol
 import com.finnvek.cornersapart.multiplayer.LocalSessionFactory
 import com.finnvek.cornersapart.multiplayer.NearbyConnectionLifecycleCallback
+import com.finnvek.cornersapart.multiplayer.NearbyConnectionResult
 import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.NearbyEndpointDiscoveryCallback
+import com.finnvek.cornersapart.multiplayer.NearbyOperationFailureCallback
 import com.finnvek.cornersapart.multiplayer.NearbyPayloadCallback
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
-import com.google.android.gms.nearby.connection.Strategy
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -243,7 +251,11 @@ class GameViewModelTest {
             advanceUntilIdle()
 
             assertEquals(true, harness.viewModel.uiState.value.hasSavedGame)
-            assertEquals(GameMode.THREE_PLAYER, harness.viewModel.uiState.value.resumeSummary?.gameMode)
+            assertEquals(
+                GameMode.THREE_PLAYER,
+                harness.viewModel.uiState.value.resumeSummary
+                    ?.gameMode,
+            )
 
             harness.viewModel.resumeSavedGame()
             advanceUntilIdle()
@@ -251,11 +263,44 @@ class GameViewModelTest {
             assertEquals(GameMode.THREE_PLAYER, harness.viewModel.uiState.value.gameMode)
             assertEquals(false, harness.viewModel.uiState.value.hasSavedGame)
             assertEquals(null, harness.viewModel.uiState.value.resumeSummary)
-            assertEquals(4, harness.settingsRepository.settings.first().preferredDifficulty)
+            assertEquals(
+                4,
+                harness.settingsRepository.settings
+                    .first()
+                    .preferredDifficulty,
+            )
 
             harness.viewModel.discardSavedGameAndStartNewGame()
             advanceUntilIdle()
 
+            assertEquals(null, harness.gameRepository.savedGame.first())
+        }
+
+    @Test
+    fun invalidSavedGameIndexDomainsAreNotExposedOrResumed() =
+        runTest {
+            val invalidState =
+                GameEngine()
+                    .newGame(GameConfig(mode = GameMode.THREE_PLAYER, randomSeed = 93L, bonusTiles = emptyList()))
+                    .copy(currentPlayerIndex = 99)
+            val harness =
+                createViewModelHarness(
+                    initialSavedGameData =
+                        SavedGameData(
+                            gameState = invalidState,
+                            savedAtEpochMillis = 1234L,
+                            settings = GameSettings(preferredMode = GameMode.THREE_PLAYER),
+                        ),
+                )
+            advanceUntilIdle()
+
+            assertEquals(false, harness.viewModel.uiState.value.hasSavedGame)
+
+            harness.viewModel.resumeSavedGame()
+            advanceUntilIdle()
+
+            assertEquals(GameMode.FOUR_PLAYER, harness.viewModel.uiState.value.gameMode)
+            assertEquals(0, harness.viewModel.uiState.value.currentPlayerIndex)
             assertEquals(null, harness.gameRepository.savedGame.first())
         }
 
@@ -296,7 +341,12 @@ class GameViewModelTest {
             viewModel.setActiveProfile(defaultProfileId)
             advanceUntilIdle()
 
-            assertEquals(defaultProfileId, harness.profileRepository.activeProfile.first()?.id)
+            assertEquals(
+                defaultProfileId,
+                harness.profileRepository.activeProfile
+                    .first()
+                    ?.id,
+            )
         }
 
     @Test
@@ -321,6 +371,152 @@ class GameViewModelTest {
         }
 
     @Test
+    fun nearbyHostMovesUseCoordinatorSessionAsAuthoritativeState() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val harness = createViewModelHarness(facade = facade)
+
+            harness.viewModel.startNearbyHosting()
+            advanceUntilIdle()
+            harness.viewModel.placeSelectedAt(row = 0, col = 0)
+            advanceUntilIdle()
+
+            assertEquals(
+                0,
+                harness.nearbyConnectionsCoordinator.currentSession.value
+                    ?.gameState
+                    ?.value
+                    ?.board
+                    ?.get(row = 0, col = 0),
+            )
+            assertEquals(
+                0,
+                harness.viewModel.uiState.value.board
+                    .get(row = 0, col = 0),
+            )
+        }
+
+    @Test
+    fun nearbyClientFullSyncUpdatesPlayableUiState() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val harness = createViewModelHarness(facade = facade)
+            val initialState =
+                GameEngine()
+                    .newGame(GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 101L, bonusTiles = emptyList()))
+            val result =
+                GameEngine().applyMove(
+                    initialState,
+                    Move(
+                        playerIndex = 0,
+                        pieceId = PieceCatalog.SINGLE_CELL_ID,
+                        anchorRow = 0,
+                        anchorCol = 0,
+                        orientationIndex = 0,
+                    ),
+                )
+            check(result is MoveResult.Accepted)
+            val syncedState = result.state
+
+            harness.viewModel.startNearbyDiscovery()
+            harness.viewModel.connectToNearbyEndpoint("host-1")
+            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
+            harness.viewModel.acceptPendingNearbyConnection("host-1")
+            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+            facade.payloadCallback?.onBytesPayload(
+                "host-1",
+                GameProtocol.encode(GameMessage.FullSync(syncedState)).encodeToByteArray(),
+            )
+            advanceUntilIdle()
+
+            assertEquals(
+                0,
+                harness.viewModel.uiState.value.board
+                    .get(row = 0, col = 0),
+            )
+        }
+
+    @Test
+    fun nearbyClientHostRejectionEmitsRejectedEffect() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val harness = createViewModelHarness(facade = facade)
+            val initialState =
+                GameEngine()
+                    .newGame(GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 103L, bonusTiles = emptyList()))
+            val rejectedMove =
+                Move(
+                    playerIndex = 0,
+                    pieceId = PieceCatalog.SINGLE_CELL_ID,
+                    anchorRow = 0,
+                    anchorCol = 1,
+                    orientationIndex = 0,
+                )
+            val effect = async(start = CoroutineStart.UNDISPATCHED) { harness.viewModel.effects.first() }
+
+            harness.viewModel.startNearbyDiscovery()
+            harness.viewModel.connectToNearbyEndpoint("host-1")
+            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
+            harness.viewModel.acceptPendingNearbyConnection("host-1")
+            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+            facade.payloadCallback?.onBytesPayload(
+                "host-1",
+                GameProtocol.encode(GameMessage.FullSync(initialState)).encodeToByteArray(),
+            )
+            advanceUntilIdle()
+            facade.payloadCallback?.onBytesPayload(
+                "host-1",
+                GameProtocol
+                    .encode(
+                        GameMessage.MoveRejected(
+                            move = rejectedMove,
+                            reason = MoveRejectionReason.START_CORNER_NOT_COVERED,
+                        ),
+                    ).encodeToByteArray(),
+            )
+            advanceUntilIdle()
+
+            assertEquals(
+                GameEffect.MoveRejected(MoveRejectionReason.START_CORNER_NOT_COVERED),
+                effect.await(),
+            )
+        }
+
+    @Test
+    fun nearbyClientInvalidSyncEmitsActionFailedEffect() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val harness = createViewModelHarness(facade = facade)
+            val initialState =
+                GameEngine()
+                    .newGame(GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 105L, bonusTiles = emptyList()))
+            val invalidState = initialState.copy(currentPlayerIndex = 99)
+
+            harness.viewModel.startNearbyDiscovery()
+            harness.viewModel.connectToNearbyEndpoint("host-1")
+            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
+            harness.viewModel.acceptPendingNearbyConnection("host-1")
+            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+            facade.payloadCallback?.onBytesPayload(
+                "host-1",
+                GameProtocol.encode(GameMessage.FullSync(initialState)).encodeToByteArray(),
+            )
+            advanceUntilIdle()
+            val effect = async(start = CoroutineStart.UNDISPATCHED) { harness.viewModel.effects.first() }
+
+            facade.payloadCallback?.onBytesPayload(
+                "host-1",
+                GameProtocol.encode(GameMessage.FullSync(invalidState)).encodeToByteArray(),
+            )
+            advanceUntilIdle()
+
+            assertEquals(
+                GameEffect.ActionFailed(INVALID_GAME_STATE_INDEX_DOMAINS),
+                effect.await(),
+            )
+        }
+
+    @Test
     fun gameOverAppendsHistoryOnceAndClearsSavedGame() =
         runTest {
             val harness = createViewModelHarness()
@@ -338,11 +534,43 @@ class GameViewModelTest {
             assertEquals(null, harness.gameRepository.savedGame.first())
         }
 
+    @Test
+    fun twoColorDuelHistoryAggregatesScoresByOwner() =
+        runTest {
+            val harness = createViewModelHarness()
+            val viewModel = harness.viewModel
+
+            viewModel.startGame(GameMode.TWO_COLOR_DUEL)
+            advanceUntilIdle()
+            listOf(
+                0 to 0,
+                0 to 19,
+                19 to 19,
+                19 to 0,
+            ).forEach { (row, col) ->
+                viewModel.placeSelectedAt(row = row, col = col)
+                advanceUntilIdle()
+            }
+            repeat(GameConstants.PLAYER_COUNT) {
+                viewModel.passCurrentPlayer()
+                advanceUntilIdle()
+            }
+
+            val historyEntry = checkNotNull(harness.profileRepository.activeProfile.first()).history.single()
+            assertEquals(1, historyEntry.rank)
+            assertEquals(2, historyEntry.totalScore)
+            assertEquals(2, historyEntry.scoreBreakdown.placedCellPoints)
+            assertEquals(listOf(0, 1), historyEntry.scores.map { score -> score.ownerIndex })
+            assertEquals(listOf("Player 1", "Player 2"), historyEntry.scores.map { score -> score.name })
+            assertEquals(listOf(2, 2), historyEntry.scores.map { score -> score.totalScore })
+        }
+
     private fun createViewModel(): GameViewModel = createViewModelHarness().viewModel
 
     private fun createViewModelHarness(
         initialSettings: GameSettings = GameSettings(),
         initialSavedGameData: SavedGameData = SavedGameData(),
+        facade: ConnectionsClientFacade = NoOpConnectionsClientFacade,
     ): GameViewModelHarness {
         val engine = GameEngine()
         val sessionFactory =
@@ -357,6 +585,12 @@ class GameViewModelTest {
         val gameRepository = GameRepository(InMemoryJsonStateStore(initialSavedGameData))
         val profileRepository = ProfileRepository(InMemoryJsonStateStore(ProfilesData()))
         val settingsRepository = SettingsRepository(InMemoryJsonStateStore(initialSettings))
+        val nearbyConnectionsCoordinator =
+            NearbyConnectionsCoordinator(
+                facade = facade,
+                gameEngine = engine,
+                localEndpointName = "Corners Apart",
+            )
         val harness =
             GameViewModelHarness(
                 sessionFactory = sessionFactory,
@@ -364,12 +598,7 @@ class GameViewModelTest {
                 profileRepository = profileRepository,
                 settingsRepository = settingsRepository,
                 timeProvider = FixedTimeProvider,
-                nearbyConnectionsCoordinator =
-                    NearbyConnectionsCoordinator(
-                        facade = NoOpConnectionsClientFacade,
-                        gameEngine = engine,
-                        localEndpointName = "Corners Apart",
-                    ),
+                nearbyConnectionsCoordinator = nearbyConnectionsCoordinator,
             )
         harness.viewModel = harness.createViewModel()
         return harness
@@ -381,7 +610,7 @@ class GameViewModelTest {
         val profileRepository: ProfileRepository,
         val settingsRepository: SettingsRepository,
         private val timeProvider: TimeProvider,
-        private val nearbyConnectionsCoordinator: NearbyConnectionsCoordinator,
+        val nearbyConnectionsCoordinator: NearbyConnectionsCoordinator,
     ) {
         lateinit var viewModel: GameViewModel
 
@@ -411,32 +640,92 @@ private object NoOpConnectionsClientFacade : ConnectionsClientFacade {
     override fun startAdvertising(
         localEndpointName: String,
         serviceId: String,
-        strategy: Strategy,
         callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) = Unit
 
     override fun startDiscovery(
         serviceId: String,
-        strategy: Strategy,
         callback: NearbyEndpointDiscoveryCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) = Unit
 
     override fun requestConnection(
         localEndpointName: String,
         endpointId: String,
         callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) = Unit
 
     override fun acceptConnection(
         endpointId: String,
         callback: NearbyPayloadCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) = Unit
 
-    override fun rejectConnection(endpointId: String) = Unit
+    override fun rejectConnection(
+        endpointId: String,
+        failureCallback: NearbyOperationFailureCallback,
+    ) = Unit
 
     override fun sendPayload(
         endpointId: String,
         bytes: ByteArray,
+        failureCallback: NearbyOperationFailureCallback,
+    ) = Unit
+
+    override fun stopDiscovery() = Unit
+
+    override fun stopAdvertising() = Unit
+
+    override fun stopAllEndpoints() = Unit
+}
+
+private class RecordingConnectionsClientFacade : ConnectionsClientFacade {
+    var connectionCallback: NearbyConnectionLifecycleCallback? = null
+    var payloadCallback: NearbyPayloadCallback? = null
+
+    override fun startAdvertising(
+        localEndpointName: String,
+        serviceId: String,
+        callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
+    ) {
+        connectionCallback = callback
+    }
+
+    override fun startDiscovery(
+        serviceId: String,
+        callback: NearbyEndpointDiscoveryCallback,
+        failureCallback: NearbyOperationFailureCallback,
+    ) = Unit
+
+    override fun requestConnection(
+        localEndpointName: String,
+        endpointId: String,
+        callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
+    ) {
+        connectionCallback = callback
+    }
+
+    override fun acceptConnection(
+        endpointId: String,
+        callback: NearbyPayloadCallback,
+        failureCallback: NearbyOperationFailureCallback,
+    ) {
+        payloadCallback = callback
+    }
+
+    override fun rejectConnection(
+        endpointId: String,
+        failureCallback: NearbyOperationFailureCallback,
+    ) = Unit
+
+    override fun sendPayload(
+        endpointId: String,
+        bytes: ByteArray,
+        failureCallback: NearbyOperationFailureCallback,
     ) = Unit
 
     override fun stopDiscovery() = Unit

@@ -20,7 +20,7 @@ data class BoardSnapshot(
         fun empty(size: Int): BoardSnapshot =
             BoardSnapshot(
                 size = size,
-                cells = List(size * size) { EMPTY },
+                cells = List(size * size) { EMPTY }.toSnapshotList(),
             )
     }
 }

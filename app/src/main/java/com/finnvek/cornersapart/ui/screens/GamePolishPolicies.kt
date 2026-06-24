@@ -51,6 +51,7 @@ object GameSoundPolicy {
                 }
             GameEffect.GameOver -> GameSoundEvent.GAME_OVER
             is GameEffect.MoveRejected -> null
+            is GameEffect.ActionFailed -> null
         }
     }
 }

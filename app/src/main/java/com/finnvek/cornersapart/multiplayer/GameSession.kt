@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.multiplayer
 
+import com.finnvek.cornersapart.engine.MoveRejectionReason
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameState
@@ -20,4 +21,14 @@ interface GameSession {
     fun startNewGame(config: GameConfig)
 
     fun replaceState(state: GameState)
+}
+
+sealed interface GameSessionEvent {
+    data class MoveRejected(
+        val reason: MoveRejectionReason,
+    ) : GameSessionEvent
+
+    data class ActionFailed(
+        val message: String,
+    ) : GameSessionEvent
 }

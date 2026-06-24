@@ -1,6 +1,8 @@
 package com.finnvek.cornersapart.engine
 
+import com.finnvek.cornersapart.model.BonusTile
 import com.finnvek.cornersapart.model.CellPosition
+import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameModeConfigs
@@ -110,6 +112,23 @@ class GameEngineModeTest {
         assertEquals(listOf(0, 1, 2), state.players.map { player -> player.index })
         assertTrue(state.players.all { player -> player.isActiveScoring })
         assertEquals(standardCorners().take(3), state.players.map { player -> player.startCorner })
+    }
+
+    @Test
+    fun newGameTakesSnapshotOfConfiguredBonusTiles() {
+        val configuredBonusTiles = mutableListOf(BonusTile(row = 4, col = 4))
+
+        val state =
+            engine.newGame(
+                GameConfig(
+                    mode = GameMode.FOUR_PLAYER,
+                    randomSeed = 29L,
+                    bonusTiles = configuredBonusTiles,
+                ),
+            )
+        configuredBonusTiles.clear()
+
+        assertEquals(listOf(BonusTile(row = 4, col = 4)), state.bonusTiles)
     }
 
     private fun MoveResult.acceptedState(): com.finnvek.cornersapart.model.GameState {

@@ -18,7 +18,7 @@ data class GameModeConfig(
             mode = mode,
             boardSize = boardSize,
             randomSeed = randomSeed,
-            bonusTiles = bonusTiles,
+            bonusTiles = bonusTiles?.toSnapshotList(),
             bonusTileCount = bonusTileCount,
         )
 }
@@ -77,7 +77,10 @@ object GameModeConfigs {
                     mode = mode,
                     boardSize = boardSize,
                     bonusTileCount = GameConstants.STANDARD_BONUS_TILE_COUNT,
-                    playerSlots = standardSlots(boardSize).take(3),
+                    playerSlots =
+                        standardSlots(boardSize)
+                            .take(3)
+                            .toSnapshotList(),
                 )
             GameMode.FOUR_PLAYER ->
                 GameModeConfig(
@@ -119,12 +122,13 @@ object GameModeConfigs {
                 startCorner = CellPosition(row = boardSize - 1, col = 0),
                 isComputerControlled = true,
             ),
-        )
+        ).toSnapshotList()
 
     private fun twoColorDuelSlots(boardSize: Int): List<PlayerSlotConfig> =
-        standardSlots(boardSize).map { slot ->
-            slot.copy(ownerIndex = slot.index % 2)
-        }
+        standardSlots(boardSize)
+            .map { slot ->
+                slot.copy(ownerIndex = slot.index % 2)
+            }.toSnapshotList()
 
     private fun compactDuelSlots(boardSize: Int): List<PlayerSlotConfig> =
         listOf(
@@ -136,15 +140,16 @@ object GameModeConfigs {
                 index = 1,
                 startCorner = CellPosition(row = boardSize - 1, col = boardSize - 1),
             ),
-        )
+        ).toSnapshotList()
 
     private fun standardSlots(boardSize: Int): List<PlayerSlotConfig> =
-        standardCorners(boardSize).mapIndexed { index, corner ->
-            slot(
-                index = index,
-                startCorner = corner,
-            )
-        }
+        standardCorners(boardSize)
+            .mapIndexed { index, corner ->
+                slot(
+                    index = index,
+                    startCorner = corner,
+                )
+            }.toSnapshotList()
 
     private fun slot(
         index: Int,
@@ -167,5 +172,5 @@ object GameModeConfigs {
             CellPosition(row = 0, col = boardSize - 1),
             CellPosition(row = boardSize - 1, col = boardSize - 1),
             CellPosition(row = boardSize - 1, col = 0),
-        )
+        ).toSnapshotList()
 }

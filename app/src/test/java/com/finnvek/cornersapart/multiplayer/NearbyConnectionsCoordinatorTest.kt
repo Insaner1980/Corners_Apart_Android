@@ -5,7 +5,6 @@ import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
-import com.google.android.gms.nearby.connection.Strategy
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -17,7 +16,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class NearbyConnectionsCoordinatorTest {
     @Test
-    fun startHostingUsesPackageServiceIdAndP2pStarStrategy() =
+    fun startHostingUsesPackageServiceIdAndCreatesSession() =
         runTest {
             val facade = RecordingConnectionsClientFacade()
             val coordinator = createCoordinator(facade)
@@ -27,7 +26,6 @@ class NearbyConnectionsCoordinatorTest {
             )
 
             assertEquals(NearbyConnectionsCoordinator.SERVICE_ID, facade.advertisingServiceId)
-            assertEquals(Strategy.P2P_STAR, facade.advertisingStrategy)
             assertNotNull(coordinator.currentSession.value)
         }
 
@@ -53,7 +51,6 @@ class NearbyConnectionsCoordinatorTest {
                     .endpointName,
             )
             assertEquals(NearbyConnectionsCoordinator.SERVICE_ID, facade.discoveryServiceId)
-            assertEquals(Strategy.P2P_STAR, facade.discoveryStrategy)
         }
 
     @Test
@@ -88,7 +85,7 @@ class NearbyConnectionsCoordinatorTest {
             )
             facade.connectionCallback?.onConnectionInitiated("endpoint-1", "Phone", "1234")
             coordinator.acceptPendingConnection("endpoint-1")
-            facade.connectionCallback?.onConnectionResult("endpoint-1", true)
+            facade.connectionCallback?.onConnectionResult("endpoint-1", NearbyConnectionResult.Accepted)
             checkNotNull(coordinator.currentSession.value).sendMove(
                 Move(
                     playerIndex = 0,
@@ -171,13 +168,112 @@ class NearbyConnectionsCoordinatorTest {
             coordinator.connectToEndpoint("host-1")
             facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
             coordinator.acceptPendingConnection("host-1")
-            facade.connectionCallback?.onConnectionResult("host-1", true)
+            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
             facade.payloadCallback?.onBytesPayload(
                 "host-2",
                 GameProtocol.encode(GameMessage.FullSync(state)).encodeToByteArray(),
             )
 
             assertNull(coordinator.currentSession.value)
+        }
+
+    @Test
+    fun clientRejectsFullSyncWithInvalidIndexDomains() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val coordinator = createCoordinator(facade)
+            val invalidState =
+                GameEngine()
+                    .newGame(GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 75L, bonusTiles = emptyList()))
+                    .copy(currentPlayerIndex = 99)
+
+            coordinator.startDiscovery()
+            coordinator.connectToEndpoint("host-1")
+            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
+            coordinator.acceptPendingConnection("host-1")
+            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+            facade.payloadCallback?.onBytesPayload(
+                "host-1",
+                GameProtocol.encode(GameMessage.FullSync(invalidState)).encodeToByteArray(),
+            )
+
+            assertNull(coordinator.currentSession.value)
+            assertEquals(ConnectionState.FAILED, coordinator.nearbyState.value.connectionState)
+            assertEquals(
+                "Game state index domains are invalid.",
+                coordinator.nearbyState.value.errorMessage,
+            )
+        }
+
+    @Test
+    fun clientPreservesLaterInvalidFullSyncErrorMessage() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val coordinator = createCoordinator(facade)
+            val initialState =
+                GameEngine()
+                    .newGame(GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 76L, bonusTiles = emptyList()))
+            val invalidState = initialState.copy(currentPlayerIndex = 99)
+
+            coordinator.startDiscovery()
+            coordinator.connectToEndpoint("host-1")
+            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
+            coordinator.acceptPendingConnection("host-1")
+            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+            facade.payloadCallback?.onBytesPayload(
+                "host-1",
+                GameProtocol.encode(GameMessage.FullSync(initialState)).encodeToByteArray(),
+            )
+            facade.payloadCallback?.onBytesPayload(
+                "host-1",
+                GameProtocol.encode(GameMessage.FullSync(invalidState)).encodeToByteArray(),
+            )
+
+            assertNotNull(coordinator.currentSession.value)
+            assertEquals(ConnectionState.FAILED, coordinator.nearbyState.value.connectionState)
+            assertEquals(
+                "Game state index domains are invalid.",
+                coordinator.nearbyState.value.errorMessage,
+            )
+        }
+
+    @Test
+    fun connectionFailurePreservesStatusCode() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val coordinator = createCoordinator(facade)
+
+            coordinator.startDiscovery()
+            coordinator.connectToEndpoint("host-1")
+            facade.connectionCallback?.onConnectionResult(
+                "host-1",
+                NearbyConnectionResult.Failed(statusCode = 8004, message = "Remote endpoint rejected"),
+            )
+
+            assertEquals(ConnectionState.FAILED, coordinator.nearbyState.value.connectionState)
+            assertEquals(
+                "Connection failed (8004): Remote endpoint rejected",
+                coordinator.nearbyState.value.errorMessage,
+            )
+        }
+
+    @Test
+    fun operationFailurePreservesStatusCode() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val coordinator = createCoordinator(facade)
+
+            coordinator.startDiscovery()
+            facade.operationFailureCallback?.onOperationFailure(
+                NearbyOperation.START_DISCOVERY,
+                NearbyOperationFailure(statusCode = 8002, message = "Already discovering"),
+            )
+
+            assertEquals(ConnectionState.FAILED, coordinator.nearbyState.value.connectionState)
+            assertEquals(
+                "START_DISCOVERY failed (8002): Already discovering",
+                coordinator.nearbyState.value.errorMessage,
+            )
         }
 
     @Test
@@ -215,7 +311,7 @@ class NearbyConnectionsCoordinatorTest {
             )
             facade.connectionCallback?.onConnectionInitiated("endpoint-1", "Phone", "1234")
             coordinator.acceptPendingConnection("endpoint-1")
-            facade.connectionCallback?.onConnectionResult("endpoint-1", true)
+            facade.connectionCallback?.onConnectionResult("endpoint-1", NearbyConnectionResult.Accepted)
 
             facade.connectionCallback?.onDisconnected("endpoint-1")
 
@@ -258,18 +354,17 @@ class NearbyConnectionsCoordinatorTest {
         )
         facade.connectionCallback?.onConnectionInitiated("endpoint-1", "Phone", "1234")
         coordinator.acceptPendingConnection("endpoint-1")
-        facade.connectionCallback?.onConnectionResult("endpoint-1", true)
+        facade.connectionCallback?.onConnectionResult("endpoint-1", NearbyConnectionResult.Accepted)
     }
 }
 
 private class RecordingConnectionsClientFacade : ConnectionsClientFacade {
     var advertisingServiceId: String? = null
-    var advertisingStrategy: Strategy? = null
     var discoveryServiceId: String? = null
-    var discoveryStrategy: Strategy? = null
     var connectionCallback: NearbyConnectionLifecycleCallback? = null
     var discoveryCallback: NearbyEndpointDiscoveryCallback? = null
     var payloadCallback: NearbyPayloadCallback? = null
+    var operationFailureCallback: NearbyOperationFailureCallback? = null
     val acceptedEndpoints = mutableListOf<String>()
     val rejectedEndpoints = mutableListOf<String>()
     val sentPayloads = mutableListOf<Pair<String, ByteArray>>()
@@ -278,49 +373,59 @@ private class RecordingConnectionsClientFacade : ConnectionsClientFacade {
     override fun startAdvertising(
         localEndpointName: String,
         serviceId: String,
-        strategy: Strategy,
         callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
         advertisingServiceId = serviceId
-        advertisingStrategy = strategy
         connectionCallback = callback
+        operationFailureCallback = failureCallback
     }
 
     override fun startDiscovery(
         serviceId: String,
-        strategy: Strategy,
         callback: NearbyEndpointDiscoveryCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
         discoveryServiceId = serviceId
-        discoveryStrategy = strategy
         discoveryCallback = callback
+        operationFailureCallback = failureCallback
     }
 
     override fun requestConnection(
         localEndpointName: String,
         endpointId: String,
         callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
         connectionCallback = callback
+        operationFailureCallback = failureCallback
     }
 
     override fun acceptConnection(
         endpointId: String,
         callback: NearbyPayloadCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
         acceptedEndpoints += endpointId
         payloadCallback = callback
+        operationFailureCallback = failureCallback
     }
 
-    override fun rejectConnection(endpointId: String) {
+    override fun rejectConnection(
+        endpointId: String,
+        failureCallback: NearbyOperationFailureCallback,
+    ) {
         rejectedEndpoints += endpointId
+        operationFailureCallback = failureCallback
     }
 
     override fun sendPayload(
         endpointId: String,
         bytes: ByteArray,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
         sentPayloads += endpointId to bytes
+        operationFailureCallback = failureCallback
     }
 
     override fun stopDiscovery() = Unit

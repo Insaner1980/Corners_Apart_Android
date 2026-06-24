@@ -37,7 +37,7 @@ object PieceCatalog {
             piece("five-hook", "Five Hook", 0 to 0, 1 to 0, 2 to 0, 3 to 0, 1 to 1),
             piece("five-zag", "Five Zag", 0 to 0, 0 to 1, 1 to 1, 2 to 1, 2 to 2),
             piece("five-offset", "Five Offset", 0 to 2, 1 to 0, 1 to 1, 1 to 2, 2 to 0),
-        )
+        ).toSnapshotList()
 
     private val byId: Map<String, PieceDef> =
         all.associateBy { piece -> piece.id }
@@ -54,6 +54,6 @@ object PieceCatalog {
         PieceDef(
             id = id,
             displayName = displayName,
-            cells = cells.map { cell -> CellOffset(row = cell.first, col = cell.second) },
+            cells = cells.map { cell -> CellOffset(row = cell.first, col = cell.second) }.toSnapshotList(),
         )
 }
