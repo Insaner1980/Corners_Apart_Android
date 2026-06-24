@@ -1,6 +1,6 @@
 # Corners Apart Android Project Reference
 
-Last verified from the live checkout on 2026-06-13.
+Last verified from the live checkout on 2026-06-20.
 
 This document is the current-state project map for `C:\Dev\Corners_Apart_Android`. It is written for precise future code review questions, implementation planning, and agent handoff. Treat the source code as the final source of truth after any future code changes.
 
@@ -12,7 +12,7 @@ The app package, namespace, and application id are `com.finnvek.cornersapart`. T
 
 The current implementation has a working pure Kotlin game engine, local sessions, a playable Compose game screen, rule-based computer opponents for Solo mode, multiple mode configurations, JSON DataStore repository scaffolding, a Nearby session/protocol abstraction, Android runtime permission handling for Nearby, polish dialogs, history/stat calculation models, unit tests, instrumented Compose tests, CI workflows, and several local static-analysis/security wrappers.
 
-Current non-release state: `GameViewModel` is repository-backed for settings, saved games, active profiles, history, and Nearby UI state. Local sessions are created through `LocalSessionFactory`, saved games include a settings snapshot, resume/profile/settings/history/game-over flows are wired into Compose, and Nearby has a concrete Google Play services adapter behind `NearbyConnectionsCoordinator` and `ConnectionsClientFacade`. Release-only items such as privacy placeholders, Compact Duel physical play-test coverage, two-device Nearby stress testing, and Play Store data-safety remain outside this non-release implementation pass.
+Current non-release state: `GameViewModel` is repository-backed for settings, saved games, active profiles, history, and Nearby UI state. Local sessions are created through `LocalSessionFactory`, saved games include a settings snapshot, resume/profile/settings/history/game-over flows are wired into Compose, and Nearby has a concrete Google Play services adapter behind `NearbyConnectionsCoordinator` and `ConnectionsClientFacade`. The current playable board path in `GameViewModel` still uses `LocalSession`; Nearby session/protocol/coordinator logic exists below the UI, while Compose currently exposes create/find actions but not a complete endpoint-selection/auth/gameplay flow. Release-only items such as privacy placeholders, Compact Duel physical play-test coverage, two-device Nearby stress testing, full Nearby gameplay UI, and Play Store data-safety remain outside this non-release implementation pass.
 
 ## Repository Identity
 
@@ -57,7 +57,7 @@ Implemented now:
 - Five game modes: Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player.
 - Rule-based local computer opponents with 3 styles and 5 difficulty levels.
 - `LocalSession` for local play and Solo computer turns.
-- Nearby protocol/session abstractions and concrete adapter: `GameMessage`, `GameProtocol`, `HostGameCoordinator`, `NearbySession`, `NearbyTransport`, `NearbyConnectionsCoordinator`, `ConnectionsClientFacade`, `PlayServicesConnectionsClientFacade`, lobby reconnect state, and host-authoritative validation.
+- Nearby protocol/session abstractions and concrete adapter: `GameMessage`, `GameProtocol`, `HostGameCoordinator`, `NearbySession`, `NearbyTransport`, `NearbyConnectionsCoordinator`, `ConnectionsClientFacade`, `PlayServicesConnectionsClientFacade`, lobby reconnect state, endpoint-owner authorization, and host-authoritative validation. This layer is implemented and unit-tested, but it is not yet the active `GameViewModel` board-session owner.
 - Nearby runtime permission policy and manifest permission declarations for current target SDK bands.
 - JSON DataStore repository layer for saved game, profiles, and settings.
 - Compose game UI with board, score bar, mode chips, piece strip, selected-piece preview, rotate/flip/pass controls, resume/profile/settings/help/history dialogs, game-over dialog, haptics, local sound cues, and accessibility announcements.
@@ -68,7 +68,7 @@ Implemented now:
 - Game-over and history entries use `Scoring.rankPlayers` so Two-Color Duel owner aggregation is preserved.
 - Centralized theme tokens for colors, spacing, shapes, typography, alpha, and animation durations.
 - Unit and instrumented tests across model, engine, opponents, multiplayer, data, ViewModel, UI policy, UI screen smoke, theme, and release identity.
-- GitHub Actions build/test/lint workflow, SonarCloud workflow, CodeQL workflow for Actions, Gradle dependency verification metadata, detekt config, Semgrep config, DeepSec config, MobSF config, OSV config, Dependency-Check config, and Android-check wrapper scripts.
+- GitHub Actions build/test/lint workflow, SonarCloud workflow, CodeQL workflow for Actions, Dependabot config, Gradle dependency verification metadata, ktlint, detekt config, Compose Stability Analyzer dumps, Android security lint checks, Semgrep config, DeepSec config, MobSF config, OSV config, Dependency-Check config, and Android-check wrapper scripts.
 
 Remaining or release-only:
 
@@ -100,6 +100,7 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 | Hilt | 2.59.2 |
 | AndroidX Hilt Navigation Compose | 1.3.0 |
 | Compose BOM | 2026.05.01 |
+| Compose Stability Analyzer | 0.10.0 |
 | Navigation Compose | 2.9.8 |
 | Lifecycle | 2.10.0 |
 | Coroutines | 1.11.0 |
@@ -112,6 +113,7 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 | ktlint Gradle plugin | 14.2.0 |
 | detekt | 1.23.8 |
 | detekt Compose rules | 0.4.27 |
+| Android Security Lints | 1.0.4 |
 | OWASP Dependency-Check | 12.2.2 |
 | SonarQube Gradle plugin | 7.3.1.8318 |
 | JUnit | 4.13.2 |
@@ -119,7 +121,7 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 | AndroidX Test JUnit | 1.3.0 |
 | AndroidX Test Runner | 1.7.0 |
 
-AGP 9 built-in Kotlin is used for the app module. Do not add `org.jetbrains.kotlin.android` to `app/build.gradle.kts` unless the project intentionally reverses that architecture decision. The app module applies the Android application plugin, Compose compiler plugin, Kotlin serialization plugin, KSP, Hilt, ktlint, detekt, Dependency-Check, and JaCoCo.
+AGP 9 built-in Kotlin is used for the app module. Do not add `org.jetbrains.kotlin.android` to `app/build.gradle.kts` unless the project intentionally reverses that architecture decision. The app module applies the Android application plugin, Compose compiler plugin, Kotlin serialization plugin, Compose Stability Analyzer plugin, KSP, Hilt, ktlint, detekt, Dependency-Check, and JaCoCo. Android security lint checks are added through the `lintChecks(libs.android.security.lints)` dependency.
 
 Gradle repository policy:
 
@@ -244,7 +246,7 @@ Main package areas:
 - `engine/`: pure rules, validation, scoring, ranking, bonus layout generation, candidate corner logic, and move result types.
 - `opponents/`: local rule-based computer opponent move generation, evaluation, difficulty parameters, styles, and action selection.
 - `multiplayer/`: local and Nearby session boundaries, protocol messages, host coordinator, lobby/reconnect state, runtime permission policy, and transport abstraction.
-- `data/`: JSON DataStore serializers, state-store wrapper, repository classes, and Hilt persistence module.
+- `data/`: JSON DataStore serializers, state-store wrapper, repository classes, and Hilt persistence/runtime modules.
 - `viewmodel/`: `GameViewModel`, `GameUiState`, UI player/piece models, and one-shot effects.
 - `ui/screens/`: game route, game screen content, board rendering, score bar, dialogs, history/stats, layout/motion policies.
 - `ui/components/`: piece drawing helpers.
@@ -252,9 +254,15 @@ Main package areas:
 
 Current source counts:
 
-- Main Kotlin source files: 79
-- Unit-test Kotlin source files: 34
+- Main Kotlin source files: 81
+- Unit-test Kotlin source files: 38
 - Instrumented-test Kotlin source files: 1
+
+Package dependency note:
+
+- These package areas are descriptive boundaries inside the single `:app` Gradle module, not separately enforced Gradle modules.
+- Current code has a deliberate `model -> engine` reference from `ScoreBreakdown.plus(ScoreDelta)` and `engine -> model` references from scoring/rules code. Resolve that cycle first if `model` and `engine` are ever split into separate modules.
+- `GameRuntimeModule` currently lives in `data/` and provides `TimeProvider`/`SystemTimeProvider` from `viewmodel/`, so a future module split must either move the clock abstraction or document that runtime DI depends on the UI-state package.
 
 ## Domain Constants
 
@@ -602,6 +610,7 @@ Generation:
 - `sendMove(move)`.
 - `sendPass(playerIndex)`.
 - `startNewGame(config)`.
+- `replaceState(state)`.
 
 `LocalSession`:
 
@@ -691,9 +700,15 @@ Generation:
 - Uses `Strategy.P2P_STAR` for advertising and discovery.
 - Wraps concrete Play Services APIs behind `ConnectionsClientFacade`.
 - Stores pending endpoint name and authentication digits before accept/reject.
+- Tracks connected endpoints, approved endpoints, host endpoint id, session role, and endpoint-to-owner mappings.
+- Assigns each accepted remote endpoint to the next non-computer owner index that is not the local owner.
 - Accepts only BYTES payloads through the facade and decodes them with `GameProtocol`.
 - Routes decoded messages into the current `NearbySession`.
+- Host-side inbound authorization requires a connected endpoint; `PlaceMove`, `Pass`, and `PlayerJoined` are restricted to the endpoint's mapped owner.
+- Unauthorized `PlaceMove` payloads receive `MoveRejected(reason = NOT_PLAYERS_TURN)`.
+- Client-side inbound sync is accepted only from the selected connected host endpoint.
 - Sends `MessageTarget.Broadcast`, `MessageTarget.Host`, and endpoint-targeted messages as encoded BYTES payloads.
+- Host disconnect handling removes the endpoint mapping and marks the departed owner's player slots reconnecting through `PlayerLeft`.
 - Marks decode and payload failures as `ConnectionState.FAILED`.
 
 `PlayServicesConnectionsClientFacade`:
@@ -743,6 +758,16 @@ Hilt module:
 - Installed in `SingletonComponent`.
 - Provides singleton `GameRepository`, `ProfileRepository`, and `SettingsRepository`.
 
+Runtime Hilt module:
+
+- `GameRuntimeModule`.
+- Installed in `SingletonComponent`.
+- Provides singleton `GameEngine`.
+- Provides singleton `ComputerOpponentEngine` using the shared `GameEngine`.
+- Provides singleton `TimeProvider` as `SystemTimeProvider`.
+- Provides singleton `ConnectionsClientFacade` as `PlayServicesConnectionsClientFacade`.
+- Provides singleton `NearbyConnectionsCoordinator` with the app name as the local endpoint name.
+
 `JsonDataStoreSerializer<T>`:
 
 - Implements `androidx.datastore.core.Serializer<T>`.
@@ -764,7 +789,7 @@ Hilt module:
 
 - Exposes `savedGameData`.
 - Exposes `savedGame`.
-- `saveGame(state, savedAtEpochMillis)` writes `SavedGameData`.
+- `saveGame(state, settings, savedAtEpochMillis)` writes `SavedGameData`.
 - `clearSavedGame()` resets to default `SavedGameData()`.
 
 `ProfileRepository`:
@@ -774,12 +799,21 @@ Hilt module:
 - `upsertProfile(profile)` inserts or replaces a profile and ensures at least one active profile.
 - `setActiveProfile(profileId)` sets exactly one profile active when ids match.
 - `appendHistory(profileId, entry)` appends a history entry to the selected profile.
-- Current implementation does not enforce `GameConstants.MAX_HISTORY_ENTRIES`.
+- `appendHistory` keeps only the latest `GameConstants.MAX_HISTORY_ENTRIES` entries.
 
 `SettingsRepository`:
 
 - Exposes `settings`.
 - `updateSettings(transform)` updates `GameSettings`.
+
+`GameSettings`:
+
+- `preferredDifficulty`, default 3.
+- `soundEnabled`, default true.
+- `hapticsEnabled`, default true.
+- `reducedMotionEnabled`, default false.
+- `preferredMode`, default `FOUR_PLAYER`.
+- `preferredRuleset`, default `STANDARD`.
 
 ## Profiles, Avatars, And History
 
@@ -840,6 +874,7 @@ Hilt module:
 - Collects saved-game data from `GameRepository`.
 - Collects profiles from `ProfileRepository` and creates active default profile `local-default` when the store is empty.
 - Collects Nearby UI state from `NearbyConnectionsCoordinator`.
+- Does not collect `NearbyConnectionsCoordinator.currentSession`; board input and persisted game state are still produced from the private `LocalSession`.
 - Tracks game start time through `TimeProvider`.
 - Starts new local games through `LocalSessionFactory`.
 - Resets selected piece/orientation on new game.
@@ -848,7 +883,7 @@ Hilt module:
 - Restores saved games through `LocalSession.replaceState`.
 - Records game-over history once through `ProfileRepository.appendHistory`.
 - Clears saved game after game over.
-- Exposes profile creation, profile update, active-profile selection, Nearby host/discovery/connect/accept/reject/disconnect actions.
+- Exposes profile creation, profile update, active-profile selection, and Nearby host/discovery/connect/accept/reject/disconnect methods.
 - Selects only pieces available to the current player.
 - Rotate clockwise increments orientation index modulo orientation count.
 - Rotate counterclockwise subtracts one modulo orientation count.
@@ -859,6 +894,11 @@ Hilt module:
 - Emits `GameEffect.GameOver` when an accepted move or pass ends the game.
 - Passes current player through `session.sendPass`; pass is ignored after game over.
 - Normalizes selection when the selected piece has been used by the current player.
+
+Current Nearby UI limitation:
+
+- `GameScreenActions` exposes only create/find Nearby actions to Compose.
+- `GameUiState.nearbyState` contains discovered endpoints, pending connection auth data, errors, and connection state, but `GameScreenContent` does not yet render endpoint selection, auth-token confirmation, accept/reject, disconnect, or an active `NearbySession` game board.
 
 `GameUiState`:
 
@@ -1095,29 +1135,32 @@ Current localization state:
 
 Unit tests cover:
 
-- Board snapshot and mutable board value behavior.
+- Board snapshot, `BoardView`, and mutable board value behavior.
 - Game constants.
 - Game mode defaults, owners, computer slots, and compact play-testing flag.
 - Piece catalog count, total cell count, orientation normalization, uniqueness, and cap.
 - Game state JSON serialization round trip.
 - Local avatar generation and initials.
 - History stats calculation.
+- Seed mixing for deterministic non-negative indexes and unit interval selection.
 - Placement rules: start corner, diagonal contact, same-player edge rejection, opponent edge allowance.
 - Scoring: bonus tiles, completion bonus, ranking, tie-breakers, Two-Color Duel owner aggregation.
 - Bonus tile generation.
-- Local session move/publish behavior and Solo computer turns.
+- Local session move/publish behavior, `LocalSessionFactory`, saved-state replacement, and Solo computer turns.
 - Nearby protocol JSON messages and unknown type rejection.
 - Nearby permission SDK bands.
 - Nearby configuration dependency/manifest/UI terms.
 - Host coordinator accepted/rejected moves and full sync.
 - Nearby session host/client/reconnect behavior.
+- Nearby Connections coordinator facade calls, discovery state, accept/reject, BYTES decode routing, endpoint-owner authorization, host-only sync acceptance, reconnect mapping, and disconnect state.
 - Move generator legality.
 - Move evaluator bonus preference.
 - Computer opponent deterministic seed behavior, legality across difficulties, pass fallback.
-- Data repositories and JSON serializer.
-- GameViewModel initial state, placing, rotation, Solo flow, supported modes, repository-backed settings, saved-game persistence, game-over history, and polish settings toggles.
+- Opponent difficulty mapper persisted `1..5` mapping and clamping.
+- Data repositories, saved-game settings snapshots, profile history cap, JSON serializer, and JVM-safe runtime providers.
+- GameViewModel initial state, placing, rejection effects, clockwise/counterclockwise rotation, flip, Solo flow, supported modes, repository-backed settings, preferred-mode persistence, saved-game resume/discard, Nearby delegation, profile actions, saved-game persistence, game-over history including Two-Color Duel owner aggregation, and polish settings toggles.
 - Game layout policy, motion policy, and sound policy.
-- Nearby Connections coordinator facade calls, discovery state, accept/reject, BYTES decode routing, disconnect state.
+- `SystemTimeProvider` epoch millis and ISO date formatting.
 - Theme token values.
 - Release identity guardrails.
 
@@ -1142,6 +1185,7 @@ Android lint:
 - `abortOnError = true`.
 - `warningsAsErrors = false`.
 - `checkReleaseBuilds = true`.
+- Adds `com.android.security.lint:lint` through `lintChecks`.
 - Enables checks including permissions, hardcoded text, missing translation, unused resources, wrong thread, content descriptions, RTL hardcoded, static field leaks, and others.
 - Disables `GradleDependency` and `AndroidGradlePluginVersion`.
 
@@ -1162,11 +1206,18 @@ detekt:
 - TooManyFunctions thresholds: files 30, classes 25, interfaces 15, objects 11, enums 11.
 - Compose detekt rules are active through `io.nlopez.compose.rules`.
 
+Compose Stability Analyzer:
+
+- App module applies `com.github.skydoves.compose.stability.analyzer`.
+- Tracked stability dumps are `app/stability/app-debug.stability` and `app/stability/app-release.stability`.
+- The dump files are generated by `./gradlew :app:stabilityDump`.
+
 Dependency-Check:
 
 - Formats: HTML and JSON.
 - Output directory: root `reports`.
 - Suppressions file: `config/dependency-check/suppressions.xml`.
+- Current suppression marks the `compose-stability-runtime-android` GitHub Enterprise CPE match as a false positive for Skydoves Compose Stability Analyzer runtime.
 - Data directory defaults to `.gradle/dependency-check-data` but can be overridden with `DEPENDENCY_CHECK_DATA_DIRECTORY`.
 - Auto-update defaults true and can be controlled with `DEPENDENCY_CHECK_AUTO_UPDATE`.
 - Fail CVSS defaults to 7 and can be overridden with `DEPENDENCY_CHECK_FAIL_BUILD_ON_CVSS`.
@@ -1192,7 +1243,7 @@ Sonar:
 - Sources: `app/src/main/java`.
 - Tests: `app/src/test/java`, `app/src/androidTest/java`.
 - Coverage XML path: `app/build/reports/jacoco/jacocoDebugUnitTestReport/jacocoDebugUnitTestReport.xml`.
-- Coverage excludes app entrypoint files and UI screens.
+- Coverage excludes app entrypoint files, UI screens, and `PlayServicesConnectionsClientFacade`.
 - Root Gradle `sonar` task depends on `:app:assembleDebug` and `:app:jacocoDebugUnitTestReport`.
 - `tools/sonar.ps1` writes `reports/sonar.txt`, optionally exports issues to `reports/sonar-issues.json`, and requires `SONAR_TOKEN` or `systemProp.sonar.token` for Gradle scanner authentication.
 
@@ -1222,6 +1273,7 @@ DeepSec:
 - Prompt focus: exported components, FileProvider exports, URI grants, Nearby trust boundaries, local profile/save privacy, and raw Bluetooth/Wi-Fi Direct bypasses.
 - Custom matchers:
   - `android-exported-component`.
+  - `android-security-boundary-surface`.
   - `android-uri-share-without-clipdata`.
   - `fileprovider-broad-path`.
   - `raw-nearby-bypass`.
@@ -1259,6 +1311,9 @@ GitHub Actions:
   - Runs on push and pull request to `main`, plus Monday 06:00 cron.
   - Scans GitHub Actions workflows with CodeQL.
   - Comment notes Kotlin 2.4 is not yet in the supported CodeQL Kotlin range, so Android/Kotlin source is not scanned by CodeQL here.
+- `.github/dependabot.yml`:
+  - Runs weekly update checks for Gradle dependencies.
+  - Runs weekly update checks for GitHub Actions.
 
 ## Local Tool Wrappers
 
@@ -1293,7 +1348,7 @@ Do:
 - Keep communication with the user, commit messages, and necessary code comments in Finnish.
 - Keep theme colors, spacing, shapes, typography, alpha, and animation tokens centralized.
 - Keep pure rules under `engine/`.
-- Keep serializable game/save/network models under `model/`.
+- Keep serializable game/save/domain models under `model/`; Nearby protocol messages (`GameMessage`, `GameProtocol`) live under `multiplayer/`.
 - Keep DataStore access behind repositories in `data/`.
 - Keep host-authoritative multiplayer validation in `HostGameCoordinator`.
 - Keep Nearby v1 transport on Google Play services Nearby.
@@ -1324,11 +1379,11 @@ These are current-state items worth asking precise code-review questions about:
 
 ## External Docs Checked While Writing
 
-These were checked on 2026-06-13 to avoid relying on stale Android ecosystem assumptions:
+These were re-checked on 2026-06-20 to avoid relying on stale Android ecosystem assumptions. This section records documentation assumptions only; the project still uses the exact versions listed in `gradle/libs.versions.toml`.
 
-- Android Gradle Plugin release notes for AGP 9.x compatibility and behavior.
-- Jetpack Compose BOM guidance and release notes.
-- Android DataStore guidance, including keeping DataStore operations in the data layer and exposing data through ViewModels.
-- Google Nearby Connections overview for the peer-to-peer, offline local multiplayer transport model.
+- Android Gradle Plugin release notes for AGP 9.x compatibility and built-in Kotlin behavior: <https://developer.android.com/build/releases/agp-9-2-0-release-notes> and <https://developer.android.com/build/releases/agp-9-0-0-release-notes>.
+- Jetpack Compose BOM guidance and BOM mapping: <https://developer.android.com/develop/ui/compose/bom/bom-mapping>.
+- Android DataStore guidance, including keeping DataStore operations in the data layer and exposing data through ViewModels: <https://developer.android.com/topic/libraries/architecture/datastore>.
+- Google Nearby Connections overview for the peer-to-peer, offline local multiplayer transport model: <https://developers.google.com/nearby/connections/overview>.
 
 For future dependency upgrades, re-check official Android, Google, JetBrains, Gradle, and library release notes before changing version numbers or API usage.

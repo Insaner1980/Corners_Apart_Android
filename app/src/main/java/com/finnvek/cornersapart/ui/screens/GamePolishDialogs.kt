@@ -156,7 +156,7 @@ private fun ModeSelector(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
         ) {
-            GameMode.entries.forEach { mode ->
+            GameModeUiOptions.modes.forEach { mode ->
                 FilterChip(
                     selected = selectedMode == mode,
                     onClick = { onModeSelected(mode) },
@@ -456,17 +456,6 @@ private fun PlayerScoreBreakdown(
     }
 }
 
-@StringRes
-private fun GameMode.labelRes(): Int =
-    when (this) {
-        GameMode.SOLO -> R.string.game_mode_solo
-        GameMode.TWO_COLOR_DUEL -> R.string.game_mode_two_color_duel
-        GameMode.COMPACT_DUEL -> R.string.game_mode_compact_duel
-        GameMode.THREE_PLAYER -> R.string.game_mode_three_player
-        GameMode.FOUR_PLAYER -> R.string.game_mode_four_player
-    }
-
-@StringRes
 private fun LocalAvatarStyle.labelRes(): Int =
     when (this) {
         LocalAvatarStyle.INITIALS -> R.string.profile_avatar_initials

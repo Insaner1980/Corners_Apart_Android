@@ -37,7 +37,7 @@ class LocalAvatarGenerator {
         return List(PALETTE_SIZE) { index ->
             val channel = (base + index * CHANNEL_STEP) and RGB_MASK
             RGB_OPAQUE or channel
-        }
+        }.toSnapshotList()
     }
 
     private companion object {

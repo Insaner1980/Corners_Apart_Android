@@ -3,6 +3,7 @@ package com.finnvek.cornersapart.engine
 import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.GameModeConfigs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -31,6 +32,38 @@ class BonusTileGeneratorTest {
             layout.positions.drop(index + 1).forEach { other ->
                 assertTrue(chebyshevDistance(position, other) >= BonusTileGenerator.MIN_BONUS_DISTANCE)
             }
+        }
+    }
+
+    @Test
+    fun compactModeDefaultGameGeneratesCompactBonusTiles() {
+        val state =
+            GameEngine().newGame(
+                GameModeConfigs.defaultGameConfig(
+                    mode = GameMode.COMPACT_DUEL,
+                    randomSeed = 43L,
+                ),
+            )
+        val startCorners =
+            GameModeConfigs
+                .forMode(GameMode.COMPACT_DUEL)
+                .playerSlots
+                .map { slot -> slot.startCorner }
+                .toSet()
+
+        assertEquals(GameConstants.COMPACT_BOARD_SIZE, state.board.size)
+        assertEquals(GameConstants.COMPACT_BONUS_TILE_COUNT, state.bonusTiles.size)
+        assertEquals(
+            state.bonusTiles.size,
+            state.bonusTiles
+                .map { tile -> tile.position }
+                .distinct()
+                .size,
+        )
+        state.bonusTiles.forEach { tile ->
+            assertTrue(tile.row in 0 until GameConstants.COMPACT_BOARD_SIZE)
+            assertTrue(tile.col in 0 until GameConstants.COMPACT_BOARD_SIZE)
+            assertFalse(tile.position in startCorners)
         }
     }
 

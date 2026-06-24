@@ -11,6 +11,8 @@ import com.finnvek.cornersapart.model.MutableBoard
 import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.Player
+import com.finnvek.cornersapart.model.toSnapshotCopy
+import com.finnvek.cornersapart.model.toSnapshotList
 
 class GameEngine {
     fun newGame(config: GameConfig): GameState {
@@ -35,9 +37,9 @@ class GameEngine {
             ruleset = config.ruleset,
             gameMode = config.mode,
             randomSeed = config.randomSeed,
-            bonusTiles = config.bonusTiles ?: generatedLayout.orEmptyBonusTiles(),
+            bonusTiles = (config.bonusTiles ?: generatedLayout.orEmptyBonusTiles()).toSnapshotList(),
             bonusLayoutId = generatedLayout?.id,
-        )
+        ).toSnapshotCopy()
     }
 
     fun applyMove(
@@ -61,7 +63,7 @@ class GameEngine {
         val movedState = state.withAcceptedMove(move, validation, scoreDelta)
         val stateWithEndStatus = movedState.copy(isGameOver = shouldEndGame(movedState))
         return MoveResult.Accepted(
-            state = stateWithEndStatus.copy(currentPlayerIndex = nextPlayerIndex(stateWithEndStatus)),
+            state = stateWithEndStatus.copy(currentPlayerIndex = nextPlayerIndex(stateWithEndStatus)).toSnapshotCopy(),
             scoreDelta = scoreDelta,
         )
     }
@@ -70,14 +72,15 @@ class GameEngine {
         state: GameState,
         playerIndex: Int,
     ): GameState {
-        require(playerIndex == state.currentPlayerIndex) { "Only the current player can pass." }
+        if (state.isGameOver) throw MoveRejectedException(MoveRejectionReason.GAME_OVER)
+        if (playerIndex != state.currentPlayerIndex) throw MoveRejectedException(MoveRejectionReason.NOT_PLAYERS_TURN)
         val players =
             state.players.map { player ->
                 if (player.index == playerIndex) player.copy(passed = true) else player
             }
         val passedState = state.copy(players = players, turnNumber = state.turnNumber + 1)
         val stateWithEndStatus = passedState.copy(isGameOver = shouldEndGame(passedState))
-        return stateWithEndStatus.copy(currentPlayerIndex = nextPlayerIndex(stateWithEndStatus))
+        return stateWithEndStatus.copy(currentPlayerIndex = nextPlayerIndex(stateWithEndStatus)).toSnapshotCopy()
     }
 
     fun getValidMoves(
@@ -246,7 +249,9 @@ class GameEngine {
     }
 
     private fun com.finnvek.cornersapart.model.BonusTileLayout?.orEmptyBonusTiles(): List<BonusTile> =
-        checkNotNull(this).positions.map { position ->
-            BonusTile(row = position.row, col = position.col)
-        }
+        checkNotNull(this)
+            .positions
+            .map { position ->
+                BonusTile(row = position.row, col = position.col)
+            }.toSnapshotList()
 }

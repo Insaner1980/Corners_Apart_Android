@@ -1,6 +1,7 @@
 package com.finnvek.cornersapart.multiplayer
 
 import android.content.Context
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
 import com.google.android.gms.nearby.connection.ConnectionInfo
@@ -15,6 +16,7 @@ import com.google.android.gms.nearby.connection.Payload
 import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
+import com.google.android.gms.tasks.Task
 
 class PlayServicesConnectionsClientFacade(
     context: Context,
@@ -24,70 +26,86 @@ class PlayServicesConnectionsClientFacade(
     override fun startAdvertising(
         localEndpointName: String,
         serviceId: String,
-        strategy: Strategy,
         callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
-        client.startAdvertising(
-            localEndpointName,
-            serviceId,
-            callback.toPlayServicesCallback(),
-            AdvertisingOptions
-                .Builder()
-                .setStrategy(strategy)
-                .build(),
-        )
+        client
+            .startAdvertising(
+                localEndpointName,
+                serviceId,
+                callback.toPlayServicesCallback(),
+                AdvertisingOptions
+                    .Builder()
+                    .setStrategy(Strategy.P2P_STAR)
+                    .build(),
+            ).notifyFailure(NearbyOperation.START_ADVERTISING, failureCallback)
     }
 
     override fun startDiscovery(
         serviceId: String,
-        strategy: Strategy,
         callback: NearbyEndpointDiscoveryCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
-        client.startDiscovery(
-            serviceId,
-            object : EndpointDiscoveryCallback() {
-                override fun onEndpointFound(
-                    endpointId: String,
-                    info: DiscoveredEndpointInfo,
-                ) {
-                    callback.onEndpointFound(endpointId, info.endpointName)
-                }
+        client
+            .startDiscovery(
+                serviceId,
+                object : EndpointDiscoveryCallback() {
+                    override fun onEndpointFound(
+                        endpointId: String,
+                        info: DiscoveredEndpointInfo,
+                    ) {
+                        callback.onEndpointFound(endpointId, info.endpointName)
+                    }
 
-                override fun onEndpointLost(endpointId: String) {
-                    callback.onEndpointLost(endpointId)
-                }
-            },
-            DiscoveryOptions
-                .Builder()
-                .setStrategy(strategy)
-                .build(),
-        )
+                    override fun onEndpointLost(endpointId: String) {
+                        callback.onEndpointLost(endpointId)
+                    }
+                },
+                DiscoveryOptions
+                    .Builder()
+                    .setStrategy(Strategy.P2P_STAR)
+                    .build(),
+            ).notifyFailure(NearbyOperation.START_DISCOVERY, failureCallback)
     }
 
     override fun requestConnection(
         localEndpointName: String,
         endpointId: String,
         callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
-        client.requestConnection(localEndpointName, endpointId, callback.toPlayServicesCallback())
+        client
+            .requestConnection(localEndpointName, endpointId, callback.toPlayServicesCallback())
+            .notifyFailure(NearbyOperation.REQUEST_CONNECTION, failureCallback)
     }
 
     override fun acceptConnection(
         endpointId: String,
         callback: NearbyPayloadCallback,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
-        client.acceptConnection(endpointId, callback.toPlayServicesCallback())
+        client
+            .acceptConnection(endpointId, callback.toPlayServicesCallback())
+            .notifyFailure(NearbyOperation.ACCEPT_CONNECTION, failureCallback)
     }
 
-    override fun rejectConnection(endpointId: String) {
-        client.rejectConnection(endpointId)
+    override fun rejectConnection(
+        endpointId: String,
+        failureCallback: NearbyOperationFailureCallback,
+    ) {
+        client
+            .rejectConnection(endpointId)
+            .notifyFailure(NearbyOperation.REJECT_CONNECTION, failureCallback)
     }
 
     override fun sendPayload(
         endpointId: String,
         bytes: ByteArray,
+        failureCallback: NearbyOperationFailureCallback,
     ) {
-        client.sendPayload(endpointId, Payload.fromBytes(bytes))
+        client
+            .sendPayload(endpointId, Payload.fromBytes(bytes))
+            .notifyFailure(NearbyOperation.SEND_PAYLOAD, failureCallback)
     }
 
     override fun stopDiscovery() {
@@ -119,7 +137,17 @@ class PlayServicesConnectionsClientFacade(
                 endpointId: String,
                 resolution: ConnectionResolution,
             ) {
-                onConnectionResult(endpointId, resolution.status.statusCode == ConnectionsStatusCodes.STATUS_OK)
+                val status = resolution.status
+                val result =
+                    if (status.statusCode == ConnectionsStatusCodes.STATUS_OK) {
+                        NearbyConnectionResult.Accepted
+                    } else {
+                        NearbyConnectionResult.Failed(
+                            statusCode = status.statusCode,
+                            message = status.statusCode.toNearbyStatusMessage(),
+                        )
+                    }
+                onConnectionResult(endpointId, result)
             }
 
             override fun onDisconnected(endpointId: String) {
@@ -152,4 +180,28 @@ class PlayServicesConnectionsClientFacade(
                 }
             }
         }
+
+    private fun Task<Void>.notifyFailure(
+        operation: NearbyOperation,
+        failureCallback: NearbyOperationFailureCallback,
+    ): Task<Void> =
+        addOnFailureListener { exception ->
+            failureCallback.onOperationFailure(operation, exception.toNearbyOperationFailure())
+        }
+
+    private fun Exception.toNearbyOperationFailure(): NearbyOperationFailure =
+        when (this) {
+            is ApiException ->
+                NearbyOperationFailure(
+                    statusCode = statusCode,
+                    message = statusCode.toNearbyStatusMessage(),
+                )
+            else ->
+                NearbyOperationFailure(
+                    statusCode = null,
+                    message = message,
+                )
+        }
+
+    private fun Int.toNearbyStatusMessage(): String = ConnectionsStatusCodes.getStatusCodeString(this)
 }

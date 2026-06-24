@@ -4,6 +4,7 @@ import com.finnvek.cornersapart.model.BonusTileLayout
 import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.toSnapshotList
 
 object BonusTileGenerator {
     const val MIN_BONUS_DISTANCE = 2
@@ -55,7 +56,13 @@ object BonusTileGenerator {
         val templates = templatesFor(boardSize)
         val template = templates[SeedMixer.index(seed = randomSeed, salt = SALT_INDEX, bound = templates.size)]
         val transform = SeedMixer.index(seed = randomSeed, salt = SALT_TRANSFORM, bound = TRANSFORM_COUNT)
-        val positions = transformPositions(template.positions, boardSize, transform).take(requestedCount)
+        val positions =
+            transformPositions(
+                positions = template.positions,
+                boardSize = boardSize,
+                transform = transform,
+            ).take(requestedCount)
+                .toSnapshotList()
         return BonusTileLayout(
             id = "${template.id}:$transform",
             boardSize = boardSize,
@@ -74,14 +81,15 @@ object BonusTileGenerator {
         boardSize: Int,
         transform: Int,
     ): List<CellPosition> =
-        positions.map { position ->
-            when (transform) {
-                ROTATE_180 -> CellPosition(row = boardSize - 1 - position.row, col = boardSize - 1 - position.col)
-                MIRROR_VERTICAL -> CellPosition(row = position.row, col = boardSize - 1 - position.col)
-                MIRROR_HORIZONTAL -> CellPosition(row = boardSize - 1 - position.row, col = position.col)
-                else -> position
-            }
-        }
+        positions
+            .map { position ->
+                when (transform) {
+                    ROTATE_180 -> CellPosition(row = boardSize - 1 - position.row, col = boardSize - 1 - position.col)
+                    MIRROR_VERTICAL -> CellPosition(row = position.row, col = boardSize - 1 - position.col)
+                    MIRROR_HORIZONTAL -> CellPosition(row = boardSize - 1 - position.row, col = position.col)
+                    else -> position
+                }
+            }.toSnapshotList()
 
     private const val TRANSFORM_COUNT = 4
     private const val ROTATE_180 = 1

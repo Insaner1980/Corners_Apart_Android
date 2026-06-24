@@ -4,42 +4,48 @@ import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.Profile
 import com.finnvek.cornersapart.model.ProfilesData
+import com.finnvek.cornersapart.model.toSnapshotCopy
+import com.finnvek.cornersapart.model.toSnapshotList
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class ProfileRepository(
     private val store: JsonStateStore<ProfilesData>,
 ) {
-    val profiles: Flow<List<Profile>> = store.data.map { data -> data.profiles }
+    val profiles: Flow<List<Profile>> = store.data.map { data -> data.toSnapshotCopy().profiles }
     val activeProfile: Flow<Profile?> =
         profiles.map { profiles -> profiles.firstOrNull { profile -> profile.active } }
 
     suspend fun upsertProfile(profile: Profile) {
+        val incomingProfile = profile.toSnapshotCopy()
         store.update { data ->
-            val withoutExisting = data.profiles.filterNot { existing -> existing.id == profile.id }
+            val storedProfiles = data.toSnapshotCopy().profiles
+            val withoutExisting = storedProfiles.filterNot { existing -> existing.id == incomingProfile.id }
             val nextProfile =
-                if (profile.active || withoutExisting.none { existing -> existing.active }) {
-                    profile.copy(active = true)
+                if (incomingProfile.active || withoutExisting.none { existing -> existing.active }) {
+                    incomingProfile.copy(active = true)
                 } else {
-                    profile
+                    incomingProfile
                 }
             ProfilesData(
                 profiles =
                     (withoutExisting + nextProfile).withSingleActiveProfile(
                         activeProfileId = nextProfile.id.takeIf { nextProfile.active },
                     ),
-            )
+            ).toSnapshotCopy()
         }
     }
 
     suspend fun setActiveProfile(profileId: String) {
         store.update { data ->
-            data.copy(
-                profiles =
-                    data.profiles.withSingleActiveProfile(
-                        activeProfileId = profileId,
-                    ),
-            )
+            val storedProfiles = data.toSnapshotCopy().profiles
+            data
+                .copy(
+                    profiles =
+                        storedProfiles.withSingleActiveProfile(
+                            activeProfileId = profileId,
+                        ),
+                ).toSnapshotCopy()
         }
     }
 
@@ -47,19 +53,25 @@ class ProfileRepository(
         profileId: String,
         entry: HistoryEntry,
     ) {
+        val historyEntry = entry.toSnapshotCopy()
         store.update { data ->
-            data.copy(
-                profiles =
-                    data.profiles.map { profile ->
-                        if (profile.id == profileId) {
-                            profile.copy(
-                                history = (profile.history + entry).takeLast(GameConstants.MAX_HISTORY_ENTRIES),
-                            )
-                        } else {
-                            profile
-                        }
-                    },
-            )
+            val storedProfiles = data.toSnapshotCopy().profiles
+            data
+                .copy(
+                    profiles =
+                        storedProfiles.map { profile ->
+                            if (profile.id == profileId) {
+                                profile.copy(
+                                    history =
+                                        (profile.history + historyEntry)
+                                            .takeLast(GameConstants.MAX_HISTORY_ENTRIES)
+                                            .toSnapshotList(),
+                                )
+                            } else {
+                                profile
+                            }
+                        },
+                ).toSnapshotCopy()
         }
     }
 
@@ -67,6 +79,6 @@ class ProfileRepository(
         val resolvedActiveProfileId = activeProfileId ?: firstOrNull { profile -> profile.active }?.id
         return map { profile ->
             profile.copy(active = profile.id == resolvedActiveProfileId)
-        }
+        }.toSnapshotList()
     }
 }

@@ -1,6 +1,7 @@
 package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.MoveRejectionReason
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.Move
@@ -34,7 +35,7 @@ class GameProtocolTest {
                 GameMessage.GameConfig(config = GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 31L)),
                 GameMessage.PlaceMove(move),
                 GameMessage.MoveAccepted(move = move, state = state),
-                GameMessage.MoveRejected(move = move, reason = "START_CORNER_NOT_COVERED"),
+                GameMessage.MoveRejected(move = move, reason = MoveRejectionReason.START_CORNER_NOT_COVERED),
                 GameMessage.Pass(playerIndex = 0),
                 GameMessage.FullSync(state),
                 GameMessage.PlayerJoined(

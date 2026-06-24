@@ -1,8 +1,8 @@
 package com.finnvek.cornersapart.viewmodel
 
-import java.time.LocalDate
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class SystemTimeProviderTest {
     @Test

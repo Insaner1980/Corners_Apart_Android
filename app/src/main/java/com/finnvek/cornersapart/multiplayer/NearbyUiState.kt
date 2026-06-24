@@ -1,5 +1,7 @@
 package com.finnvek.cornersapart.multiplayer
 
+import com.finnvek.cornersapart.model.toSnapshotList
+
 data class NearbyUiState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val discoveredEndpoints: List<NearbyEndpointUiState> = emptyList(),
@@ -17,3 +19,8 @@ data class NearbyPendingConnection(
     val endpointName: String,
     val authenticationToken: String,
 )
+
+internal fun NearbyUiState.toSnapshotCopy(): NearbyUiState =
+    copy(
+        discoveredEndpoints = discoveredEndpoints.toSnapshotList(),
+    )

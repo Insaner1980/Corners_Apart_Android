@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.multiplayer
 
+import com.finnvek.cornersapart.engine.MoveRejectionReason
 import com.finnvek.cornersapart.engine.ScoreDelta
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.Move
@@ -28,7 +29,7 @@ sealed interface GameMessage {
     @SerialName("moveRejected")
     data class MoveRejected(
         val move: Move,
-        val reason: String,
+        val reason: MoveRejectionReason,
     ) : GameMessage
 
     @Serializable

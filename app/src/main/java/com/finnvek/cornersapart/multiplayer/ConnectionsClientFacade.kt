@@ -1,37 +1,41 @@
 package com.finnvek.cornersapart.multiplayer
 
-import com.google.android.gms.nearby.connection.Strategy
-
 interface ConnectionsClientFacade {
     fun startAdvertising(
         localEndpointName: String,
         serviceId: String,
-        strategy: Strategy,
         callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
     )
 
     fun startDiscovery(
         serviceId: String,
-        strategy: Strategy,
         callback: NearbyEndpointDiscoveryCallback,
+        failureCallback: NearbyOperationFailureCallback,
     )
 
     fun requestConnection(
         localEndpointName: String,
         endpointId: String,
         callback: NearbyConnectionLifecycleCallback,
+        failureCallback: NearbyOperationFailureCallback,
     )
 
     fun acceptConnection(
         endpointId: String,
         callback: NearbyPayloadCallback,
+        failureCallback: NearbyOperationFailureCallback,
     )
 
-    fun rejectConnection(endpointId: String)
+    fun rejectConnection(
+        endpointId: String,
+        failureCallback: NearbyOperationFailureCallback,
+    )
 
     fun sendPayload(
         endpointId: String,
         bytes: ByteArray,
+        failureCallback: NearbyOperationFailureCallback,
     )
 
     fun stopDiscovery()
@@ -50,7 +54,7 @@ interface NearbyConnectionLifecycleCallback {
 
     fun onConnectionResult(
         endpointId: String,
-        accepted: Boolean,
+        result: NearbyConnectionResult,
     )
 
     fun onDisconnected(endpointId: String)
@@ -72,4 +76,34 @@ interface NearbyPayloadCallback {
     )
 
     fun onPayloadFailure(endpointId: String)
+}
+
+sealed interface NearbyConnectionResult {
+    data object Accepted : NearbyConnectionResult
+
+    data class Failed(
+        val statusCode: Int?,
+        val message: String?,
+    ) : NearbyConnectionResult
+}
+
+enum class NearbyOperation {
+    START_ADVERTISING,
+    START_DISCOVERY,
+    REQUEST_CONNECTION,
+    ACCEPT_CONNECTION,
+    REJECT_CONNECTION,
+    SEND_PAYLOAD,
+}
+
+data class NearbyOperationFailure(
+    val statusCode: Int?,
+    val message: String?,
+)
+
+fun interface NearbyOperationFailureCallback {
+    fun onOperationFailure(
+        operation: NearbyOperation,
+        failure: NearbyOperationFailure,
+    )
 }

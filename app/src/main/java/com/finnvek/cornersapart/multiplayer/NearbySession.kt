@@ -1,13 +1,22 @@
 package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameState
+import com.finnvek.cornersapart.model.INVALID_GAME_STATE_INDEX_DOMAINS
 import com.finnvek.cornersapart.model.Move
+import com.finnvek.cornersapart.model.hasValidIndexDomains
+import com.finnvek.cornersapart.model.toSnapshotCopy
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class NearbySession private constructor(
     private val role: NearbyRole,
@@ -16,33 +25,43 @@ class NearbySession private constructor(
     private var coordinator: HostGameCoordinator?,
     initialState: GameState,
 ) : GameSession {
-    private val _gameState = MutableStateFlow(initialState)
-    private val _players = MutableStateFlow(initialState.toSessionPlayers())
-    private val _lobbyState = MutableStateFlow(NearbyLobbyState(connectedPlayers = initialState.toSessionPlayers()))
+    private val _gameState = MutableStateFlow(initialState.toSnapshotCopy())
+    private val _players = MutableStateFlow(_gameState.value.toSessionPlayers())
+    private val _lobbyState =
+        MutableStateFlow(
+            NearbyLobbyState(connectedPlayers = _players.value).toSnapshotCopy(),
+        )
     private val _connectionState = MutableStateFlow(ConnectionState.CONNECTED)
+    private val _events = MutableSharedFlow<GameSessionEvent>(extraBufferCapacity = 1)
+    private val mutationMutex = Mutex()
 
     override val sessionType: SessionType = SessionType.NEARBY
     override val players: StateFlow<List<SessionPlayer>> = _players.asStateFlow()
     override val gameState: StateFlow<GameState> = _gameState.asStateFlow()
     override val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
     val lobbyState: StateFlow<NearbyLobbyState> = _lobbyState.asStateFlow()
+    val events: SharedFlow<GameSessionEvent> = _events.asSharedFlow()
     override val gameMode: GameMode
         get() = _gameState.value.gameMode
 
     override suspend fun sendMove(move: Move): Result<Unit> =
-        if (role == NearbyRole.HOST) {
-            handleHostMessage(GameMessage.PlaceMove(move))
-        } else {
-            transport.send(MessageTarget.Host, GameMessage.PlaceMove(move))
-            Result.success(Unit)
+        mutationMutex.withLock {
+            if (role == NearbyRole.HOST) {
+                handleHostMessage(GameMessage.PlaceMove(move))
+            } else {
+                transport.send(MessageTarget.Host, GameMessage.PlaceMove(move))
+                Result.success(Unit)
+            }
         }
 
     override suspend fun sendPass(playerIndex: Int): Result<Unit> =
-        if (role == NearbyRole.HOST) {
-            handleHostMessage(GameMessage.Pass(playerIndex))
-        } else {
-            transport.send(MessageTarget.Host, GameMessage.Pass(playerIndex))
-            Result.success(Unit)
+        mutationMutex.withLock {
+            if (role == NearbyRole.HOST) {
+                handleHostMessage(GameMessage.Pass(playerIndex))
+            } else {
+                transport.send(MessageTarget.Host, GameMessage.Pass(playerIndex))
+                Result.success(Unit)
+            }
         }
 
     override fun startNewGame(config: GameConfig) {
@@ -54,20 +73,22 @@ class NearbySession private constructor(
 
     override fun replaceState(state: GameState) {
         if (role == NearbyRole.HOST) {
+            if (!state.hasValidIndexDomains()) return
             coordinator?.replaceState(state)
+            publish(state)
         }
-        publish(state)
     }
 
     suspend fun applyRemoteMessage(
         endpointId: String,
         message: GameMessage,
     ): Result<Unit> =
-        if (role == NearbyRole.HOST) {
-            handleHostMessage(message, endpointId)
-        } else {
-            applyClientMessage(message)
-            Result.success(Unit)
+        mutationMutex.withLock {
+            if (role == NearbyRole.HOST) {
+                handleHostMessage(message, endpointId)
+            } else {
+                applyClientMessage(message)
+            }
         }
 
     private suspend fun handleHostMessage(
@@ -83,26 +104,46 @@ class NearbySession private constructor(
         return if (rejection == null) {
             Result.success(Unit)
         } else {
-            Result.failure(IllegalArgumentException((rejection.message as GameMessage.MoveRejected).reason))
+            Result.failure(MoveRejectedException((rejection.message as GameMessage.MoveRejected).reason))
         }
     }
 
-    private fun applyClientMessage(message: GameMessage) {
+    private fun applyClientMessage(message: GameMessage): Result<Unit> =
         when (message) {
-            is GameMessage.FullSync -> publish(message.state)
-            is GameMessage.MoveAccepted -> publish(message.state)
+            is GameMessage.FullSync -> publishAuthoritativeState(message.state)
+            is GameMessage.MoveAccepted -> publishAuthoritativeState(message.state)
             is GameMessage.PlayerJoined,
             is GameMessage.PlayerLeft,
-            -> applyLobbyMessage(message)
-            else -> Unit
+            -> {
+                applyLobbyMessage(message)
+                Result.success(Unit)
+            }
+            is GameMessage.MoveRejected -> {
+                _events.tryEmit(GameSessionEvent.MoveRejected(message.reason))
+                Result.failure(MoveRejectedException(message.reason))
+            }
+            else -> Result.success(Unit)
         }
+
+    private fun publishAuthoritativeState(state: GameState): Result<Unit> {
+        if (!state.hasValidIndexDomains()) {
+            _connectionState.value = ConnectionState.FAILED
+            _events.tryEmit(GameSessionEvent.ActionFailed(INVALID_GAME_STATE_INDEX_DOMAINS))
+            return Result.failure(IllegalArgumentException(INVALID_GAME_STATE_INDEX_DOMAINS))
+        }
+        publish(state)
+        return Result.success(Unit)
     }
 
     private fun publish(state: GameState) {
-        val sessionPlayers = state.toSessionPlayers()
-        _gameState.value = state
+        val snapshot = state.toSnapshotCopy()
+        val sessionPlayers = snapshot.toSessionPlayers()
+        _gameState.value = snapshot
         _players.value = sessionPlayers
-        _lobbyState.value = _lobbyState.value.copy(connectedPlayers = sessionPlayers)
+        _lobbyState.value =
+            _lobbyState.value
+                .copy(connectedPlayers = sessionPlayers)
+                .toSnapshotCopy()
         refreshConnectionState()
     }
 
@@ -116,9 +157,10 @@ class NearbySession private constructor(
 
     private fun markPlayerReconnecting(playerIndex: Int) {
         _lobbyState.value =
-            _lobbyState.value.copy(
-                reconnectingPlayerIndexes = _lobbyState.value.reconnectingPlayerIndexes + playerIndex,
-            )
+            _lobbyState.value
+                .copy(
+                    reconnectingPlayerIndexes = _lobbyState.value.reconnectingPlayerIndexes + playerIndex,
+                ).toSnapshotCopy()
         refreshConnectionState()
     }
 
@@ -128,10 +170,11 @@ class NearbySession private constructor(
                 if (existing.index == player.index) player else existing
             }
         _lobbyState.value =
-            _lobbyState.value.copy(
-                connectedPlayers = connectedPlayers,
-                reconnectingPlayerIndexes = _lobbyState.value.reconnectingPlayerIndexes - player.index,
-            )
+            _lobbyState.value
+                .copy(
+                    connectedPlayers = connectedPlayers,
+                    reconnectingPlayerIndexes = _lobbyState.value.reconnectingPlayerIndexes - player.index,
+                ).toSnapshotCopy()
         refreshConnectionState()
     }
 
@@ -179,14 +222,16 @@ class NearbySession private constructor(
             engine: GameEngine = GameEngine(),
             transport: NearbyTransport,
             initialState: GameState,
-        ): NearbySession =
-            NearbySession(
+        ): NearbySession {
+            require(initialState.hasValidIndexDomains()) { INVALID_GAME_STATE_INDEX_DOMAINS }
+            return NearbySession(
                 role = NearbyRole.CLIENT,
                 engine = engine,
                 transport = transport,
                 coordinator = null,
                 initialState = initialState,
             )
+        }
     }
 }
 

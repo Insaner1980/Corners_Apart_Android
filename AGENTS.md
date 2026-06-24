@@ -40,12 +40,12 @@
 - `opponents/` owns local computer turns through `MoveGenerator`, `MoveEvaluator`, and `ComputerOpponentEngine`; decisions use seeded randomness from game state and always return a legal move or pass
 - `OpponentDifficultyMapper` is the single source of truth for persisted difficulty `1..5` to `OpponentDifficulty`; invalid values are clamped
 - `LocalSessionFactory` creates `LocalSession(initialConfig, opponentDifficulty)`; ViewModels must not instantiate `LocalSession()` directly
-- `LocalSession` is the current session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations and supports `replaceState` for saved-game restore
-- `GameProtocol` is the kotlinx.serialization JSON message boundary for Nearby sessions
+- `LocalSession` is the current session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations, serializes local move/pass mutations, and supports `replaceState` for saved-game restore
+- `GameProtocol` is the kotlinx.serialization JSON message boundary for Nearby sessions; move rejections carry typed `MoveRejectionReason` values
 - `HostGameCoordinator` owns host-authoritative Nearby validation and broadcasts accepted moves with full authoritative state
-- `NearbySession` sends client move/pass requests to the host, applies host sync messages, and exposes `NearbyLobbyState` for reconnect tracking
-- `NearbyConnectionsCoordinator` and `ConnectionsClientFacade` own Google Play services advertising, discovery, auth-token confirmation, BYTES payload routing, and endpoint sends; do not bypass them from UI
-- `GameViewModel` is repository-backed: it collects `SettingsRepository`, `GameRepository`, `ProfileRepository`, and `NearbyConnectionsCoordinator`; it exposes `StateFlow<GameUiState>` and one-shot `SharedFlow<GameEffect>`
+- `NearbySession` sends client move/pass requests to the host, applies host sync messages, exposes `NearbyLobbyState` for reconnect tracking and `GameSessionEvent` one-shot failures, and only allows host-side `replaceState`
+- `NearbyConnectionsCoordinator` owns Nearby session orchestration, auth-token confirmation, BYTES payload routing, operation/status-code failure reporting, and endpoint sends through `ConnectionsClientFacade`; concrete Google Play services types and the `P2P_STAR` strategy stay inside `PlayServicesConnectionsClientFacade`; do not bypass these boundaries from UI
+- `GameViewModel` is repository-backed: it collects `SettingsRepository`, `GameRepository`, `ProfileRepository`, `NearbyConnectionsCoordinator.nearbyState`, and the active Nearby session state/effects when present; local gameplay persists saved games/history, while Nearby gameplay uses the active `NearbySession` as the playable state source
 - `GameScreen` is the playable Compose entry screen and owns only presentation/input mapping, not game rules; Nearby create/find actions request runtime permissions in `GameRoute` before advertising or discovery; History/Stats UI reads active-profile history from `GameUiState`
 
 ## Conventions
@@ -60,7 +60,7 @@
 <claude-mem-context>
 # Memory Context
 
-# [Corners_Apart_Android] recent context, 2026-06-12 9:34am GMT+3
+# [Corners_Apart_Android] recent context, 2026-06-24 8:29pm GMT+3
 
 No previous sessions found.
 </claude-mem-context>

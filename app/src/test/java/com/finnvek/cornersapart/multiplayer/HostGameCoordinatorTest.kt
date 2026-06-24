@@ -1,6 +1,7 @@
 package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.MoveRejectionReason
 import com.finnvek.cornersapart.engine.ScoreDelta
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
@@ -58,6 +59,39 @@ class HostGameCoordinatorTest {
         assertEquals(originalState, coordinator.state)
         assertEquals(MessageTarget.Endpoint("client-1"), result.single().target)
         assertTrue(result.single().message is GameMessage.MoveRejected)
+    }
+
+    @Test
+    fun hostPassBroadcastsSameStateAsEnginePass() {
+        val coordinator = coordinator()
+        val expectedState = engine.pass(coordinator.state, playerIndex = 0)
+
+        val result = coordinator.handle("client-1", GameMessage.Pass(playerIndex = 0))
+
+        assertEquals(expectedState, coordinator.state)
+        assertEquals(
+            HostMessage(MessageTarget.Broadcast, GameMessage.FullSync(expectedState)),
+            result.single(),
+        )
+    }
+
+    @Test
+    fun hostRejectsPassAfterGameOverWithoutMutatingState() {
+        val coordinator = coordinator()
+        val endedState =
+            coordinator.state.copy(
+                currentPlayerIndex = 0,
+                turnNumber = 12,
+                isGameOver = true,
+            )
+        coordinator.replaceState(endedState)
+
+        val result = coordinator.handle("client-1", GameMessage.Pass(playerIndex = 0))
+
+        assertEquals(endedState, coordinator.state)
+        assertEquals(MessageTarget.Endpoint("client-1"), result.single().target)
+        val rejection = result.single().message as GameMessage.MoveRejected
+        assertEquals(MoveRejectionReason.GAME_OVER, rejection.reason)
     }
 
     @Test

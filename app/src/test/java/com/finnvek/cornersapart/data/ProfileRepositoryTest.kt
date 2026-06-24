@@ -82,6 +82,31 @@ class ProfileRepositoryTest {
             assertEquals(54, history.last().totalScore)
         }
 
+    @Test
+    fun upsertProfileTakesSnapshotOfMutableHistoryInput() =
+        runTest {
+            val repository = ProfileRepository(InMemoryJsonStateStore(ProfilesData()))
+            val history = mutableListOf(historyEntry(totalScore = 10, rank = 1))
+            val profile =
+                Profile(
+                    id = "active",
+                    name = "Player",
+                    active = true,
+                    history = history,
+                )
+
+            repository.upsertProfile(profile)
+            history += historyEntry(totalScore = 99, rank = 2)
+
+            val storedHistory =
+                repository.profiles
+                    .first()
+                    .single()
+                    .history
+            assertEquals(1, storedHistory.size)
+            assertEquals(10, storedHistory.single().totalScore)
+        }
+
     private fun historyEntry(
         totalScore: Int,
         rank: Int,

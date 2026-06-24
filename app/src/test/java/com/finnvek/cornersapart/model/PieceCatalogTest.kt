@@ -40,4 +40,21 @@ class PieceCatalogTest {
             },
         )
     }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun returnedOrientationsCannotMutateCachedOrientations() {
+        val piece = PieceCatalog.require(PieceCatalog.THREE_BEND_ID)
+        val expectedOrientations = PieceTransforms.getAllOrientations(piece).map { orientation -> orientation.toList() }
+        val returnedOrientations = PieceTransforms.getAllOrientations(piece)
+
+        runCatching {
+            (returnedOrientations.first() as MutableList<CellOffset>).clear()
+        }
+        runCatching {
+            (returnedOrientations as MutableList<List<CellOffset>>).clear()
+        }
+
+        assertEquals(expectedOrientations, PieceTransforms.getAllOrientations(piece))
+    }
 }

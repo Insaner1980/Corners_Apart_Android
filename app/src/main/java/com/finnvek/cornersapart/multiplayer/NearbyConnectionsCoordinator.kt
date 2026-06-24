@@ -1,9 +1,11 @@
 package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.MoveRejectionReason
 import com.finnvek.cornersapart.model.GameConfig
-import com.google.android.gms.nearby.connection.Strategy
+import com.finnvek.cornersapart.model.INVALID_GAME_STATE_INDEX_DOMAINS
+import com.finnvek.cornersapart.model.hasValidIndexDomains
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,9 +21,10 @@ class NearbyConnectionsCoordinator(
     private val endpointOwnerIndexes = linkedMapOf<String, Int>()
     private val lifecycleCallback = CoordinatorConnectionLifecycleCallback()
     private val payloadCallback = CoordinatorPayloadCallback()
+    private val operationFailureCallback = CoordinatorOperationFailureCallback()
     private var hostEndpointId: String? = null
     private var sessionRole: NearbyRole? = null
-    private val _nearbyState = MutableStateFlow(NearbyUiState())
+    private val _nearbyState = MutableStateFlow(NearbyUiState().toSnapshotCopy())
     private val _currentSession = MutableStateFlow<NearbySession?>(null)
 
     val nearbyState: StateFlow<NearbyUiState> = _nearbyState.asStateFlow()
@@ -36,34 +39,35 @@ class NearbyConnectionsCoordinator(
                 transport = ::sendMessage,
                 initialConfig = config,
             )
-        _nearbyState.value = _nearbyState.value.copy(connectionState = ConnectionState.CONNECTED, errorMessage = null)
-        facade.startAdvertising(localEndpointName, SERVICE_ID, Strategy.P2P_STAR, lifecycleCallback)
+        publishNearbyState(_nearbyState.value.copy(connectionState = ConnectionState.CONNECTED, errorMessage = null))
+        facade.startAdvertising(localEndpointName, SERVICE_ID, lifecycleCallback, operationFailureCallback)
     }
 
     fun startDiscovery() {
         resetEndpointState()
-        facade.startDiscovery(SERVICE_ID, Strategy.P2P_STAR, CoordinatorEndpointDiscoveryCallback())
-        _nearbyState.value =
-            _nearbyState.value.copy(connectionState = ConnectionState.DISCONNECTED, errorMessage = null)
+        facade.startDiscovery(SERVICE_ID, CoordinatorEndpointDiscoveryCallback(), operationFailureCallback)
+        publishNearbyState(
+            _nearbyState.value.copy(connectionState = ConnectionState.DISCONNECTED, errorMessage = null),
+        )
     }
 
     fun connectToEndpoint(endpointId: String) {
         facade.stopDiscovery()
         resetEndpointState()
         hostEndpointId = endpointId
-        facade.requestConnection(localEndpointName, endpointId, lifecycleCallback)
+        facade.requestConnection(localEndpointName, endpointId, lifecycleCallback, operationFailureCallback)
     }
 
     fun acceptPendingConnection(endpointId: String) {
         val pendingEndpointId = _nearbyState.value.pendingConnection?.endpointId ?: return
         if (pendingEndpointId != endpointId) return
         approvedEndpointIds += endpointId
-        facade.acceptConnection(endpointId, payloadCallback)
+        facade.acceptConnection(endpointId, payloadCallback, operationFailureCallback)
     }
 
     fun rejectPendingConnection(endpointId: String) {
         approvedEndpointIds -= endpointId
-        facade.rejectConnection(endpointId)
+        facade.rejectConnection(endpointId, operationFailureCallback)
     }
 
     fun disconnect() {
@@ -72,7 +76,7 @@ class NearbyConnectionsCoordinator(
         facade.stopAllEndpoints()
         resetEndpointState()
         _currentSession.value = null
-        _nearbyState.value = NearbyUiState(connectionState = ConnectionState.DISCONNECTED)
+        publishNearbyState(NearbyUiState(connectionState = ConnectionState.DISCONNECTED))
     }
 
     private suspend fun sendMessage(
@@ -83,10 +87,13 @@ class NearbyConnectionsCoordinator(
         when (target) {
             MessageTarget.Broadcast ->
                 connectedEndpointIds.forEach { endpointId ->
-                    facade.sendPayload(endpointId, bytes)
+                    facade.sendPayload(endpointId, bytes, operationFailureCallback)
                 }
-            MessageTarget.Host -> hostEndpointId?.let { endpointId -> facade.sendPayload(endpointId, bytes) }
-            is MessageTarget.Endpoint -> facade.sendPayload(target.endpointId, bytes)
+            MessageTarget.Host ->
+                hostEndpointId?.let { endpointId ->
+                    facade.sendPayload(endpointId, bytes, operationFailureCallback)
+                }
+            is MessageTarget.Endpoint -> facade.sendPayload(target.endpointId, bytes, operationFailureCallback)
         }
     }
 
@@ -97,11 +104,12 @@ class NearbyConnectionsCoordinator(
         val message =
             runCatching { GameProtocol.decode(bytes.decodeToString()) }
                 .getOrElse { error ->
-                    _nearbyState.value =
+                    publishNearbyState(
                         _nearbyState.value.copy(
                             connectionState = ConnectionState.FAILED,
                             errorMessage = error.message,
-                        )
+                        ),
+                    )
                     return
                 }
         val session =
@@ -110,8 +118,19 @@ class NearbyConnectionsCoordinator(
             rejectUnauthorizedMove(endpointId, message)
             return
         }
-        session.applyRemoteMessage(endpointId, message)
-        _nearbyState.value = _nearbyState.value.copy(connectionState = session.connectionState.value)
+        val result = session.applyRemoteMessage(endpointId, message)
+        val error = result.exceptionOrNull()
+        publishNearbyState(
+            _nearbyState.value.copy(
+                connectionState = session.connectionState.value,
+                errorMessage =
+                    if (error == null || error is MoveRejectedException) {
+                        _nearbyState.value.errorMessage
+                    } else {
+                        error.message
+                    },
+            ),
+        )
     }
 
     private fun createClientSessionFromFirstSync(
@@ -120,6 +139,15 @@ class NearbyConnectionsCoordinator(
     ): NearbySession? {
         val sync = message as? GameMessage.FullSync ?: return null
         if (endpointId != hostEndpointId || endpointId !in connectedEndpointIds) return null
+        if (!sync.state.hasValidIndexDomains()) {
+            publishNearbyState(
+                _nearbyState.value.copy(
+                    connectionState = ConnectionState.FAILED,
+                    errorMessage = INVALID_GAME_STATE_INDEX_DOMAINS,
+                ),
+            )
+            return null
+        }
         sessionRole = NearbyRole.CLIENT
         hostEndpointId = endpointId
         return NearbySession
@@ -136,6 +164,10 @@ class NearbyConnectionsCoordinator(
         endpointOwnerIndexes.clear()
         hostEndpointId = null
         sessionRole = null
+    }
+
+    private fun publishNearbyState(state: NearbyUiState) {
+        _nearbyState.value = state.toSnapshotCopy()
     }
 
     private fun isAuthorizedInboundMessage(
@@ -191,7 +223,7 @@ class NearbyConnectionsCoordinator(
         val move = (message as? GameMessage.PlaceMove)?.move ?: return
         sendMessage(
             MessageTarget.Endpoint(endpointId),
-            GameMessage.MoveRejected(move = move, reason = MoveRejectionReason.NOT_PLAYERS_TURN.name),
+            GameMessage.MoveRejected(move = move, reason = MoveRejectionReason.NOT_PLAYERS_TURN),
         )
     }
 
@@ -230,7 +262,7 @@ class NearbyConnectionsCoordinator(
             endpointName: String,
             authenticationToken: String,
         ) {
-            _nearbyState.value =
+            publishNearbyState(
                 _nearbyState.value.copy(
                     pendingConnection =
                         NearbyPendingConnection(
@@ -238,30 +270,33 @@ class NearbyConnectionsCoordinator(
                             endpointName = endpointName,
                             authenticationToken = authenticationToken,
                         ),
-                )
+                ),
+            )
         }
 
         override fun onConnectionResult(
             endpointId: String,
-            accepted: Boolean,
+            result: NearbyConnectionResult,
         ) {
-            if (accepted && endpointId in approvedEndpointIds) {
+            if (result == NearbyConnectionResult.Accepted && endpointId in approvedEndpointIds) {
                 connectedEndpointIds += endpointId
                 if (sessionRole == NearbyRole.HOST) {
                     assignEndpointOwner(endpointId)
                 }
-                _nearbyState.value =
+                publishNearbyState(
                     _nearbyState.value.copy(
                         connectionState = ConnectionState.CONNECTED,
                         pendingConnection = null,
                         errorMessage = null,
-                    )
+                    ),
+                )
             } else {
-                _nearbyState.value =
+                publishNearbyState(
                     _nearbyState.value.copy(
                         connectionState = ConnectionState.FAILED,
-                        errorMessage = "Connection rejected",
-                    )
+                        errorMessage = result.connectionFailureMessage(endpointId),
+                    ),
+                )
             }
         }
 
@@ -269,7 +304,7 @@ class NearbyConnectionsCoordinator(
             runBlocking {
                 markDisconnectedEndpoint(endpointId)
             }
-            _nearbyState.value = _nearbyState.value.copy(connectionState = ConnectionState.RECONNECTING)
+            publishNearbyState(_nearbyState.value.copy(connectionState = ConnectionState.RECONNECTING))
         }
     }
 
@@ -283,20 +318,22 @@ class NearbyConnectionsCoordinator(
                     endpoint.endpointId ==
                         endpointId
                 }
-            _nearbyState.value =
+            publishNearbyState(
                 _nearbyState.value.copy(
                     discoveredEndpoints = existing + NearbyEndpointUiState(endpointId, endpointName),
-                )
+                ),
+            )
         }
 
         override fun onEndpointLost(endpointId: String) {
-            _nearbyState.value =
+            publishNearbyState(
                 _nearbyState.value.copy(
                     discoveredEndpoints =
                         _nearbyState.value.discoveredEndpoints.filterNot { endpoint ->
                             endpoint.endpointId == endpointId
                         },
-                )
+                ),
+            )
         }
     }
 
@@ -311,13 +348,51 @@ class NearbyConnectionsCoordinator(
         }
 
         override fun onPayloadFailure(endpointId: String) {
-            _nearbyState.value =
+            publishNearbyState(
                 _nearbyState.value.copy(
                     connectionState = ConnectionState.FAILED,
                     errorMessage = "Payload failed from $endpointId",
-                )
+                ),
+            )
         }
     }
+
+    private inner class CoordinatorOperationFailureCallback : NearbyOperationFailureCallback {
+        override fun onOperationFailure(
+            operation: NearbyOperation,
+            failure: NearbyOperationFailure,
+        ) {
+            publishNearbyState(
+                _nearbyState.value.copy(
+                    connectionState = ConnectionState.FAILED,
+                    errorMessage = failure.operationFailureMessage(operation),
+                ),
+            )
+        }
+    }
+
+    private fun NearbyConnectionResult.connectionFailureMessage(endpointId: String): String =
+        when (this) {
+            NearbyConnectionResult.Accepted -> "Connection failed: $endpointId was not approved"
+            is NearbyConnectionResult.Failed -> "Connection failed${statusCodeText()}: ${message.orUnknownFailure()}"
+        }
+
+    private fun NearbyOperationFailure.operationFailureMessage(operation: NearbyOperation): String =
+        "$operation failed${statusCodeText()}: ${message.orUnknownFailure()}"
+
+    private fun NearbyConnectionResult.Failed.statusCodeText(): String =
+        statusCode
+            ?.let { code ->
+                " ($code)"
+            }.orEmpty()
+
+    private fun NearbyOperationFailure.statusCodeText(): String =
+        statusCode
+            ?.let { code ->
+                " ($code)"
+            }.orEmpty()
+
+    private fun String?.orUnknownFailure(): String = takeUnless { it.isNullOrBlank() } ?: "Unknown failure"
 
     companion object {
         const val SERVICE_ID = "com.finnvek.cornersapart"

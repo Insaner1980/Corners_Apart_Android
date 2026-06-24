@@ -85,6 +85,7 @@
     <string name="accessibility_score_gained">%1$s gained %2$s</string>
     <string name="accessibility_bonus_claimed">%1$s gained %2$s. Bonus tile claimed, plus %3$s.</string>
     <string name="accessibility_move_rejected">Move rejected</string>
+    <string name="accessibility_action_failed">Action failed: %1$s</string>
     <string name="accessibility_game_over">Game over</string>
     <string name="game_board_content_description">Game board</string>
     <string name="game_status_turn">%1$s turn</string>

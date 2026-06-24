@@ -1,16 +1,18 @@
 package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
-import com.finnvek.cornersapart.engine.MoveRejectionReason
+import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.MoveResult
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.Move
+import com.finnvek.cornersapart.model.hasValidIndexDomains
+import com.finnvek.cornersapart.model.toSnapshotCopy
 
 class HostGameCoordinator(
     private val engine: GameEngine = GameEngine(),
     initialState: GameState,
 ) {
-    var state: GameState = initialState
+    var state: GameState = initialState.toSnapshotCopy()
         private set
 
     fun handle(
@@ -32,7 +34,8 @@ class HostGameCoordinator(
         }
 
     fun replaceState(nextState: GameState) {
-        state = nextState
+        if (!nextState.hasValidIndexDomains()) return
+        state = nextState.toSnapshotCopy()
     }
 
     private fun handleMove(
@@ -41,7 +44,7 @@ class HostGameCoordinator(
     ): List<HostMessage> =
         when (val result = engine.applyMove(state, move)) {
             is MoveResult.Accepted -> {
-                state = result.state
+                state = result.state.toSnapshotCopy()
                 listOf(
                     HostMessage(
                         target = MessageTarget.Broadcast,
@@ -53,7 +56,7 @@ class HostGameCoordinator(
                 listOf(
                     HostMessage(
                         target = MessageTarget.Endpoint(endpointId),
-                        message = GameMessage.MoveRejected(move = move, reason = result.reason.name),
+                        message = GameMessage.MoveRejected(move = move, reason = result.reason),
                     ),
                 )
         }
@@ -62,10 +65,10 @@ class HostGameCoordinator(
         endpointId: String,
         playerIndex: Int,
     ): List<HostMessage> =
-        runCatching {
-            state = engine.pass(state, playerIndex)
+        try {
+            state = engine.pass(state, playerIndex).toSnapshotCopy()
             listOf(HostMessage(MessageTarget.Broadcast, GameMessage.FullSync(state)))
-        }.getOrElse { error ->
+        } catch (error: MoveRejectedException) {
             listOf(
                 HostMessage(
                     target = MessageTarget.Endpoint(endpointId),
@@ -79,7 +82,7 @@ class HostGameCoordinator(
                                     anchorCol = 0,
                                     orientationIndex = 0,
                                 ),
-                            reason = error.message ?: MoveRejectionReason.NOT_PLAYERS_TURN.name,
+                            reason = error.reason,
                         ),
                 ),
             )

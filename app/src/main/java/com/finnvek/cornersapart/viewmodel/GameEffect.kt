@@ -7,6 +7,10 @@ sealed interface GameEffect {
         val reason: MoveRejectionReason,
     ) : GameEffect
 
+    data class ActionFailed(
+        val message: String,
+    ) : GameEffect
+
     data class MoveAccepted(
         val playerName: String,
         val scoreDelta: Int,
