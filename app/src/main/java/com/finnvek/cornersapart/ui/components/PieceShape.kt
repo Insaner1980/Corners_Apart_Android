@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
+import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 
 @Composable
@@ -63,7 +64,7 @@ fun DrawScope.drawGlossyCell(
     val shadowOffset = cellSize * CELL_SHADOW_OFFSET_FRACTION
     val inset = cellSize * CELL_INSET_FRACTION
     drawRect(
-        color = Color.Black.copy(alpha = CornersApartAlpha.PieceDropShadow),
+        color = CornersApartColors.PieceShadowOverlay.copy(alpha = CornersApartAlpha.PieceDropShadow),
         topLeft = topLeft + Offset(shadowOffset, shadowOffset),
         size = Size(cellSize, cellSize),
     )
@@ -79,7 +80,7 @@ fun DrawScope.drawGlossyCell(
         size = Size(cellSize, cellSize * CELL_BOTTOM_SHADOW_HEIGHT_FRACTION),
     )
     drawRect(
-        color = Color.Black.copy(alpha = CornersApartAlpha.PieceInnerInset),
+        color = CornersApartColors.PieceShadowOverlay.copy(alpha = CornersApartAlpha.PieceInnerInset),
         topLeft = topLeft + Offset(inset, inset),
         size = Size(cellSize - inset * 2f, cellSize - inset * 2f),
     )

@@ -18,18 +18,6 @@ object GameLayoutPolicy {
     private const val EXPANDED_WIDTH_DP = 840
 }
 
-object MotionPolicy {
-    fun durationMillis(
-        defaultMillis: Int,
-        reducedMotionEnabled: Boolean,
-    ): Int =
-        if (reducedMotionEnabled) {
-            0
-        } else {
-            defaultMillis
-        }
-}
-
 enum class GameSoundEvent {
     PLACEMENT,
     BONUS_CLAIM,

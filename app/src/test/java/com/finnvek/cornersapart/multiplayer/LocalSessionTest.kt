@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.multiplayer
 
+import com.finnvek.cornersapart.engine.EngineTestFixtures
 import com.finnvek.cornersapart.engine.GameEngine
 import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.MoveRejectionReason
@@ -334,31 +335,12 @@ class LocalSessionTest {
     fun replaceStateTakesSnapshotOfMutableGameStateInputs() {
         val engine = GameEngine()
         val session = LocalSession(engine = engine)
-        val baseState =
-            engine.newGame(
-                GameConfig(
-                    mode = GameMode.FOUR_PLAYER,
-                    randomSeed = 39L,
-                    bonusTiles = emptyList(),
-                ),
-            )
-        val boardCells = baseState.board.cells.toMutableList()
-        val usedPieceIds = mutableSetOf<String>()
-        val bonusTiles = mutableListOf(BonusTile(row = 4, col = 4))
-        val state =
-            baseState.copy(
-                board = BoardSnapshot(size = baseState.board.size, cells = boardCells),
-                players =
-                    baseState.players.map { player ->
-                        if (player.index == 0) player.copy(usedPieceIds = usedPieceIds) else player
-                    },
-                bonusTiles = bonusTiles,
-            )
+        val mutableInput = EngineTestFixtures.mutableSnapshotInput(engine, randomSeed = 39L)
 
-        session.replaceState(state)
-        boardCells[0] = 99
-        usedPieceIds += PieceCatalog.SINGLE_CELL_ID
-        bonusTiles.clear()
+        session.replaceState(mutableInput.state)
+        mutableInput.boardCells[0] = 99
+        mutableInput.usedPieceIds += PieceCatalog.SINGLE_CELL_ID
+        mutableInput.bonusTiles.clear()
 
         val publishedState = session.gameState.value
         assertEquals(BoardSnapshot.EMPTY, publishedState.board.get(row = 0, col = 0))

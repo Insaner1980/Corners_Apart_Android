@@ -12,6 +12,7 @@ import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameSettings
+import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.INVALID_GAME_STATE_INDEX_DOMAINS
 import com.finnvek.cornersapart.model.LocalAvatarStyle
 import com.finnvek.cornersapart.model.Move
@@ -31,6 +32,8 @@ import com.finnvek.cornersapart.multiplayer.NearbyEndpointDiscoveryCallback
 import com.finnvek.cornersapart.multiplayer.NearbyOperationFailureCallback
 import com.finnvek.cornersapart.multiplayer.NearbyPayloadCallback
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
+import com.finnvek.cornersapart.runtime.TimeProvider
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -131,14 +134,13 @@ class GameViewModelTest {
     }
 
     @Test
-    fun polishSettingsCanToggleSoundHapticsAndReducedMotion() {
+    fun polishSettingsCanToggleSoundHapticsAndPreferredMode() {
         runTest {
             val harness = createViewModelHarness()
             val viewModel = harness.viewModel
 
             viewModel.setSoundEnabled(false)
             viewModel.setHapticsEnabled(false)
-            viewModel.setReducedMotionEnabled(true)
             viewModel.setPreferredDifficulty(3)
             viewModel.setPreferredMode(GameMode.COMPACT_DUEL)
             advanceUntilIdle()
@@ -146,7 +148,6 @@ class GameViewModelTest {
             val state = viewModel.uiState.value
             assertEquals(false, state.soundEnabled)
             assertEquals(false, state.hapticsEnabled)
-            assertEquals(true, state.reducedMotionEnabled)
             assertEquals(3, state.preferredDifficulty)
             assertEquals(GameMode.COMPACT_DUEL, state.preferredMode)
         }
@@ -418,15 +419,7 @@ class GameViewModelTest {
             check(result is MoveResult.Accepted)
             val syncedState = result.state
 
-            harness.viewModel.startNearbyDiscovery()
-            harness.viewModel.connectToNearbyEndpoint("host-1")
-            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
-            harness.viewModel.acceptPendingNearbyConnection("host-1")
-            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
-            facade.payloadCallback?.onBytesPayload(
-                "host-1",
-                GameProtocol.encode(GameMessage.FullSync(syncedState)).encodeToByteArray(),
-            )
+            connectNearbyClientToHost(harness = harness, facade = facade, initialState = syncedState)
             advanceUntilIdle()
 
             assertEquals(
@@ -454,15 +447,7 @@ class GameViewModelTest {
                 )
             val effect = async(start = CoroutineStart.UNDISPATCHED) { harness.viewModel.effects.first() }
 
-            harness.viewModel.startNearbyDiscovery()
-            harness.viewModel.connectToNearbyEndpoint("host-1")
-            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
-            harness.viewModel.acceptPendingNearbyConnection("host-1")
-            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
-            facade.payloadCallback?.onBytesPayload(
-                "host-1",
-                GameProtocol.encode(GameMessage.FullSync(initialState)).encodeToByteArray(),
-            )
+            connectNearbyClientToHost(harness = harness, facade = facade, initialState = initialState)
             advanceUntilIdle()
             facade.payloadCallback?.onBytesPayload(
                 "host-1",
@@ -492,15 +477,7 @@ class GameViewModelTest {
                     .newGame(GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 105L, bonusTiles = emptyList()))
             val invalidState = initialState.copy(currentPlayerIndex = 99)
 
-            harness.viewModel.startNearbyDiscovery()
-            harness.viewModel.connectToNearbyEndpoint("host-1")
-            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
-            harness.viewModel.acceptPendingNearbyConnection("host-1")
-            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
-            facade.payloadCallback?.onBytesPayload(
-                "host-1",
-                GameProtocol.encode(GameMessage.FullSync(initialState)).encodeToByteArray(),
-            )
+            connectNearbyClientToHost(harness = harness, facade = facade, initialState = initialState)
             advanceUntilIdle()
             val effect = async(start = CoroutineStart.UNDISPATCHED) { harness.viewModel.effects.first() }
 
@@ -570,7 +547,7 @@ class GameViewModelTest {
     private fun createViewModelHarness(
         initialSettings: GameSettings = GameSettings(),
         initialSavedGameData: SavedGameData = SavedGameData(),
-        facade: ConnectionsClientFacade = NoOpConnectionsClientFacade,
+        facade: ConnectionsClientFacade = NoOpConnectionsClientFacade(),
     ): GameViewModelHarness {
         val engine = GameEngine()
         val sessionFactory =
@@ -590,6 +567,7 @@ class GameViewModelTest {
                 facade = facade,
                 gameEngine = engine,
                 localEndpointName = "Corners Apart",
+                callbackScope = CoroutineScope(mainDispatcherRule.testDispatcher),
             )
         val harness =
             GameViewModelHarness(
@@ -625,6 +603,22 @@ class GameViewModelTest {
             )
     }
 
+    private fun connectNearbyClientToHost(
+        harness: GameViewModelHarness,
+        facade: RecordingConnectionsClientFacade,
+        initialState: GameState,
+    ) {
+        harness.viewModel.startNearbyDiscovery()
+        harness.viewModel.connectToNearbyEndpoint("host-1")
+        facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
+        harness.viewModel.acceptPendingNearbyConnection("host-1")
+        facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+        facade.payloadCallback?.onBytesPayload(
+            "host-1",
+            GameProtocol.encode(GameMessage.FullSync(initialState)).encodeToByteArray(),
+        )
+    }
+
     private object FixedTimeProvider : TimeProvider {
         override fun nowEpochMillis(): Long = FIXED_NOW_MILLIS
 
@@ -636,7 +630,7 @@ class GameViewModelTest {
     }
 }
 
-private object NoOpConnectionsClientFacade : ConnectionsClientFacade {
+private open class NoOpConnectionsClientFacade : ConnectionsClientFacade {
     override fun startAdvertising(
         localEndpointName: String,
         serviceId: String,
@@ -681,24 +675,9 @@ private object NoOpConnectionsClientFacade : ConnectionsClientFacade {
     override fun stopAllEndpoints() = Unit
 }
 
-private class RecordingConnectionsClientFacade : ConnectionsClientFacade {
+private class RecordingConnectionsClientFacade : NoOpConnectionsClientFacade() {
     var connectionCallback: NearbyConnectionLifecycleCallback? = null
     var payloadCallback: NearbyPayloadCallback? = null
-
-    override fun startAdvertising(
-        localEndpointName: String,
-        serviceId: String,
-        callback: NearbyConnectionLifecycleCallback,
-        failureCallback: NearbyOperationFailureCallback,
-    ) {
-        connectionCallback = callback
-    }
-
-    override fun startDiscovery(
-        serviceId: String,
-        callback: NearbyEndpointDiscoveryCallback,
-        failureCallback: NearbyOperationFailureCallback,
-    ) = Unit
 
     override fun requestConnection(
         localEndpointName: String,
@@ -716,21 +695,4 @@ private class RecordingConnectionsClientFacade : ConnectionsClientFacade {
     ) {
         payloadCallback = callback
     }
-
-    override fun rejectConnection(
-        endpointId: String,
-        failureCallback: NearbyOperationFailureCallback,
-    ) = Unit
-
-    override fun sendPayload(
-        endpointId: String,
-        bytes: ByteArray,
-        failureCallback: NearbyOperationFailureCallback,
-    ) = Unit
-
-    override fun stopDiscovery() = Unit
-
-    override fun stopAdvertising() = Unit
-
-    override fun stopAllEndpoints() = Unit
 }

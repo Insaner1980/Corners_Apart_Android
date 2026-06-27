@@ -24,10 +24,11 @@
 - Nearby Connections uses Google Play services `play-services-nearby`; do not add raw Bluetooth or Wi-Fi Direct fallback for v1
 - AGP 9 built-in Kotlin is used; do not apply `org.jetbrains.kotlin.android` in the app module
 - Hilt remains the DI boundary
+- Runtime-only app services that are shared across layers live under `com.finnvek.cornersapart.runtime`; `TimeProvider` / `SystemTimeProvider` are there so `data` does not depend on `viewmodel`
 - `data/` owns JSON DataStore repositories through `GameRepository`, `ProfileRepository`, and `SettingsRepository`; UI and ViewModels must not access DataStore directly
 - Compose theme tokens live under `app/src/main/java/com/finnvek/cornersapart/ui/theme/`
 - Shared v1 game constants live in `com.finnvek.cornersapart.model.GameConstants`
-- Serializable game/save models live under `com.finnvek.cornersapart.model`; board state is `BoardSnapshot(size, flat cells)`
+- Serializable game/save models live under `com.finnvek.cornersapart.model`; model must not depend on `engine`; board state is `BoardSnapshot(size, flat cells)`
 - `BoardView` owns shared read-only board access helpers (`contains`, `index`, `get`) for `BoardSnapshot` and `MutableBoard`
 - Saved game persistence uses `SavedGameData(gameState, savedAtEpochMillis, settings)`; profile persistence uses `ProfilesData`; settings use `GameSettings`
 - Profiles support only local v1 avatars through `LocalAvatarStyle` and `LocalAvatarGenerator`; do not add remote avatar services
@@ -60,7 +61,7 @@
 <claude-mem-context>
 # Memory Context
 
-# [Corners_Apart_Android] recent context, 2026-06-24 8:29pm GMT+3
+# [Corners_Apart_Android] recent context, 2026-06-26 2:26pm GMT+3
 
 No previous sessions found.
 </claude-mem-context>

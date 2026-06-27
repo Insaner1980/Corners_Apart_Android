@@ -1,11 +1,14 @@
 package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.MoveRejectionReason
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -80,12 +83,7 @@ class NearbyConnectionsCoordinatorTest {
         runTest {
             val facade = RecordingConnectionsClientFacade()
             val coordinator = createCoordinator(facade)
-            coordinator.startHosting(
-                GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 17L, bonusTiles = emptyList()),
-            )
-            facade.connectionCallback?.onConnectionInitiated("endpoint-1", "Phone", "1234")
-            coordinator.acceptPendingConnection("endpoint-1")
-            facade.connectionCallback?.onConnectionResult("endpoint-1", NearbyConnectionResult.Accepted)
+            hostAndAcceptEndpoint(coordinator = coordinator, facade = facade, randomSeed = 17L)
             checkNotNull(coordinator.currentSession.value).sendMove(
                 Move(
                     playerIndex = 0,
@@ -109,6 +107,7 @@ class NearbyConnectionsCoordinatorTest {
                 "endpoint-1",
                 GameProtocol.encode(GameMessage.PlaceMove(move)).encodeToByteArray(),
             )
+            advanceUntilIdle()
 
             assertEquals(
                 2,
@@ -139,6 +138,7 @@ class NearbyConnectionsCoordinatorTest {
                 "endpoint-1",
                 GameProtocol.encode(GameMessage.PlaceMove(forgedHostMove)).encodeToByteArray(),
             )
+            advanceUntilIdle()
 
             assertEquals(
                 0,
@@ -155,6 +155,35 @@ class NearbyConnectionsCoordinatorTest {
         }
 
     @Test
+    fun hostRejectsPassForPlayerNotOwnedByEndpoint() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val coordinator = createCoordinator(facade)
+            hostAndAcceptEndpoint(coordinator = coordinator, facade = facade, randomSeed = 72L)
+
+            facade.payloadCallback?.onBytesPayload(
+                "endpoint-1",
+                GameProtocol.encode(GameMessage.Pass(playerIndex = 0)).encodeToByteArray(),
+            )
+            advanceUntilIdle()
+
+            assertEquals(
+                0,
+                coordinator.currentSession.value
+                    ?.gameState
+                    ?.value
+                    ?.currentPlayerIndex,
+            )
+            val rejection =
+                facade.sentPayloads
+                    .map { (_, bytes) -> GameProtocol.decode(bytes.decodeToString()) }
+                    .filterIsInstance<GameMessage.MoveRejected>()
+                    .single()
+            assertEquals(MoveRejectionReason.NOT_PLAYERS_TURN, rejection.reason)
+            assertEquals(0, rejection.move.playerIndex)
+        }
+
+    @Test
     fun clientIgnoresFullSyncFromEndpointThatWasNotSelectedHost() =
         runTest {
             val facade = RecordingConnectionsClientFacade()
@@ -164,15 +193,12 @@ class NearbyConnectionsCoordinatorTest {
                     GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 73L, bonusTiles = emptyList()),
                 )
 
-            coordinator.startDiscovery()
-            coordinator.connectToEndpoint("host-1")
-            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
-            coordinator.acceptPendingConnection("host-1")
-            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+            connectClientToHost(coordinator = coordinator, facade = facade)
             facade.payloadCallback?.onBytesPayload(
                 "host-2",
                 GameProtocol.encode(GameMessage.FullSync(state)).encodeToByteArray(),
             )
+            advanceUntilIdle()
 
             assertNull(coordinator.currentSession.value)
         }
@@ -187,15 +213,12 @@ class NearbyConnectionsCoordinatorTest {
                     .newGame(GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 75L, bonusTiles = emptyList()))
                     .copy(currentPlayerIndex = 99)
 
-            coordinator.startDiscovery()
-            coordinator.connectToEndpoint("host-1")
-            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
-            coordinator.acceptPendingConnection("host-1")
-            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+            connectClientToHost(coordinator = coordinator, facade = facade)
             facade.payloadCallback?.onBytesPayload(
                 "host-1",
                 GameProtocol.encode(GameMessage.FullSync(invalidState)).encodeToByteArray(),
             )
+            advanceUntilIdle()
 
             assertNull(coordinator.currentSession.value)
             assertEquals(ConnectionState.FAILED, coordinator.nearbyState.value.connectionState)
@@ -215,19 +238,17 @@ class NearbyConnectionsCoordinatorTest {
                     .newGame(GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 76L, bonusTiles = emptyList()))
             val invalidState = initialState.copy(currentPlayerIndex = 99)
 
-            coordinator.startDiscovery()
-            coordinator.connectToEndpoint("host-1")
-            facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
-            coordinator.acceptPendingConnection("host-1")
-            facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
+            connectClientToHost(coordinator = coordinator, facade = facade)
             facade.payloadCallback?.onBytesPayload(
                 "host-1",
                 GameProtocol.encode(GameMessage.FullSync(initialState)).encodeToByteArray(),
             )
+            advanceUntilIdle()
             facade.payloadCallback?.onBytesPayload(
                 "host-1",
                 GameProtocol.encode(GameMessage.FullSync(invalidState)).encodeToByteArray(),
             )
+            advanceUntilIdle()
 
             assertNotNull(coordinator.currentSession.value)
             assertEquals(ConnectionState.FAILED, coordinator.nearbyState.value.connectionState)
@@ -297,6 +318,7 @@ class NearbyConnectionsCoordinatorTest {
                 "endpoint-1",
                 GameProtocol.encode(GameMessage.PlayerJoined(spoofedHostPlayer)).encodeToByteArray(),
             )
+            advanceUntilIdle()
 
             assertTrue(facade.sentPayloads.isEmpty())
         }
@@ -306,17 +328,71 @@ class NearbyConnectionsCoordinatorTest {
         runTest {
             val facade = RecordingConnectionsClientFacade()
             val coordinator = createCoordinator(facade)
-            coordinator.startHosting(
-                GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 79L, bonusTiles = emptyList()),
-            )
-            facade.connectionCallback?.onConnectionInitiated("endpoint-1", "Phone", "1234")
-            coordinator.acceptPendingConnection("endpoint-1")
-            facade.connectionCallback?.onConnectionResult("endpoint-1", NearbyConnectionResult.Accepted)
+            hostAndAcceptEndpoint(coordinator = coordinator, facade = facade, randomSeed = 79L)
 
             facade.connectionCallback?.onDisconnected("endpoint-1")
+            advanceUntilIdle()
 
             assertEquals(
                 setOf(1),
+                coordinator.currentSession.value
+                    ?.lobbyState
+                    ?.value
+                    ?.reconnectingPlayerIndexes,
+            )
+        }
+
+    @Test
+    fun disconnectDuringBroadcastDoesNotBreakPayloadRouting() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val coordinator = createCoordinator(facade)
+            hostAndAcceptEndpoint(coordinator = coordinator, facade = facade, randomSeed = 81L)
+            hostAndAcceptEndpoint(
+                coordinator = coordinator,
+                facade = facade,
+                randomSeed = 81L,
+                endpointId = "endpoint-2",
+                endpointName = "Tablet",
+                authenticationToken = "5678",
+            )
+            checkNotNull(coordinator.currentSession.value).sendMove(
+                Move(
+                    playerIndex = 0,
+                    pieceId = PieceCatalog.SINGLE_CELL_ID,
+                    anchorRow = 0,
+                    anchorCol = 0,
+                    orientationIndex = 0,
+                ),
+            )
+            facade.sentPayloads.clear()
+            var disconnected = false
+            facade.onSendPayload = { endpointId ->
+                if (!disconnected && endpointId == "endpoint-1") {
+                    disconnected = true
+                    facade.connectionCallback?.onDisconnected("endpoint-2")
+                }
+            }
+
+            facade.payloadCallback?.onBytesPayload(
+                "endpoint-1",
+                GameProtocol
+                    .encode(
+                        GameMessage.PlaceMove(
+                            Move(
+                                playerIndex = 1,
+                                pieceId = PieceCatalog.SINGLE_CELL_ID,
+                                anchorRow = 0,
+                                anchorCol = 19,
+                                orientationIndex = 0,
+                            ),
+                        ),
+                    ).encodeToByteArray(),
+            )
+            advanceUntilIdle()
+
+            assertEquals(
+                setOf(2),
                 coordinator.currentSession.value
                     ?.lobbyState
                     ?.value
@@ -337,24 +413,56 @@ class NearbyConnectionsCoordinatorTest {
             assertEquals(ConnectionState.DISCONNECTED, coordinator.nearbyState.value.connectionState)
         }
 
-    private fun createCoordinator(facade: RecordingConnectionsClientFacade): NearbyConnectionsCoordinator =
+    @Test
+    fun staleDisconnectCallbackAfterDisconnectDoesNotReopenReconnectState() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val coordinator = createCoordinator(facade)
+            hostAndAcceptEndpoint(coordinator = coordinator, facade = facade, randomSeed = 83L)
+
+            coordinator.disconnect()
+            facade.connectionCallback?.onDisconnected("endpoint-1")
+            advanceUntilIdle()
+
+            assertNull(coordinator.currentSession.value)
+            assertEquals(ConnectionState.DISCONNECTED, coordinator.nearbyState.value.connectionState)
+        }
+
+    private fun TestScope.createCoordinator(facade: RecordingConnectionsClientFacade): NearbyConnectionsCoordinator =
         NearbyConnectionsCoordinator(
             facade = facade,
             gameEngine = GameEngine(),
             localEndpointName = "Corners Apart",
+            callbackScope = this,
         )
 
     private fun hostAndAcceptEndpoint(
         coordinator: NearbyConnectionsCoordinator,
         facade: RecordingConnectionsClientFacade,
         randomSeed: Long,
+        endpointId: String = "endpoint-1",
+        endpointName: String = "Phone",
+        authenticationToken: String = "1234",
     ) {
-        coordinator.startHosting(
-            GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = randomSeed, bonusTiles = emptyList()),
-        )
-        facade.connectionCallback?.onConnectionInitiated("endpoint-1", "Phone", "1234")
-        coordinator.acceptPendingConnection("endpoint-1")
-        facade.connectionCallback?.onConnectionResult("endpoint-1", NearbyConnectionResult.Accepted)
+        if (coordinator.currentSession.value == null) {
+            coordinator.startHosting(
+                GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = randomSeed, bonusTiles = emptyList()),
+            )
+        }
+        facade.connectionCallback?.onConnectionInitiated(endpointId, endpointName, authenticationToken)
+        coordinator.acceptPendingConnection(endpointId)
+        facade.connectionCallback?.onConnectionResult(endpointId, NearbyConnectionResult.Accepted)
+    }
+
+    private fun connectClientToHost(
+        coordinator: NearbyConnectionsCoordinator,
+        facade: RecordingConnectionsClientFacade,
+    ) {
+        coordinator.startDiscovery()
+        coordinator.connectToEndpoint("host-1")
+        facade.connectionCallback?.onConnectionInitiated("host-1", "Host", "9876")
+        coordinator.acceptPendingConnection("host-1")
+        facade.connectionCallback?.onConnectionResult("host-1", NearbyConnectionResult.Accepted)
     }
 }
 
@@ -368,6 +476,7 @@ private class RecordingConnectionsClientFacade : ConnectionsClientFacade {
     val acceptedEndpoints = mutableListOf<String>()
     val rejectedEndpoints = mutableListOf<String>()
     val sentPayloads = mutableListOf<Pair<String, ByteArray>>()
+    var onSendPayload: ((String) -> Unit)? = null
     var stopAllEndpointsCalled = false
 
     override fun startAdvertising(
@@ -424,6 +533,7 @@ private class RecordingConnectionsClientFacade : ConnectionsClientFacade {
         bytes: ByteArray,
         failureCallback: NearbyOperationFailureCallback,
     ) {
+        onSendPayload?.invoke(endpointId)
         sentPayloads += endpointId to bytes
         operationFailureCallback = failureCallback
     }

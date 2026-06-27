@@ -26,7 +26,7 @@ object Scoring {
             .filter { player -> player.isActiveScoring }
             .groupBy { player -> player.ownerIndex }
             .map { (ownerIndex, players) ->
-                val scoreBreakdown = players.combinedScoreBreakdown()
+                val scoreBreakdown = combinedScoreBreakdown(players)
                 RankedOwnerScore(
                     score =
                         PlayerScore(
@@ -43,6 +43,13 @@ object Scoring {
             .map { ranked -> ranked.score }
             .toSnapshotList()
     }
+
+    fun combinedScoreBreakdown(players: Iterable<Player>): ScoreBreakdown =
+        ScoreBreakdown(
+            placedCellPoints = players.sumOf { player -> player.scoreBreakdown.placedCellPoints },
+            bonusTilePoints = players.sumOf { player -> player.scoreBreakdown.bonusTilePoints },
+            completionBonus = players.sumOf { player -> player.scoreBreakdown.completionBonus },
+        )
 
     private fun playerRankingComparator(): Comparator<RankedOwnerScore> =
         compareByDescending<RankedOwnerScore> { ranked -> ranked.score.totalScore }
@@ -73,11 +80,4 @@ object Scoring {
                     ?.let { playerIndex -> state.players.getOrNull(playerIndex)?.ownerIndex }
             }.groupingBy { ownerIndex -> ownerIndex }
             .eachCount()
-
-    private fun List<Player>.combinedScoreBreakdown(): ScoreBreakdown =
-        ScoreBreakdown(
-            placedCellPoints = sumOf { player -> player.scoreBreakdown.placedCellPoints },
-            bonusTilePoints = sumOf { player -> player.scoreBreakdown.bonusTilePoints },
-            completionBonus = sumOf { player -> player.scoreBreakdown.completionBonus },
-        )
 }

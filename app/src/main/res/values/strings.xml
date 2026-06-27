@@ -8,6 +8,16 @@
     <string name="nearby_game">Nearby game</string>
     <string name="create_nearby_game">Create nearby game</string>
     <string name="find_nearby_game">Find nearby game</string>
+    <string name="nearby_connection_disconnected">Status: Disconnected</string>
+    <string name="nearby_connection_connected">Status: Connected</string>
+    <string name="nearby_connection_reconnecting">Status: Reconnecting</string>
+    <string name="nearby_connection_failed">Status: Failed</string>
+    <string name="nearby_pending_connection">Incoming connection: %1$s</string>
+    <string name="nearby_authentication_code">Authentication code: %1$s</string>
+    <string name="nearby_accept_connection">Accept</string>
+    <string name="nearby_reject_connection">Reject</string>
+    <string name="nearby_discovered_endpoints">Discovered games</string>
+    <string name="nearby_connect_endpoint">Connect to %1$s</string>
     <string name="history_stats_title">History &amp; stats</string>
     <string name="history_tab">History</string>
     <string name="stats_tab">Stats</string>
@@ -34,7 +44,6 @@
     <string name="settings_preferred_mode">Preferred mode</string>
     <string name="settings_sound">Sound</string>
     <string name="settings_haptics">Haptics</string>
-    <string name="settings_reduced_motion">Reduced motion</string>
     <string name="profiles_title">Profiles</string>
     <string name="profile_active_label">%1$s active</string>
     <string name="profile_name_label">Name</string>

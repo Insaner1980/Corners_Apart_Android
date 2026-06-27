@@ -1,14 +1,14 @@
 package com.finnvek.cornersapart.multiplayer
 
+import com.finnvek.cornersapart.projectRoot
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.nio.file.Files
 import java.nio.file.Path
 
 class NearbyTransportBoundaryTest {
     @Test
     fun coordinatorAndFacadeHidePlayServicesTypes() {
-        val root = repositoryRoot()
+        val root = projectRoot()
         val matches =
             checkedSourcePaths.flatMap { path ->
                 root
@@ -34,10 +34,6 @@ class NearbyTransportBoundaryTest {
             matches.isEmpty(),
         )
     }
-
-    private fun repositoryRoot(): Path =
-        generateSequence(Path.of(System.getProperty("user.dir")).toAbsolutePath()) { path -> path.parent }
-            .first { path -> Files.exists(path.resolve("settings.gradle.kts")) }
 
     private companion object {
         val checkedSourcePaths =

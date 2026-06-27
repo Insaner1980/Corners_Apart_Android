@@ -41,7 +41,6 @@ import com.finnvek.cornersapart.viewmodel.ResumeGameSummary
 data class GameSettingsDialogState(
     val soundEnabled: Boolean,
     val hapticsEnabled: Boolean,
-    val reducedMotionEnabled: Boolean,
     val preferredDifficulty: Int,
     val preferredMode: GameMode,
 )
@@ -107,11 +106,6 @@ fun GameSettingsDialog(
                     label = stringResource(R.string.settings_haptics),
                     checked = settings.hapticsEnabled,
                     onCheckedChange = actions.onHapticsEnabledChange,
-                )
-                SettingSwitchRow(
-                    label = stringResource(R.string.settings_reduced_motion),
-                    checked = settings.reducedMotionEnabled,
-                    onCheckedChange = actions.onReducedMotionEnabledChange,
                 )
             }
         },

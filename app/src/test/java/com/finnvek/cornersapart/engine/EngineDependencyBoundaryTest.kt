@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.engine
 
+import com.finnvek.cornersapart.projectRoot
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.file.Files
@@ -10,7 +11,7 @@ import java.util.ArrayDeque
 class EngineDependencyBoundaryTest {
     @Test
     fun engineReachableProductionSourcesStayInsidePureKotlinBoundary() {
-        val sourceRoot = repositoryRoot().resolve("app/src/main/java")
+        val sourceRoot = projectRoot().resolve("app/src/main/java")
         val sourceGraph = SourceGraph.load(sourceRoot)
         val reachableSources = sourceGraph.reachableFromPackage(ENGINE_PACKAGE)
         val forbiddenMatches = reachableSources.flatMap(::forbiddenMatches)
@@ -219,11 +220,6 @@ class EngineDependencyBoundaryTest {
                         )
                     }
             }.toList()
-
-    private fun repositoryRoot(): Path =
-        generateSequence(Paths.get("").toAbsolutePath().normalize()) { path -> path.parent }
-            .firstOrNull { path -> Files.exists(path.resolve("settings.gradle.kts")) }
-            ?: error("Could not locate repository root.")
 
     private companion object {
         private const val ENGINE_PACKAGE = "com.finnvek.cornersapart.engine"

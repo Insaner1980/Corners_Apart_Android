@@ -5,6 +5,7 @@ import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.Move
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 interface GameSession {
@@ -19,8 +20,11 @@ interface GameSession {
     suspend fun sendPass(playerIndex: Int): Result<Unit>
 
     fun startNewGame(config: GameConfig)
+}
 
-    fun replaceState(state: GameState)
+interface NearbyGameSession : GameSession {
+    val lobbyState: StateFlow<NearbyLobbyState>
+    val events: SharedFlow<GameSessionEvent>
 }
 
 sealed interface GameSessionEvent {

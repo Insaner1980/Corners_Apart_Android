@@ -4,6 +4,7 @@
 .idea/
 /build/
 /app/build/
+/app/stability/
 /captures/
 .externalNativeBuild/
 .cxx/

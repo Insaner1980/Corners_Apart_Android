@@ -15,16 +15,17 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class NearbySession private constructor(
+internal class NearbySession private constructor(
     private val role: NearbyRole,
     private val engine: GameEngine,
     private val transport: NearbyTransport,
     private var coordinator: HostGameCoordinator?,
     initialState: GameState,
-) : GameSession {
+) : NearbyGameSession {
     private val _gameState = MutableStateFlow(initialState.toSnapshotCopy())
     private val _players = MutableStateFlow(_gameState.value.toSessionPlayers())
     private val _lobbyState =
@@ -39,8 +40,8 @@ class NearbySession private constructor(
     override val players: StateFlow<List<SessionPlayer>> = _players.asStateFlow()
     override val gameState: StateFlow<GameState> = _gameState.asStateFlow()
     override val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
-    val lobbyState: StateFlow<NearbyLobbyState> = _lobbyState.asStateFlow()
-    val events: SharedFlow<GameSessionEvent> = _events.asSharedFlow()
+    override val lobbyState: StateFlow<NearbyLobbyState> = _lobbyState.asStateFlow()
+    override val events: SharedFlow<GameSessionEvent> = _events.asSharedFlow()
     override val gameMode: GameMode
         get() = _gameState.value.gameMode
 
@@ -65,21 +66,29 @@ class NearbySession private constructor(
         }
 
     override fun startNewGame(config: GameConfig) {
-        check(role == NearbyRole.HOST) { "Only the Nearby host can start a new game." }
-        val state = engine.newGame(config)
-        coordinator = HostGameCoordinator(engine = engine, initialState = state)
-        publish(state)
-    }
-
-    override fun replaceState(state: GameState) {
-        if (role == NearbyRole.HOST) {
-            if (!state.hasValidIndexDomains()) return
-            coordinator?.replaceState(state)
-            publish(state)
+        runBlocking {
+            mutationMutex.withLock {
+                check(role == NearbyRole.HOST) { "Only the Nearby host can start a new game." }
+                val state = engine.newGame(config)
+                coordinator = HostGameCoordinator(engine = engine, initialState = state)
+                publish(state)
+            }
         }
     }
 
-    suspend fun applyRemoteMessage(
+    fun replaceState(state: GameState) {
+        runBlocking {
+            mutationMutex.withLock {
+                if (role == NearbyRole.HOST) {
+                    if (!state.hasValidIndexDomains()) return@withLock
+                    coordinator?.replaceState(state)
+                    publish(state)
+                }
+            }
+        }
+    }
+
+    internal suspend fun applyRemoteMessage(
         endpointId: String,
         message: GameMessage,
     ): Result<Unit> =
@@ -235,12 +244,12 @@ class NearbySession private constructor(
     }
 }
 
-enum class NearbyRole {
+internal enum class NearbyRole {
     HOST,
     CLIENT,
 }
 
-fun interface NearbyTransport {
+internal fun interface NearbyTransport {
     suspend fun send(
         target: MessageTarget,
         message: GameMessage,
