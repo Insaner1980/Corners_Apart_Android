@@ -40,27 +40,13 @@ class GameRepositoryTest {
     fun saveGameTakesSnapshotOfMutableGameStateInputs() =
         runTest {
             val repository = GameRepository(InMemoryJsonStateStore(SavedGameData()))
-            val baseState = EngineTestFixtures.standardState(GameEngine(), randomSeed = 73L)
-            val boardCells = baseState.board.cells.toMutableList()
-            val usedPieceIds = mutableSetOf<String>()
-            val bonusTiles = mutableListOf(BonusTile(row = 4, col = 4))
-            val moveHistory = mutableListOf<Move>()
-            val state =
-                baseState.copy(
-                    board = BoardSnapshot(size = baseState.board.size, cells = boardCells),
-                    players =
-                        baseState.players.map { player ->
-                            if (player.index == 0) player.copy(usedPieceIds = usedPieceIds) else player
-                        },
-                    bonusTiles = bonusTiles,
-                    moveHistory = moveHistory,
-                )
+            val mutableInput = EngineTestFixtures.mutableSnapshotInput(GameEngine(), randomSeed = 73L)
 
-            repository.saveGame(state, GameSettings(), savedAtEpochMillis = 4321L)
-            boardCells[0] = 99
-            usedPieceIds += PieceCatalog.SINGLE_CELL_ID
-            bonusTiles.clear()
-            moveHistory +=
+            repository.saveGame(mutableInput.state, GameSettings(), savedAtEpochMillis = 4321L)
+            mutableInput.boardCells[0] = 99
+            mutableInput.usedPieceIds += PieceCatalog.SINGLE_CELL_ID
+            mutableInput.bonusTiles.clear()
+            mutableInput.moveHistory +=
                 Move(
                     playerIndex = 0,
                     pieceId = PieceCatalog.SINGLE_CELL_ID,

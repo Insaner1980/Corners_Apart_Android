@@ -15,6 +15,7 @@ import com.finnvek.cornersapart.model.SavedGameData
 import com.finnvek.cornersapart.model.ScoreBreakdown
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -33,15 +34,30 @@ class JsonDataStoreSerializerTest {
                     preferredDifficulty = 4,
                     soundEnabled = false,
                     hapticsEnabled = false,
-                    reducedMotionEnabled = true,
                     preferredMode = GameMode.COMPACT_DUEL,
-                    preferredRuleset = Ruleset.STANDARD,
                 )
 
             val decoded = serializer.roundTrip(settings)
 
             assertEquals(settings, decoded)
             assertEquals(GameSettings(), serializer.defaultValue)
+        }
+
+    @Test
+    fun jsonSerializerDoesNotPersistDormantSettings() =
+        runTest {
+            val serializer =
+                JsonDataStoreSerializer(
+                    defaultValue = GameSettings(),
+                    serializer = GameSettings.serializer(),
+                )
+
+            val output = ByteArrayOutputStream()
+            serializer.writeTo(GameSettings(), output)
+            val encoded = output.toString(Charsets.UTF_8.name())
+
+            assertFalse(encoded.contains("reducedMotionEnabled"))
+            assertFalse(encoded.contains("preferredRuleset"))
         }
 
     @Test

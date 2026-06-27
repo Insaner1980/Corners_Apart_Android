@@ -11,6 +11,7 @@ import com.finnvek.cornersapart.model.MutableBoard
 import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.Player
+import com.finnvek.cornersapart.model.ScoreBreakdown
 import com.finnvek.cornersapart.model.toSnapshotCopy
 import com.finnvek.cornersapart.model.toSnapshotList
 
@@ -255,3 +256,10 @@ class GameEngine {
                 BonusTile(row = position.row, col = position.col)
             }.toSnapshotList()
 }
+
+private fun ScoreBreakdown.plus(delta: ScoreDelta): ScoreBreakdown =
+    copy(
+        placedCellPoints = placedCellPoints + delta.placedCellPoints,
+        bonusTilePoints = bonusTilePoints + delta.bonusTilePoints,
+        completionBonus = completionBonus + delta.completionBonus,
+    )

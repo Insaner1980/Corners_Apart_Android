@@ -7,7 +7,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.exp
-import kotlin.time.TimeSource
 
 class ComputerOpponentEngine(
     private val gameEngine: GameEngine = GameEngine(),
@@ -31,10 +30,9 @@ class ComputerOpponentEngine(
         style: OpponentStyle,
         difficulty: OpponentDifficulty,
     ): OpponentAction {
-        val deadline = TimeSource.Monotonic.markNow() + difficulty.timeBudget
         val candidates = moveGenerator.generateMoves(state, playerIndex, difficulty)
         if (candidates.isEmpty()) return OpponentAction.Pass(playerIndex)
-        val evaluated = evaluateUntilDeadline(state, candidates, style, difficulty, deadline)
+        val evaluated = evaluateCandidates(state, candidates, style, difficulty)
         val chosen = chooseByTemperature(evaluated, seededSelection(state, playerIndex, difficulty, style), difficulty)
         val preview = gameEngine.previewPlacement(state, chosen.candidate.move)
         return if (preview.isValid) {
@@ -49,24 +47,19 @@ class ComputerOpponentEngine(
         }
     }
 
-    private fun evaluateUntilDeadline(
+    private fun evaluateCandidates(
         state: GameState,
         candidates: List<MoveCandidate>,
         style: OpponentStyle,
         difficulty: OpponentDifficulty,
-        deadline: TimeSource.Monotonic.ValueTimeMark,
-    ): List<EvaluatedMove> {
-        val evaluated = mutableListOf<EvaluatedMove>()
-        for (candidate in candidates) {
-            evaluated +=
+    ): List<EvaluatedMove> =
+        candidates
+            .map { candidate ->
                 EvaluatedMove(
                     candidate = candidate,
                     evaluation = moveEvaluator.evaluate(state, candidate, style, difficulty),
                 )
-            if (deadline.hasPassedNow()) break
-        }
-        return evaluated.sortedByDescending { item -> item.evaluation.total }
-    }
+            }.sortedByDescending { item -> item.evaluation.total }
 
     private fun chooseByTemperature(
         evaluated: List<EvaluatedMove>,

@@ -1,4 +1,4 @@
-package com.finnvek.cornersapart.viewmodel
+package com.finnvek.cornersapart.runtime
 
 import java.time.Instant
 import java.time.ZoneId

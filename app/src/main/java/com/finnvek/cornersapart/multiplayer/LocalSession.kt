@@ -71,7 +71,7 @@ class LocalSession(
         publish(engine.newGame(config))
     }
 
-    override fun replaceState(state: GameState) {
+    fun replaceState(state: GameState) {
         if (!state.hasValidIndexDomains()) return
         replacementVersion.incrementAndGet()
         publish(state)

@@ -3,6 +3,7 @@ package com.finnvek.cornersapart.ui.screens
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,7 +67,11 @@ import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.LocalAvatarStyle
+import com.finnvek.cornersapart.multiplayer.ConnectionState
+import com.finnvek.cornersapart.multiplayer.NearbyEndpointUiState
+import com.finnvek.cornersapart.multiplayer.NearbyPendingConnection
 import com.finnvek.cornersapart.multiplayer.NearbyPermissions
+import com.finnvek.cornersapart.multiplayer.NearbyUiState
 import com.finnvek.cornersapart.ui.components.PieceShape
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
@@ -81,6 +86,9 @@ data class GameScreenActions(
     val onModeSelected: (GameMode) -> Unit = {},
     val onCreateNearbyGame: () -> Unit = {},
     val onFindNearbyGame: () -> Unit = {},
+    val onConnectToNearbyEndpoint: (String) -> Unit = {},
+    val onAcceptPendingNearbyConnection: (String) -> Unit = {},
+    val onRejectPendingNearbyConnection: (String) -> Unit = {},
     val onShowHistoryStats: () -> Unit = {},
     val onResumeSavedGame: () -> Unit = {},
     val onDiscardSavedGameAndStartNewGame: () -> Unit = {},
@@ -98,7 +106,6 @@ data class GamePieceActions(
 data class GameSettingsActions(
     val onSoundEnabledChange: (Boolean) -> Unit = {},
     val onHapticsEnabledChange: (Boolean) -> Unit = {},
-    val onReducedMotionEnabledChange: (Boolean) -> Unit = {},
     val onPreferredDifficultyChange: (Int) -> Unit = {},
     val onPreferredModeChange: (GameMode) -> Unit = {},
 )
@@ -186,6 +193,9 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                 onModeSelected = viewModel::startGame,
                 onCreateNearbyGame = { runWithNearbyPermissions(viewModel::startNearbyHosting) },
                 onFindNearbyGame = { runWithNearbyPermissions(viewModel::startNearbyDiscovery) },
+                onConnectToNearbyEndpoint = viewModel::connectToNearbyEndpoint,
+                onAcceptPendingNearbyConnection = viewModel::acceptPendingNearbyConnection,
+                onRejectPendingNearbyConnection = viewModel::rejectPendingNearbyConnection,
                 onShowHistoryStats = { showHistoryStats = true },
                 onResumeSavedGame = viewModel::resumeSavedGame,
                 onDiscardSavedGameAndStartNewGame = viewModel::discardSavedGameAndStartNewGame,
@@ -218,7 +228,6 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
             GameSettingsActions(
                 onSoundEnabledChange = viewModel::setSoundEnabled,
                 onHapticsEnabledChange = viewModel::setHapticsEnabled,
-                onReducedMotionEnabledChange = viewModel::setReducedMotionEnabled,
                 onPreferredDifficultyChange = viewModel::setPreferredDifficulty,
                 onPreferredModeChange = viewModel::setPreferredMode,
             ),
@@ -339,7 +348,6 @@ fun GameScreenContent(
                 GameSettingsDialogState(
                     soundEnabled = state.soundEnabled,
                     hapticsEnabled = state.hapticsEnabled,
-                    reducedMotionEnabled = state.reducedMotionEnabled,
                     preferredDifficulty = state.preferredDifficulty,
                     preferredMode = state.preferredMode,
                 ),
@@ -466,8 +474,12 @@ private fun GameHeaderActions(content: GameLayoutContent) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
         Header(state = content.state, onModeSelected = content.screenActions.onModeSelected)
         NearbyActions(
+            nearbyState = content.state.nearbyState,
             onCreateNearbyGame = content.screenActions.onCreateNearbyGame,
             onFindNearbyGame = content.screenActions.onFindNearbyGame,
+            onConnectToNearbyEndpoint = content.screenActions.onConnectToNearbyEndpoint,
+            onAcceptPendingNearbyConnection = content.screenActions.onAcceptPendingNearbyConnection,
+            onRejectPendingNearbyConnection = content.screenActions.onRejectPendingNearbyConnection,
         )
         UtilityActions(
             onShowHistoryStats = content.screenActions.onShowHistoryStats,
@@ -520,8 +532,12 @@ private fun Header(
 
 @Composable
 private fun NearbyActions(
+    nearbyState: NearbyUiState,
     onCreateNearbyGame: () -> Unit,
     onFindNearbyGame: () -> Unit,
+    onConnectToNearbyEndpoint: (String) -> Unit,
+    onAcceptPendingNearbyConnection: (String) -> Unit,
+    onRejectPendingNearbyConnection: (String) -> Unit,
 ) {
     Surface(
         modifier =
@@ -539,6 +555,17 @@ private fun NearbyActions(
                 text = stringResource(R.string.nearby_game),
                 style = MaterialTheme.typography.headlineMedium,
             )
+            Text(
+                text = stringResource(nearbyState.connectionState.labelRes()),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            nearbyState.errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
                 Button(onClick = onCreateNearbyGame) {
                     Text(text = stringResource(R.string.create_nearby_game))
@@ -547,9 +574,65 @@ private fun NearbyActions(
                     Text(text = stringResource(R.string.find_nearby_game))
                 }
             }
+            nearbyState.pendingConnection?.let { pendingConnection ->
+                NearbyPendingConnectionActions(
+                    pendingConnection = pendingConnection,
+                    onAccept = onAcceptPendingNearbyConnection,
+                    onReject = onRejectPendingNearbyConnection,
+                )
+            }
+            NearbyEndpointList(
+                endpoints = nearbyState.discoveredEndpoints,
+                onConnect = onConnectToNearbyEndpoint,
+            )
         }
     }
 }
+
+@Composable
+private fun NearbyPendingConnectionActions(
+    pendingConnection: NearbyPendingConnection,
+    onAccept: (String) -> Unit,
+    onReject: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
+        Text(text = stringResource(R.string.nearby_pending_connection, pendingConnection.endpointName))
+        Text(text = stringResource(R.string.nearby_authentication_code, pendingConnection.authenticationToken))
+        Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+            Button(onClick = { onAccept(pendingConnection.endpointId) }) {
+                Text(text = stringResource(R.string.nearby_accept_connection))
+            }
+            Button(onClick = { onReject(pendingConnection.endpointId) }) {
+                Text(text = stringResource(R.string.nearby_reject_connection))
+            }
+        }
+    }
+}
+
+@Composable
+private fun NearbyEndpointList(
+    endpoints: List<NearbyEndpointUiState>,
+    onConnect: (String) -> Unit,
+) {
+    if (endpoints.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
+        Text(text = stringResource(R.string.nearby_discovered_endpoints))
+        endpoints.forEach { endpoint ->
+            Button(onClick = { onConnect(endpoint.endpointId) }) {
+                Text(text = stringResource(R.string.nearby_connect_endpoint, endpoint.endpointName))
+            }
+        }
+    }
+}
+
+@StringRes
+private fun ConnectionState.labelRes(): Int =
+    when (this) {
+        ConnectionState.DISCONNECTED -> R.string.nearby_connection_disconnected
+        ConnectionState.CONNECTED -> R.string.nearby_connection_connected
+        ConnectionState.RECONNECTING -> R.string.nearby_connection_reconnecting
+        ConnectionState.FAILED -> R.string.nearby_connection_failed
+    }
 
 @Composable
 private fun UtilityActions(

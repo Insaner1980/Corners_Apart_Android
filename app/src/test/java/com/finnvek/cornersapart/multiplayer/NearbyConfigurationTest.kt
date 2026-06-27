@@ -1,10 +1,8 @@
 package com.finnvek.cornersapart.multiplayer
 
+import com.finnvek.cornersapart.projectRoot
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.name
 
 class NearbyConfigurationTest {
     @Test
@@ -50,14 +48,5 @@ class NearbyConfigurationTest {
         assertTrue(gameScreen.contains("R.string.nearby_game"))
         assertTrue(gameScreen.contains("R.string.create_nearby_game"))
         assertTrue(gameScreen.contains("R.string.find_nearby_game"))
-    }
-
-    private fun projectRoot(): Path {
-        var current = Path.of(System.getProperty("user.dir")).toAbsolutePath()
-        while (current.name.isNotEmpty()) {
-            if (Files.exists(current.resolve("settings.gradle.kts"))) return current
-            current = current.parent
-        }
-        error("Project root was not found from ${System.getProperty("user.dir")}")
     }
 }

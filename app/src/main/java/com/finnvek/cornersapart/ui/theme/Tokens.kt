@@ -35,6 +35,7 @@ object CornersApartColors {
     val TextSecondary = Color(0xFF4A4A52)
     val TextMuted = Color(0xFF8A8A92)
     val OnPlayerColor = Color(0xFFFFFFFF)
+    val PieceShadowOverlay = Color(0xFF000000)
 }
 
 object CornersApartSpacing {
@@ -52,18 +53,6 @@ object CornersApartSpacing {
     val PiecePreviewSize = 84.dp
     val ScoreCardMinHeight = 48.dp
     val ActivePlayerBorderWidth = 2.dp
-}
-
-object CornersApartAnimationTokens {
-    const val PIECE_PLACEMENT_MS = 400
-    const val INVALID_ATTEMPT_SHAKE_MS = 400
-    const val BONUS_TILE_CLAIMED_MS = 350
-    const val ACTIVE_PLAYER_PULSE_MS = 1_500
-    const val OPPONENT_THINKING_DOT_MS = 900
-    const val DIALOG_ENTER_MS = 300
-    const val PIECE_CARD_INTRO_MS = 300
-    const val PIECE_CARD_INTRO_STAGGER_MS = 20
-    const val SCORE_INCREASE_MS = 250
 }
 
 @Suppress("ktlint:standard:property-naming")

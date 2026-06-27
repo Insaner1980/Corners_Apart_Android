@@ -308,13 +308,9 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)
-    implementation(libs.compose.animation)
     implementation(libs.compose.foundation)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
-
-    // Navigation
-    implementation(libs.navigation.compose)
 
     // Lifecycle
     implementation(libs.lifecycle.runtime.ktx)
@@ -325,7 +321,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     ksp(libs.kotlin.metadata.jvm)
-    implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.lifecycle.viewmodel.compose)
 
     // Coroutines
     implementation(libs.coroutines.core)
@@ -333,7 +329,6 @@ dependencies {
 
     // DataStore
     implementation(libs.datastore)
-    implementation(libs.datastore.preferences)
 
     // Serialization
     implementation(libs.kotlinx.serialization.core)
@@ -359,5 +354,6 @@ dependencies {
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.compose.ui.test.junit4)
 }

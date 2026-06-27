@@ -7,6 +7,7 @@ import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -272,6 +273,62 @@ class NearbySessionTest {
 
             assertEquals(initialState, session.gameState.value)
         }
+
+    @Test
+    fun hostStartNewGameWaitsForInFlightMoveMutation() =
+        runTest {
+            val transport = BlockingNearbyTransport()
+            val session =
+                NearbySession.host(
+                    engine = engine,
+                    transport = transport,
+                    initialConfig =
+                        GameConfig(
+                            mode = GameMode.FOUR_PLAYER,
+                            randomSeed = 71L,
+                            bonusTiles = emptyList(),
+                        ),
+                )
+            val move =
+                Move(
+                    playerIndex = 0,
+                    pieceId = PieceCatalog.SINGLE_CELL_ID,
+                    anchorRow = 0,
+                    anchorCol = 0,
+                    orientationIndex = 0,
+                )
+            val inFlightMove = async { session.sendMove(move) }
+            transport.sendStarted.await()
+
+            val restartCompleted = CompletableDeferred<Unit>()
+            val restartThread =
+                Thread {
+                    runCatching {
+                        session.startNewGame(
+                            GameConfig(
+                                mode = GameMode.THREE_PLAYER,
+                                randomSeed = 73L,
+                                bonusTiles = emptyList(),
+                            ),
+                        )
+                    }.fold(
+                        onSuccess = { restartCompleted.complete(Unit) },
+                        onFailure = { error -> restartCompleted.completeExceptionally(error) },
+                    )
+                }
+            restartThread.start()
+            restartThread.join(100)
+
+            assertFalse(restartCompleted.isCompleted)
+
+            transport.releaseSend.complete(Unit)
+            assertTrue(inFlightMove.await().isSuccess)
+            restartCompleted.await()
+            restartThread.join(1_000)
+
+            assertEquals(73L, session.gameState.value.randomSeed)
+            assertEquals(0, session.gameState.value.turnNumber)
+        }
 }
 
 private class RecordingNearbyTransport : NearbyTransport {
@@ -282,5 +339,18 @@ private class RecordingNearbyTransport : NearbyTransport {
         message: GameMessage,
     ) {
         sentMessages += message
+    }
+}
+
+private class BlockingNearbyTransport : NearbyTransport {
+    val sendStarted = CompletableDeferred<Unit>()
+    val releaseSend = CompletableDeferred<Unit>()
+
+    override suspend fun send(
+        target: MessageTarget,
+        message: GameMessage,
+    ) {
+        sendStarted.complete(Unit)
+        releaseSend.await()
     }
 }

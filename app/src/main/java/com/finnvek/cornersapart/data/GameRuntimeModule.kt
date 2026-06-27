@@ -7,8 +7,8 @@ import com.finnvek.cornersapart.multiplayer.ConnectionsClientFacade
 import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.PlayServicesConnectionsClientFacade
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
-import com.finnvek.cornersapart.viewmodel.SystemTimeProvider
-import com.finnvek.cornersapart.viewmodel.TimeProvider
+import com.finnvek.cornersapart.runtime.SystemTimeProvider
+import com.finnvek.cornersapart.runtime.TimeProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

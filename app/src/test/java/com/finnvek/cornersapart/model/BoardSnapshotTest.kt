@@ -2,6 +2,7 @@ package com.finnvek.cornersapart.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class BoardSnapshotTest {
@@ -31,5 +32,19 @@ class BoardSnapshotTest {
         assertEquals(first, second)
         assertEquals(first.hashCode(), second.hashCode())
         assertEquals(BoardSnapshot(size = 3, cells = listOf(-1, -1, -1, -1, 2, -1, -1, -1, -1)), first.toSnapshot())
+    }
+
+    @Test
+    fun boardSnapshotTakesSnapshotOfMutableCellsInput() {
+        val cells = mutableListOf(-1, -1, -1, -1)
+        val snapshot = BoardSnapshot(size = 2, cells = cells)
+
+        cells[0] = 3
+
+        assertEquals(BoardSnapshot.EMPTY, snapshot.get(row = 0, col = 0))
+        assertThrows(UnsupportedOperationException::class.java) {
+            @Suppress("UNCHECKED_CAST")
+            (snapshot.cells as MutableList<Int>)[0] = 3
+        }
     }
 }

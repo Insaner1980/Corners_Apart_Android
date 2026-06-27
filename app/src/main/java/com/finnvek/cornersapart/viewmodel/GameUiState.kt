@@ -23,7 +23,6 @@ data class GameUiState(
     val isGameOver: Boolean,
     val soundEnabled: Boolean = true,
     val hapticsEnabled: Boolean = true,
-    val reducedMotionEnabled: Boolean = false,
     val gameDurationSeconds: Int = 0,
     val preferredDifficulty: Int = 3,
     val preferredMode: GameMode = GameMode.FOUR_PLAYER,

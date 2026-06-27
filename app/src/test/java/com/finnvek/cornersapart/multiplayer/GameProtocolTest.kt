@@ -64,6 +64,15 @@ class GameProtocolTest {
     }
 
     @Test
+    fun equivalentFullSyncMessagesEncodeIdentically() {
+        val config = GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 31L, bonusTiles = emptyList())
+        val first = GameMessage.FullSync(GameEngine().newGame(config))
+        val second = GameMessage.FullSync(GameEngine().newGame(config))
+
+        assertEquals(GameProtocol.encode(first), GameProtocol.encode(second))
+    }
+
+    @Test
     fun decodeRejectsUnknownMessageType() {
         val result = runCatching { GameProtocol.decode("""{"type":"unknown"}""") }
 

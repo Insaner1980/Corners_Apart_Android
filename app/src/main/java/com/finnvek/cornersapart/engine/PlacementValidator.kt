@@ -11,7 +11,7 @@ import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.Player
 
-object PlacementValidator {
+internal object PlacementValidator {
     fun validate(
         state: GameState,
         move: Move,
@@ -141,7 +141,7 @@ object PlacementValidator {
         )
 }
 
-data class PlacementValidation(
+internal data class PlacementValidation(
     val isValid: Boolean,
     val reason: MoveRejectionReason?,
     val targetCells: List<CellPosition>,

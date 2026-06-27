@@ -19,7 +19,6 @@ import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.Player
 import com.finnvek.cornersapart.model.Profile
 import com.finnvek.cornersapart.model.SavedGameData
-import com.finnvek.cornersapart.model.ScoreBreakdown
 import com.finnvek.cornersapart.model.hasValidIndexDomains
 import com.finnvek.cornersapart.model.toSnapshotCopy
 import com.finnvek.cornersapart.model.toSnapshotList
@@ -31,6 +30,7 @@ import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
 import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.opponents.OpponentDifficultyMapper
+import com.finnvek.cornersapart.runtime.TimeProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -199,10 +199,6 @@ class GameViewModel
 
         fun setHapticsEnabled(enabled: Boolean) {
             updateSettings { it.copy(hapticsEnabled = enabled) }
-        }
-
-        fun setReducedMotionEnabled(enabled: Boolean) {
-            updateSettings { it.copy(reducedMotionEnabled = enabled) }
         }
 
         fun setPreferredDifficulty(level: Int) {
@@ -447,7 +443,7 @@ class GameViewModel
                             1
                     },
                 totalScore = profileScore?.totalScore ?: 0,
-                scoreBreakdown = profileScore?.scoreBreakdown ?: ownerPlayers.combinedScoreBreakdown(),
+                scoreBreakdown = profileScore?.scoreBreakdown ?: Scoring.combinedScoreBreakdown(ownerPlayers),
                 claimedBonusTiles = profileScore?.claimedBonusTiles ?: 0,
                 piecesPlaced = ownerPlayers.sumOf { player -> player.usedPieceIds.size },
                 difficulty = settings.preferredDifficulty,
@@ -457,13 +453,6 @@ class GameViewModel
                 scores = rankedScores,
             )
         }
-
-        private fun List<Player>.combinedScoreBreakdown(): ScoreBreakdown =
-            ScoreBreakdown(
-                placedCellPoints = sumOf { player -> player.scoreBreakdown.placedCellPoints },
-                bonusTilePoints = sumOf { player -> player.scoreBreakdown.bonusTilePoints },
-                completionBonus = sumOf { player -> player.scoreBreakdown.completionBonus },
-            )
 
         private fun refreshUiState() {
             normalizeSelectionForCurrentPlayer()
@@ -493,7 +482,6 @@ class GameViewModel
                 isGameOver = isGameOver,
                 soundEnabled = settings.soundEnabled,
                 hapticsEnabled = settings.hapticsEnabled,
-                reducedMotionEnabled = settings.reducedMotionEnabled,
                 gameDurationSeconds = elapsedGameSeconds(),
                 preferredDifficulty = settings.preferredDifficulty,
                 preferredMode = settings.preferredMode,

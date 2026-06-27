@@ -1,4 +1,4 @@
-package com.finnvek.cornersapart.viewmodel
+package com.finnvek.cornersapart.runtime
 
 import org.junit.Assert.assertTrue
 import org.junit.Test
