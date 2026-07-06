@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.multiplayer
 
+import com.finnvek.cornersapart.projectFiles
 import com.finnvek.cornersapart.projectRoot
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -8,10 +9,7 @@ class NearbyConfigurationTest {
     @Test
     fun nearbyDependencyManifestPermissionsAndUiTermsAreConfigured() {
         val root = projectRoot()
-        val versionsCatalog = root.resolve("gradle/libs.versions.toml").toFile().readText()
-        val appBuildFile = root.resolve("app/build.gradle.kts").toFile().readText()
-        val manifest = root.resolve("app/src/main/AndroidManifest.xml").toFile().readText()
-        val strings = root.resolve("app/src/main/res/values/strings.xml").toFile().readText()
+        val files = projectFiles(root)
         val gameScreen =
             root
                 .resolve(
@@ -19,28 +17,29 @@ class NearbyConfigurationTest {
                 ).toFile()
                 .readText()
 
-        assertTrue(versionsCatalog.contains("playServicesNearby = \"19.3.0\""))
+        assertTrue(files.versionsCatalog.contains("playServicesNearby = \"19.3.0\""))
         val nearbyAlias =
             "play-services-nearby = { group = \"com.google.android.gms\", " +
                 "name = \"play-services-nearby\", version.ref = \"playServicesNearby\" }"
-        assertTrue(versionsCatalog.contains(nearbyAlias))
-        assertTrue(appBuildFile.contains("implementation(libs.play.services.nearby)"))
+        assertTrue(files.versionsCatalog.contains(nearbyAlias))
+        assertTrue(files.appBuildFile.contains("implementation(libs.play.services.nearby)"))
 
-        assertTrue(manifest.contains("android.permission.ACCESS_WIFI_STATE"))
-        assertTrue(manifest.contains("android.permission.CHANGE_WIFI_STATE"))
-        assertTrue(manifest.contains("android.permission.BLUETOOTH\""))
-        assertTrue(manifest.contains("android.permission.BLUETOOTH_ADMIN"))
-        assertTrue(manifest.contains("android.permission.ACCESS_COARSE_LOCATION"))
-        assertTrue(manifest.contains("android.permission.ACCESS_FINE_LOCATION"))
-        assertTrue(manifest.contains("android.permission.BLUETOOTH_ADVERTISE"))
-        assertTrue(manifest.contains("android.permission.BLUETOOTH_CONNECT"))
-        assertTrue(manifest.contains("android.permission.BLUETOOTH_SCAN"))
-        assertTrue(manifest.contains("android.permission.NEARBY_WIFI_DEVICES"))
-        assertTrue(manifest.contains("android:usesPermissionFlags=\"neverForLocation\""))
+        assertTrue(files.manifest.contains("android.permission.ACCESS_WIFI_STATE"))
+        assertTrue(files.manifest.contains("android.permission.CHANGE_WIFI_STATE"))
+        assertTrue(files.manifest.contains("android.permission.BLUETOOTH\""))
+        assertTrue(files.manifest.contains("android.permission.BLUETOOTH_ADMIN"))
+        assertTrue(files.manifest.contains("android.permission.ACCESS_COARSE_LOCATION"))
+        assertTrue(files.manifest.contains("android.permission.ACCESS_FINE_LOCATION"))
+        assertTrue(files.manifest.contains("android.permission.BLUETOOTH_ADVERTISE"))
+        assertTrue(files.manifest.contains("android.permission.BLUETOOTH_CONNECT"))
+        assertTrue(files.manifest.contains("android.permission.BLUETOOTH_SCAN"))
+        assertTrue(files.manifest.contains("android.permission.NEARBY_WIFI_DEVICES"))
+        assertTrue(files.manifest.contains("android.permission.ACCESS_LOCAL_NETWORK"))
+        assertTrue(files.manifest.contains("android:usesPermissionFlags=\"neverForLocation\""))
 
-        assertTrue(strings.contains("<string name=\"nearby_game\">Nearby game</string>"))
-        assertTrue(strings.contains("<string name=\"create_nearby_game\">Create nearby game</string>"))
-        assertTrue(strings.contains("<string name=\"find_nearby_game\">Find nearby game</string>"))
+        assertTrue(files.strings.contains("<string name=\"nearby_game\">Nearby game</string>"))
+        assertTrue(files.strings.contains("<string name=\"create_nearby_game\">Create nearby game</string>"))
+        assertTrue(files.strings.contains("<string name=\"find_nearby_game\">Find nearby game</string>"))
 
         assertTrue(gameScreen.contains("ActivityResultContracts.RequestMultiplePermissions"))
         assertTrue(gameScreen.contains("NearbyPermissions"))

@@ -1,6 +1,9 @@
+import org.gradle.api.configuration.BuildFeatures
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.owasp.dependencycheck.gradle.extension.DependencyCheckExtension
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.android.application)
@@ -11,9 +14,23 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
-    alias(libs.plugins.owasp.dependency.check)
+    alias(libs.plugins.owasp.dependency.check) apply false
     jacoco
 }
+
+abstract class GradleBuildFeatureAccess
+    @Inject
+    constructor(
+        val buildFeatures: BuildFeatures,
+    )
+
+val configurationCacheActive =
+    objects
+        .newInstance<GradleBuildFeatureAccess>()
+        .buildFeatures
+        .configurationCache
+        .active
+        .get()
 
 val releaseSigningEnvPrefix = "CORNERS_APART"
 
@@ -40,12 +57,12 @@ fun requiredReleaseEnv(name: String): String =
 
 android {
     namespace = "com.finnvek.cornersapart"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.finnvek.cornersapart"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0.0"
 
@@ -121,6 +138,8 @@ android {
                 "AndroidGradlePluginVersion",
             )
 
+        fatal += setOf("OldTargetApi")
+
         checkGeneratedSources = false
         htmlReport = true
         xmlReport = true
@@ -128,22 +147,39 @@ android {
 }
 
 kotlin {
+    jvmToolchain(17)
+
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
 gradle.taskGraph.whenReady {
+    val releaseArtifactTaskNamesRequiringSigning =
+        setOf(
+            "assembleRelease",
+            "bundleRelease",
+            "packageRelease",
+            "packageReleaseBundle",
+            "signReleaseBundle",
+            "packageReleaseUniversalApk",
+        )
+
+    fun isReleaseArtifactTaskRequiringSigning(name: String): Boolean =
+        name in releaseArtifactTaskNamesRequiringSigning ||
+            (
+                name.endsWith("Release") &&
+                    (
+                        name.startsWith("assemble") ||
+                            name.startsWith("bundle") ||
+                            name.startsWith("package") ||
+                            name.startsWith("publish")
+                    )
+            )
+
     val releaseArtifactsRequested =
         allTasks.any { task ->
-            val name = task.name
-            name.endsWith("Release") &&
-                (
-                    name.startsWith("assemble") ||
-                        name.startsWith("bundle") ||
-                        name.startsWith("package") ||
-                        name.startsWith("publish")
-                )
+            isReleaseArtifactTaskRequiringSigning(task.name)
         }
 
     if (releaseArtifactsRequested && !releaseSigningAvailable) {
@@ -175,62 +211,95 @@ detekt {
     parallel = true
 }
 
-dependencyCheck {
-    formats = listOf("HTML", "JSON")
-    outputDirectory = rootProject.layout.projectDirectory.dir("reports")
-    suppressionFile =
-        rootProject.layout.projectDirectory
-            .file("config/dependency-check/suppressions.xml")
-            .asFile.absolutePath
-    data {
-        val defaultDataDirectory =
-            rootProject.layout.projectDirectory
-                .dir(".gradle/dependency-check-data")
-                .asFile.absolutePath
-
-        directory =
-            providers
-                .environmentVariable("DEPENDENCY_CHECK_DATA_DIRECTORY")
-                .orElse(defaultDataDirectory)
-                .get()
+composeStabilityAnalyzer {
+    stabilityValidation {
+        enabled.set(true)
+        outputDir.set(layout.projectDirectory.dir("stability"))
+        failOnStabilityChange.set(true)
+        allowMissingBaseline.set(false)
     }
-    autoUpdate =
-        providers
-            .environmentVariable("DEPENDENCY_CHECK_AUTO_UPDATE")
-            .map {
-                it.equals("true", ignoreCase = true) ||
-                    it == "1" ||
-                    it.equals("yes", ignoreCase = true)
-            }.getOrElse(true)
-    failBuildOnCVSS =
-        providers
-            .environmentVariable("DEPENDENCY_CHECK_FAIL_BUILD_ON_CVSS")
-            .map { it.toFloatOrNull() ?: 7f }
-            .getOrElse(7f)
-    scanConfigurations = listOf("debugRuntimeClasspath", "releaseRuntimeClasspath")
-    skipTestGroups = true
-    analyzers {
-        ossIndex {
-            enabled = false
+}
+
+if (configurationCacheActive) {
+    tasks.register("dependencyCheckAnalyze") {
+        group = "verification"
+        description =
+            "OWASP Dependency-Check vaatii ajon ilman Gradlen configuration cachea."
+
+        doLast {
+            throw GradleException(
+                "OWASP Dependency-Check Analyze ei ole yhteensopiva Gradlen configuration cachen " +
+                    "kanssa. Aja tarkistus komennolla: .\\gradlew.bat :app:dependencyCheckAnalyze " +
+                    "--no-configuration-cache --console=plain",
+            )
         }
     }
-    nvd {
-        providers.environmentVariable("NVD_API_KEY").orNull?.let { apiKey = it }
-        delay =
+} else {
+    apply(plugin = "org.owasp.dependencycheck")
+
+    extensions.configure<DependencyCheckExtension>("dependencyCheck") {
+        formats = listOf("HTML", "JSON")
+        outputDirectory = rootProject.layout.projectDirectory.dir("reports")
+        suppressionFile =
+            rootProject.layout.projectDirectory
+                .file("config/dependency-check/suppressions.xml")
+                .asFile.absolutePath
+        data {
+            val defaultDataDirectory =
+                rootProject.layout.projectDirectory
+                    .dir(".gradle/dependency-check-data")
+                    .asFile.absolutePath
+
+            directory =
+                providers
+                    .environmentVariable("DEPENDENCY_CHECK_DATA_DIRECTORY")
+                    .orElse(defaultDataDirectory)
+                    .get()
+        }
+        autoUpdate =
             providers
-                .environmentVariable("NVD_API_DELAY_MS")
-                .map { it.toIntOrNull() ?: 6_000 }
-                .getOrElse(6_000)
-        maxRetryCount =
+                .environmentVariable("DEPENDENCY_CHECK_AUTO_UPDATE")
+                .map {
+                    it.equals("true", ignoreCase = true) ||
+                        it == "1" ||
+                        it.equals("yes", ignoreCase = true)
+                }.getOrElse(true)
+        failBuildOnCVSS =
             providers
-                .environmentVariable("NVD_API_MAX_RETRY_COUNT")
-                .map { it.toIntOrNull() ?: 20 }
-                .getOrElse(20)
-        validForHours =
-            providers
-                .environmentVariable("NVD_VALID_FOR_HOURS")
-                .map { it.toIntOrNull() ?: 24 }
-                .getOrElse(24)
+                .environmentVariable("DEPENDENCY_CHECK_FAIL_BUILD_ON_CVSS")
+                .map { it.toFloatOrNull() ?: 7f }
+                .getOrElse(7f)
+        scanConfigurations = listOf("debugRuntimeClasspath", "releaseRuntimeClasspath")
+        skipTestGroups = true
+        analyzers {
+            ossIndex {
+                enabled = false
+            }
+        }
+        nvd {
+            providers.environmentVariable("NVD_API_KEY").orNull?.let { apiKey = it }
+            delay =
+                providers
+                    .environmentVariable("NVD_API_DELAY_MS")
+                    .map { it.toIntOrNull() ?: 6_000 }
+                    .getOrElse(6_000)
+            maxRetryCount =
+                providers
+                    .environmentVariable("NVD_API_MAX_RETRY_COUNT")
+                    .map { it.toIntOrNull() ?: 20 }
+                    .getOrElse(20)
+            validForHours =
+                providers
+                    .environmentVariable("NVD_VALID_FOR_HOURS")
+                    .map { it.toIntOrNull() ?: 24 }
+                    .getOrElse(24)
+        }
+    }
+
+    tasks.named("dependencyCheckAnalyze") {
+        notCompatibleWithConfigurationCache(
+            "OWASP Dependency-Check Analyze sailyttaa Project-viitteita taskin tilassa.",
+        )
     }
 }
 
@@ -248,7 +317,7 @@ val jacocoDebugUnitTestReportExclusions =
         "**/R.class",
         "**/R$*.class",
         "**/*Test*.*",
-        "**/*Preview*.*",
+        "**/*PreviewKt*.*",
         "**/*ComposableSingletons*.*",
         "**/di/**",
     )
@@ -271,7 +340,7 @@ tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
 
     classDirectories.setFrom(
         files(
-            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/classes")) {
+            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes")) {
                 exclude(jacocoDebugUnitTestReportExclusions)
             },
             fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
@@ -293,67 +362,52 @@ tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
     )
 }
 
-tasks.configureEach {
-    if (name.startsWith("hiltJavaCompile") && name.endsWith("UnitTest")) {
-        enabled = false
-    }
-}
-
 dependencies {
-    // Compose BOM
     val composeBom = platform(libs.compose.bom)
+
     implementation(composeBom)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
-    implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.foundation)
-    debugImplementation(libs.compose.ui.tooling)
-    debugImplementation(libs.compose.ui.test.manifest)
-
-    // Lifecycle
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
-
-    // Hilt
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-    ksp(libs.kotlin.metadata.jvm)
     implementation(libs.hilt.lifecycle.viewmodel.compose)
-
-    // Coroutines
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
-
-    // DataStore
     implementation(libs.datastore)
-
-    // Serialization
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.serialization.json)
-
-    // Core
     implementation(libs.core.ktx)
     implementation(libs.activity.compose)
-
-    // Nearby
     implementation(libs.play.services.nearby)
 
-    // Detekt plugins
+    debugImplementation(libs.compose.ui.tooling)
+    debugImplementation(libs.compose.ui.test.manifest)
+
+    ksp(libs.hilt.compiler)
+    ksp(libs.kotlin.metadata.jvm)
+
     detektPlugins(libs.detekt.compose.rules)
 
-    // Android lint -lisaosat
     lintChecks(libs.android.security.lints)
 
-    // Testing
+    testImplementation(libs.hilt.android.testing)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.mockk)
+
+    kspTest(libs.hilt.compiler)
+
     androidTestImplementation(composeBom)
+    androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.compose.ui.test.junit4)
+
+    kspAndroidTest(libs.hilt.compiler)
 }

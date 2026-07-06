@@ -19,7 +19,7 @@ Current UI surface:
 - `HistoryStatsDialog` owns the history/statistics tabbed dialog.
 - `PieceShape` owns reusable piece drawing for previews and piece cards.
 
-The `navigation-compose` dependency exists, but current UI does not define `NavHost` routes. Treat this as a single-screen app until a navigation graph is explicitly added.
+No Navigation Compose dependency is currently declared, and current UI does not define `NavHost` routes. Treat this as a single-screen app until a navigation graph is explicitly added.
 
 ## External UI Guidance Checked
 
@@ -877,7 +877,7 @@ When changing UI:
 
 Current gaps visible from code:
 
-- No navigation graph despite `navigation-compose` dependency.
+- No active navigation graph; add one only when multiple route surfaces exist.
 - Nearby state is collected but not fully rendered.
 - Reduced motion setting exists, and `MotionPolicy` exists, but visible Compose animations are not yet implemented.
 - Profile dialog edits avatar style but does not preview avatar graphics.

@@ -24,15 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Help
-import androidx.compose.material.icons.automirrored.filled.RotateLeft
-import androidx.compose.material.icons.automirrored.filled.RotateRight
-import androidx.compose.material.icons.filled.Flip
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -53,6 +44,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -653,28 +645,28 @@ private fun UtilityActions(
             onClick = onShowHistoryStats,
             modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
-            Icon(Icons.Filled.History, contentDescription = null)
+            Icon(painter = painterResource(R.drawable.ic_history_24), contentDescription = null)
             Text(text = stringResource(R.string.history_stats_title))
         }
         Button(
             onClick = onShowProfiles,
             modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
-            Icon(Icons.Filled.Person, contentDescription = null)
+            Icon(painter = painterResource(R.drawable.ic_person_24), contentDescription = null)
             Text(text = stringResource(R.string.profiles_title))
         }
         Button(
             onClick = onShowSettings,
             modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
-            Icon(Icons.Filled.Settings, contentDescription = null)
+            Icon(painter = painterResource(R.drawable.ic_settings_24), contentDescription = null)
             Text(text = stringResource(R.string.settings_title))
         }
         Button(
             onClick = onShowHelp,
             modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
-            Icon(Icons.AutoMirrored.Filled.Help, contentDescription = null)
+            Icon(painter = painterResource(R.drawable.ic_help_24), contentDescription = null)
             Text(text = stringResource(R.string.help_title))
         }
     }
@@ -744,19 +736,19 @@ private fun ControlBar(
             contentDescription = stringResource(R.string.control_rotate_counterclockwise),
             onClick = onRotateCounterClockwise,
         ) {
-            Icon(Icons.AutoMirrored.Filled.RotateLeft, contentDescription = null)
+            Icon(painter = painterResource(R.drawable.ic_rotate_left_24), contentDescription = null)
         }
         GameIconButton(
             contentDescription = stringResource(R.string.control_rotate_clockwise),
             onClick = onRotateClockwise,
         ) {
-            Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = null)
+            Icon(painter = painterResource(R.drawable.ic_rotate_right_24), contentDescription = null)
         }
         GameIconButton(
             contentDescription = stringResource(R.string.control_flip),
             onClick = onFlip,
         ) {
-            Icon(Icons.Filled.Flip, contentDescription = null)
+            Icon(painter = painterResource(R.drawable.ic_flip_24), contentDescription = null)
         }
         PassButton(onPass)
     }
@@ -792,7 +784,7 @@ private fun RowScope.PassButton(onPass: () -> Unit) {
                 .heightIn(min = CornersApartSpacing.TouchTargetMin)
                 .semantics { contentDescription = description },
     ) {
-        Icon(Icons.Filled.SkipNext, contentDescription = null)
+        Icon(painter = painterResource(R.drawable.ic_skip_next_24), contentDescription = null)
         Text(text = description)
     }
 }

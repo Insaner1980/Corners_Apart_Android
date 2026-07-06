@@ -1,6 +1,6 @@
 # Corners Apart Android Project Reference
 
-Last verified from the live checkout on 2026-06-20.
+Last verified from the live checkout on 2026-07-03.
 
 This document is the current-state project map for `C:\Dev\Corners_Apart_Android`. It is written for precise future code review questions, implementation planning, and agent handoff. Treat the source code as the final source of truth after any future code changes.
 
@@ -12,7 +12,7 @@ The app package, namespace, and application id are `com.finnvek.cornersapart`. T
 
 The current implementation has a working pure Kotlin game engine, local sessions, a playable Compose game screen, rule-based computer opponents for Solo mode, multiple mode configurations, JSON DataStore repository scaffolding, a Nearby session/protocol abstraction, Android runtime permission handling for Nearby, polish dialogs, history/stat calculation models, unit tests, instrumented Compose tests, CI workflows, and several local static-analysis/security wrappers.
 
-Current non-release state: `GameViewModel` is repository-backed for settings, saved games, active profiles, history, and Nearby UI state. Local sessions are created through `LocalSessionFactory`, saved games include a settings snapshot, resume/profile/settings/history/game-over flows are wired into Compose, and Nearby has a concrete Google Play services adapter behind `NearbyConnectionsCoordinator` and `ConnectionsClientFacade`. The current playable board path in `GameViewModel` still uses `LocalSession`; Nearby session/protocol/coordinator logic exists below the UI, while Compose currently exposes create/find actions but not a complete endpoint-selection/auth/gameplay flow. Release-only items such as privacy placeholders, Compact Duel physical play-test coverage, two-device Nearby stress testing, full Nearby gameplay UI, and Play Store data-safety remain outside this non-release implementation pass.
+Current non-release state: `GameViewModel` is repository-backed for settings, saved games, active profiles, history, and Nearby UI state. Local sessions are created through `LocalSessionFactory`, saved games include a settings snapshot, resume/profile/settings/history/game-over flows are wired into Compose, and Nearby has a concrete Google Play services adapter behind `NearbyConnectionsCoordinator` and `ConnectionsClientFacade`. `GameViewModel` selects `nearbySession ?: localSession` as the active `GameSession`, collects active Nearby session game-state/effect flows when `NearbyConnectionsCoordinator.currentSession` is non-null, and persists saved games/history only for local sessions. Compose exposes create/find/connect/accept/reject Nearby actions and renders discovered endpoints, pending authentication codes, status, and errors. Release-only items such as privacy placeholders, Compact Duel physical play-test coverage, two-device Nearby stress testing, visible disconnect/reconnect controls, and Play Store data-safety remain outside this non-release implementation pass.
 
 ## Repository Identity
 
@@ -28,8 +28,8 @@ Current non-release state: `GameViewModel` is repository-backed for settings, sa
 - Primary language: Kotlin
 - UI framework: Jetpack Compose with Material 3
 - Minimum SDK: `26`
-- Compile SDK: `36`
-- Target SDK: `36`
+- Compile SDK: `37`
+- Target SDK: `37`
 - Java/Kotlin JVM target: 17
 - License: MIT, copyright 2026 Finnvek
 
@@ -57,12 +57,12 @@ Implemented now:
 - Five game modes: Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player.
 - Rule-based local computer opponents with 3 styles and 5 difficulty levels.
 - `LocalSession` for local play and Solo computer turns.
-- Nearby protocol/session abstractions and concrete adapter: `GameMessage`, `GameProtocol`, `HostGameCoordinator`, `NearbySession`, `NearbyTransport`, `NearbyConnectionsCoordinator`, `ConnectionsClientFacade`, `PlayServicesConnectionsClientFacade`, lobby reconnect state, endpoint-owner authorization, and host-authoritative validation. This layer is implemented and unit-tested, but it is not yet the active `GameViewModel` board-session owner.
+- Nearby protocol/session abstractions and concrete adapter: `GameMessage`, `GameProtocol`, `HostGameCoordinator`, `NearbySession`, `NearbyTransport`, `NearbyConnectionsCoordinator`, `ConnectionsClientFacade`, `PlayServicesConnectionsClientFacade`, lobby reconnect state, endpoint-owner authorization, and host-authoritative validation. This layer is implemented and unit-tested; when `NearbyConnectionsCoordinator.currentSession` is non-null, `GameViewModel` uses that session as the active board-session owner.
 - Nearby runtime permission policy and manifest permission declarations for current target SDK bands.
 - JSON DataStore repository layer for saved game, profiles, and settings.
 - Compose game UI with board, score bar, mode chips, piece strip, selected-piece preview, rotate/flip/pass controls, resume/profile/settings/help/history dialogs, game-over dialog, haptics, local sound cues, and accessibility announcements.
 - Repository-backed `GameViewModel` flow for settings, save/resume, active profile history, ranked game-over state, and Nearby state.
-- Settings dialog for difficulty, preferred mode, sound, haptics, and reduced motion.
+- Settings dialog for difficulty, preferred mode, sound, and haptics.
 - Profile dialog for local profile selection, creation, and editing with local avatar styles.
 - Saved-game resume dialog backed by `SavedGameData` settings snapshots.
 - Game-over and history entries use `Scoring.rankPlayers` so Two-Color Duel owner aggregation is preserved.
@@ -72,8 +72,8 @@ Implemented now:
 
 Remaining or release-only:
 
-- `navigation-compose` is a dependency, but there is currently a single `MainActivity`/`GameRoute` surface rather than a navigation graph.
-- `MotionPolicy` and `GameSoundPolicy` are wired for reduced-motion durations and local event sound policy, but additional visual animation polish can still be expanded.
+- No Navigation Compose dependency is currently declared; the app remains a single `MainActivity`/`GameRoute` surface until a navigation graph is added.
+- `GameLayoutPolicy` and `GameSoundPolicy` are wired for responsive layout selection and local event sound policy, but additional visual animation polish can still be expanded.
 - Physical two-device Nearby stress testing remains a manual/release verification item.
 - Compact Duel still needs manual play-test coverage before release claims.
 - `PRIVACY-POLICY.md` is present but still contains placeholders (`[App Name]`, `[your email]`, `[date]`).
@@ -93,15 +93,14 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 
 | Item | Version |
 |---|---:|
-| Gradle wrapper | 9.4.1 |
-| Android Gradle Plugin | 9.2.0 |
+| Gradle wrapper | 9.5.1 |
+| Android Gradle Plugin | 9.2.1 |
 | Kotlin | 2.4.0 |
 | KSP | 2.3.9 |
 | Hilt | 2.59.2 |
-| AndroidX Hilt Navigation Compose | 1.3.0 |
+| AndroidX Hilt Lifecycle ViewModel Compose | 1.3.0 |
 | Compose BOM | 2026.05.01 |
 | Compose Stability Analyzer | 0.10.0 |
-| Navigation Compose | 2.9.8 |
 | Lifecycle | 2.10.0 |
 | Coroutines | 1.11.0 |
 | DataStore | 1.2.1 |
@@ -111,8 +110,8 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 | Play Services Nearby | 19.3.0 |
 | JaCoCo | 0.8.15 |
 | ktlint Gradle plugin | 14.2.0 |
-| detekt | 1.23.8 |
-| detekt Compose rules | 0.4.27 |
+| detekt | 2.0.0-alpha.5 |
+| detekt Compose rules | 0.6.2 |
 | Android Security Lints | 1.0.4 |
 | OWASP Dependency-Check | 12.2.2 |
 | SonarQube Gradle plugin | 7.3.1.8318 |
@@ -121,13 +120,14 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 | AndroidX Test JUnit | 1.3.0 |
 | AndroidX Test Runner | 1.7.0 |
 
-AGP 9 built-in Kotlin is used for the app module. Do not add `org.jetbrains.kotlin.android` to `app/build.gradle.kts` unless the project intentionally reverses that architecture decision. The app module applies the Android application plugin, Compose compiler plugin, Kotlin serialization plugin, Compose Stability Analyzer plugin, KSP, Hilt, ktlint, detekt, Dependency-Check, and JaCoCo. Android security lint checks are added through the `lintChecks(libs.android.security.lints)` dependency.
+AGP 9 built-in Kotlin is used for the app module. Do not add `org.jetbrains.kotlin.android`, `kotlin-android`, kapt, or `android.builtInKotlin=false` unless the project intentionally reverses that architecture decision and updates the release guardrails. The app module applies the Android application plugin, Compose compiler plugin, Kotlin serialization plugin, Compose Stability Analyzer plugin, KSP, Hilt, ktlint, detekt, and JaCoCo. The OWASP Dependency-Check plugin alias is declared with `apply false`; the app module applies `org.owasp.dependencycheck` only when Gradle is not running with configuration cache requested. Android security lint checks are added through the `lintChecks(libs.android.security.lints)` dependency.
 
 Gradle repository policy:
 
-- Plugin resolution uses `google`, `mavenCentral`, and `gradlePluginPortal`.
+- Plugin resolution uses `google`, `mavenCentral`, and `gradlePluginPortal` with content filters: Android and AndroidX plugins come from `google`, ktlint/detekt/Foojay/OWASP/Sonar plugins come from `gradlePluginPortal`, and those plugin groups/modules are excluded from `mavenCentral`.
 - Dependency resolution uses `google` and `mavenCentral`.
 - `repositoriesMode` is `FAIL_ON_PROJECT_REPOS`.
+- Repository guard tests reject project/buildSrc/convention build-script repository blocks, included builds without explicit repository-policy coverage, and committed Gradle init scripts.
 
 Gradle properties:
 
@@ -139,7 +139,7 @@ Gradle properties:
 - Kotlin code style is official.
 - Android non-transitive R classes are enabled.
 - R8 full mode is enabled.
-- Kotlin compiler execution strategy is in-process.
+- Kotlin compiler execution strategy is not overridden in `gradle.properties`; the Kotlin Gradle plugin default daemon strategy is used.
 
 ## Build Types And Signing
 
@@ -162,7 +162,7 @@ Release signing env vars:
 - `CORNERS_APART_KEY_ALIAS`
 - `CORNERS_APART_KEY_PASSWORD`
 
-The Gradle task graph rejects release artifact tasks such as assemble, bundle, package, or publish release variants if these signing env vars are missing.
+The Gradle task graph rejects release artifact tasks if these signing env vars are missing. The current matcher checks task names, not paths: it explicitly covers `assembleRelease`, `bundleRelease`, `packageRelease`, `packageReleaseBundle`, `signReleaseBundle`, and `packageReleaseUniversalApk`, plus names ending in `Release` and starting with `assemble`, `bundle`, `package`, or `publish`. The guard intentionally allows release verification tasks such as `compileReleaseKotlin`, `detektRelease`, and `lintRelease` without signing env vars. Unit tests also dry-run real artifact task graphs including `:app:makeApkFromBundleForRelease`, `:app:zipApksForRelease`, and a configuration-cache env-change scenario.
 
 ## Main Commands
 
@@ -173,6 +173,7 @@ Project commands from `AGENTS.md` and build files:
 - `.\gradlew.bat :app:detekt`: detekt static analysis.
 - `.\gradlew.bat lint`: Android lint.
 - `.\gradlew.bat :app:jacocoDebugUnitTestReport`: JaCoCo XML and HTML unit-test coverage report for debug.
+- `.\gradlew.bat :app:dependencyCheckAnalyze --no-configuration-cache --console=plain`: OWASP Dependency-Check. A normal configuration-cache request registers a lightweight fallback task that fails with guidance instead of applying the incompatible OWASP task.
 - `.\gradlew.bat sonar`: Gradle Sonar analysis task; root task depends on `:app:assembleDebug` and `:app:jacocoDebugUnitTestReport`.
 
 User-owned wrappers:
@@ -248,21 +249,22 @@ Main package areas:
 - `multiplayer/`: local and Nearby session boundaries, protocol messages, host coordinator, lobby/reconnect state, runtime permission policy, and transport abstraction.
 - `data/`: JSON DataStore serializers, state-store wrapper, repository classes, and Hilt persistence/runtime modules.
 - `viewmodel/`: `GameViewModel`, `GameUiState`, UI player/piece models, and one-shot effects.
-- `ui/screens/`: game route, game screen content, board rendering, score bar, dialogs, history/stats, layout/motion policies.
+- `runtime/`: runtime-only app services shared across layers, currently `TimeProvider` and `SystemTimeProvider`.
+- `ui/screens/`: game route, game screen content, board rendering, score bar, dialogs, history/stats, layout policy, and local sound policy.
 - `ui/components/`: piece drawing helpers.
 - `ui/theme/`: colors, spacing, animation tokens, alpha tokens, typography, shapes, player palette, and Material theme.
 
 Current source counts:
 
-- Main Kotlin source files: 81
-- Unit-test Kotlin source files: 38
+- Main Kotlin source files: 84
+- Unit-test Kotlin source files: 53
 - Instrumented-test Kotlin source files: 1
 
 Package dependency note:
 
 - These package areas are descriptive boundaries inside the single `:app` Gradle module, not separately enforced Gradle modules.
 - Current code has a deliberate `model -> engine` reference from `ScoreBreakdown.plus(ScoreDelta)` and `engine -> model` references from scoring/rules code. Resolve that cycle first if `model` and `engine` are ever split into separate modules.
-- `GameRuntimeModule` currently lives in `data/` and provides `TimeProvider`/`SystemTimeProvider` from `viewmodel/`, so a future module split must either move the clock abstraction or document that runtime DI depends on the UI-state package.
+- `GameRuntimeModule` currently lives in `data/` and provides runtime services from `runtime/` plus Play Services facade wiring from `multiplayer/`, so a future module split must account for the DI module's cross-package provider role.
 
 ## Domain Constants
 
@@ -729,7 +731,7 @@ Generation:
 
 `NearbyPermissions.hasRequiredPermissions` requires every runtime permission returned for the SDK band to map to `true`.
 
-Review note: target/compile SDK are currently 36, and the manifest does not declare `ACCESS_LOCAL_NETWORK`; the code has a future SDK 37 branch.
+Review note: target/compile SDK are currently 37. The runtime permission policy includes `android.permission.ACCESS_LOCAL_NETWORK` for SDK >= 37, but `AndroidManifest.xml` does not declare that permission. `NearbyPermissionsTest` currently covers SDK 28, 30, 31, 32, and 33 only, so SDK 37 manifest/runtime alignment needs explicit validation before release claims about Android 17 local-network behavior.
 
 ## Persistence
 
@@ -811,9 +813,10 @@ Runtime Hilt module:
 - `preferredDifficulty`, default 3.
 - `soundEnabled`, default true.
 - `hapticsEnabled`, default true.
-- `reducedMotionEnabled`, default false.
 - `preferredMode`, default `FOUR_PLAYER`.
-- `preferredRuleset`, default `STANDARD`.
+- No persisted `reducedMotionEnabled` field.
+- No persisted `preferredRuleset` field.
+- `JsonDataStoreSerializerTest.jsonSerializerDoesNotPersistDormantSettings` asserts that default settings JSON does not contain `reducedMotionEnabled` or `preferredRuleset`.
 
 ## Profiles, Avatars, And History
 
@@ -874,7 +877,10 @@ Runtime Hilt module:
 - Collects saved-game data from `GameRepository`.
 - Collects profiles from `ProfileRepository` and creates active default profile `local-default` when the store is empty.
 - Collects Nearby UI state from `NearbyConnectionsCoordinator`.
-- Does not collect `NearbyConnectionsCoordinator.currentSession`; board input and persisted game state are still produced from the private `LocalSession`.
+- Collects `NearbyConnectionsCoordinator.currentSession`.
+- Uses `nearbySession ?: localSession` as the active `GameSession`.
+- When a Nearby session appears, resets selection/orientation/start time, marks the resume decision made, collects the Nearby session's `gameState`, and forwards the Nearby session's one-shot events to `GameEffect`.
+- When a local game is started or a saved game is resumed, calls `leaveNearbySessionForLocalPlay`, clears active Nearby jobs/session, and disconnects the coordinator.
 - Tracks game start time through `TimeProvider`.
 - Starts new local games through `LocalSessionFactory`.
 - Resets selected piece/orientation on new game.
@@ -892,17 +898,20 @@ Runtime Hilt module:
 - Emits `GameEffect.MoveRejected` from session rejection reason names.
 - Emits `GameEffect.MoveAccepted` when score delta is positive.
 - Emits `GameEffect.GameOver` when an accepted move or pass ends the game.
+- Emits `GameEffect.ActionFailed` for failed Nearby session events.
 - Passes current player through `session.sendPass`; pass is ignored after game over.
 - Normalizes selection when the selected piece has been used by the current player.
 
 Current Nearby UI limitation:
 
-- `GameScreenActions` exposes only create/find Nearby actions to Compose.
-- `GameUiState.nearbyState` contains discovered endpoints, pending connection auth data, errors, and connection state, but `GameScreenContent` does not yet render endpoint selection, auth-token confirmation, accept/reject, disconnect, or an active `NearbySession` game board.
+- `GameScreenActions` exposes create, find, connect endpoint, accept pending connection, and reject pending connection actions to Compose.
+- `GameUiState.nearbyState` contains discovered endpoints, pending connection auth data, errors, and connection state.
+- `GameScreenContent` renders Nearby status, errors, pending authentication code with accept/reject buttons, and discovered endpoint connect buttons.
+- There is no visible disconnect/reconnect control in `GameScreenActions` or `GameScreenContent`; `GameViewModel.disconnectNearby()` exists but is not currently surfaced by the Compose action model.
 
 `GameUiState`:
 
-- Contains game mode, board, bonus tiles, players, current player index, selected piece id, selected orientation index, selected cells, piece panel items, game over flag, sound/haptics/reduced motion flags, game duration seconds, preferred difficulty/mode, active profile history/name, saved-game resume summary, ranked scores, Nearby state, and profiles.
+- Contains game mode, board, bonus tiles, players, current player index, selected piece id, selected orientation index, selected cells, piece panel items, game over flag, sound/haptics flags, game duration seconds, preferred difficulty/mode, active profile history/name, saved-game resume summary, ranked scores, Nearby state, and profiles.
 - `currentPlayer` returns `players[currentPlayerIndex]`; current configs currently keep player indexes aligned with list indexes.
 
 `PlayerUiState`:
@@ -933,7 +942,7 @@ Current Nearby UI limitation:
 - Owns local `showSettings`, `showProfiles`, and `showHelp`.
 - Shows `ResumeGameDialog` when a saved game is available and no continue/new-game decision has been made.
 - Shows `HistoryStatsDialog` when requested.
-- Shows `GameSettingsDialog` for difficulty, preferred mode, sound, haptics, and reduced motion.
+- Shows `GameSettingsDialog` for difficulty, preferred mode, sound, and haptics.
 - Shows `ProfilesDialog` for local profile selection, creation, and editing.
 - Shows `GameHelpDialog`.
 - Shows `GameOverDialog` when `state.isGameOver`.
@@ -947,7 +956,7 @@ Layout policy:
 Primary visible controls:
 
 - Mode chips: Four players, Solo, Two-color duel, Compact duel, Three players.
-- Nearby actions: Create nearby game, Find nearby game.
+- Nearby actions: Create nearby game, Find nearby game, status text, errors, discovered endpoint connect buttons, and pending connection authentication code with accept/reject buttons.
 - Utility actions: History & stats, Profiles, Settings, Help.
 - Score cards by player.
 - Canvas board.
@@ -989,7 +998,6 @@ Accessibility and haptics:
 - Preferred mode selector.
 - Sound switch.
 - Haptics switch.
-- Reduced motion switch.
 
 `ProfilesDialog`:
 
@@ -1121,6 +1129,7 @@ Resources:
 - `app/src/main/res/font/quicksand.ttf`: bundled font.
 - `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`: adaptive launcher icon.
 - `app/src/main/res/drawable/ic_launcher_monochrome.xml`: monochrome launcher resource.
+- `app/src/main/res/drawable/ic_flip_24.xml`, `ic_help_24.xml`, `ic_history_24.xml`, `ic_person_24.xml`, `ic_rotate_left_24.xml`, `ic_rotate_right_24.xml`, `ic_settings_24.xml`, and `ic_skip_next_24.xml`: local vector drawables for gameplay, utility, and dialog action buttons. The app does not package `material-icons-extended`; `BuildDependencyHygieneTest.appDoesNotPackageMaterialIconsExtendedForAHandfulOfIcons` guards this.
 - `app/src/main/res/xml/data_extraction_rules.xml`: backup/transfer exclusion policy.
 
 All user-facing UI strings should remain in `strings.xml`. Do not hardcode user-facing text in composables.
@@ -1158,11 +1167,24 @@ Unit tests cover:
 - Computer opponent deterministic seed behavior, legality across difficulties, pass fallback.
 - Opponent difficulty mapper persisted `1..5` mapping and clamping.
 - Data repositories, saved-game settings snapshots, profile history cap, JSON serializer, and JVM-safe runtime providers.
-- GameViewModel initial state, placing, rejection effects, clockwise/counterclockwise rotation, flip, Solo flow, supported modes, repository-backed settings, preferred-mode persistence, saved-game resume/discard, Nearby delegation, profile actions, saved-game persistence, game-over history including Two-Color Duel owner aggregation, and polish settings toggles.
-- Game layout policy, motion policy, and sound policy.
+- GameViewModel initial state, placing, rejection/action-failed effects, clockwise/counterclockwise rotation, flip, Solo flow, supported modes, repository-backed settings, preferred-mode persistence, saved-game resume/discard, active Nearby session collection/delegation, local-only persistence after accepted turns, profile actions, saved-game persistence, game-over history including Two-Color Duel owner aggregation, and polish settings toggles.
+- Game layout policy and sound policy.
 - `SystemTimeProvider` epoch millis and ISO date formatting.
 - Theme token values.
 - Release identity guardrails.
+- Release/build guardrails:
+  - Gradle wrapper, AGP, detekt, detekt Compose rules, Foojay resolver, and Detekt 2 schema pins.
+  - Kotlin/Java 17 toolchain pins and absence of legacy Android Kotlin/kapt configuration.
+  - Hilt test component generation for JVM and instrumented tests.
+  - Dependency-Check conditional application and configuration-cache fallback behavior.
+  - Release signing gate behavior for real artifact task graphs, release verification tasks, and configuration-cache env changes.
+  - Repository policy: only root dependency repositories, no project/convention build-script repositories, no included builds without coverage, no committed Gradle init scripts.
+  - Dependency verification: metadata and signatures enabled, SHA-256 on every artifact, no wildcard trusted keys, and no trusted artifacts.
+  - Compose dependency policy: Compose BOM controls Compose versions, Material 3 is used instead of Material 2, and `composeOptions.kotlinCompilerExtensionVersion` is absent under AGP 9 built-in Kotlin.
+  - Unused dependency seams: no direct Navigation Compose, Hilt Navigation Compose, DataStore Preferences, or Compose Animation declarations/imports, and no Material Icons Extended package for the current icon set. Compose Animation artifacts may still resolve transitively through the Compose BOM/Material3/Foundation stack; they are not app-owned seams.
+  - Android lint policy: compile/target SDK 37, release lint enabled, and `OldTargetApi` fatal.
+  - Manifest security policy: source-set manifests disable backup, full backup, device transfer, and cleartext traffic.
+  - Guardrail hygiene: generated analyzer/report outputs ignored, theme-equivalent colors centralized under `ui/theme`, and Compose stability baselines tracked in Git.
 
 Instrumented Compose tests cover:
 
@@ -1188,6 +1210,7 @@ Android lint:
 - Adds `com.android.security.lint:lint` through `lintChecks`.
 - Enables checks including permissions, hardcoded text, missing translation, unused resources, wrong thread, content descriptions, RTL hardcoded, static field leaks, and others.
 - Disables `GradleDependency` and `AndroidGradlePluginVersion`.
+- Marks `OldTargetApi` fatal; `AndroidLintPolicyTest` asserts compile/target SDK 37 and the fatal lint setting.
 
 ktlint:
 
@@ -1201,19 +1224,30 @@ detekt:
 - `buildUponDefaultConfig = true`.
 - Parallel enabled.
 - App baseline path: `app/detekt-baseline.xml`.
+- Plugin id is `dev.detekt`.
+- Version is `2.0.0-alpha.5`.
 - Complexity rules are active with Compose-aware exclusions for annotated composables.
 - Long method threshold is 60, ignoring `@Composable`.
 - TooManyFunctions thresholds: files 30, classes 25, interfaces 15, objects 11, enums 11.
-- Compose detekt rules are active through `io.nlopez.compose.rules`.
+- Compose detekt rules are active through `io.nlopez.compose.rules` version `0.6.2`.
+- `BuildToolchainCompatibilityTest.detektConfigStaysOnDetektTwoSchema` rejects obsolete Detekt 1.x config keys.
 
 Compose Stability Analyzer:
 
 - App module applies `com.github.skydoves.compose.stability.analyzer`.
 - Tracked stability dumps are `app/stability/app-debug.stability` and `app/stability/app-release.stability`.
 - The dump files are generated by `./gradlew :app:stabilityDump`.
+- Stability validation is enabled.
+- Output directory is `app/stability`.
+- `failOnStabilityChange` is true.
+- `allowMissingBaseline` is false.
+- `GuardrailHygieneTest.composeStabilityValidationKeepsTrackedStrictBaselines` asserts that the baselines exist, are tracked by Git, are not ignored, and strict validation stays enabled.
 
 Dependency-Check:
 
+- The plugin alias is declared in the app plugins block with `apply false`.
+- If Gradle configuration cache is requested, `app/build.gradle.kts` registers a fallback `dependencyCheckAnalyze` task that fails with guidance to rerun with `--no-configuration-cache`.
+- If configuration cache is not requested, the app module applies `org.owasp.dependencycheck` and configures the real analyzer task.
 - Formats: HTML and JSON.
 - Output directory: root `reports`.
 - Suppressions file: `config/dependency-check/suppressions.xml`.
@@ -1225,6 +1259,7 @@ Dependency-Check:
 - Test groups are skipped.
 - OSS Index analyzer is disabled.
 - NVD API key, delay, retry count, and valid hours can be configured by env vars.
+- The real `dependencyCheckAnalyze` task is marked `notCompatibleWithConfigurationCache`.
 
 JaCoCo:
 
@@ -1289,6 +1324,9 @@ Dependency verification:
 
 - `gradle/verification-metadata.xml` is present.
 - It uses Gradle dependency verification schema 1.3 and trusted keys.
+- Verification config requires metadata and signature verification.
+- Every artifact must have SHA-256 metadata.
+- `DependencyVerificationPolicyTest` rejects `trusted-artifacts` and wildcard/regex trusted-key scopes.
 
 GitHub Actions:
 
@@ -1369,21 +1407,23 @@ Do not:
 
 These are current-state items worth asking precise code-review questions about:
 
-- Should `NearbyConnectionsCoordinator` expose richer lobby/player mapping before two-device stress testing?
+- Should `NearbyConnectionsCoordinator` and the rendered Nearby UI expose enough host/client/player-owner state for two-device stress testing and reconnect debugging, or is the current status/endpoint/auth-code surface too thin?
+- Should the Compose action model surface `GameViewModel.disconnectNearby()` so users can leave a Nearby session without switching to local play?
 - Should `GameSoundPlayer` move from generated platform tones to original `res/raw` assets before release polish?
 - Should `ProfilesDialog` get a denser edit workflow or stay as a compact local v1 editor?
-- Should `NearbyPermissions` SDK 37 local-network branch be paired with a manifest declaration when compile/target SDK move beyond 36?
-- Should `MotionPolicy` be applied to more visible board/piece animations before release?
+- Should `NearbyPermissions` SDK 37 local-network branch be paired with an `AndroidManifest.xml` declaration and an SDK 37 unit test, now that compile/target SDK are 37?
+- Should removed dormant settings (`reducedMotionEnabled`, `preferredRuleset`) remain absent from persistence, settings UI, and serializer output?
+- Should the release-signing task-name matcher keep relying on Gradle task names, or should additional artifact-producing AGP task names be covered as AGP changes?
+- Should `:app:dependencyCheckAnalyze` remain a configuration-cache fallback failure task, and should wrapper/report flows always call the real task with `--no-configuration-cache`?
 - Should `PRIVACY-POLICY.md` be finalized before release?
 - Should `sonar` task dependency on `assembleDebug` stay, or should analysis avoid artifact build coupling if release/signing/Firebase-style gates are added later?
 
 ## External Docs Checked While Writing
 
-These were re-checked on 2026-06-20 to avoid relying on stale Android ecosystem assumptions. This section records documentation assumptions only; the project still uses the exact versions listed in `gradle/libs.versions.toml`.
+These were re-checked on 2026-07-03 to avoid relying on stale Android ecosystem assumptions while refreshing this code-backed file. This section records documentation assumptions only; the project still uses the exact versions and behavior in the live checkout, especially `gradle/libs.versions.toml`, `gradle/wrapper/gradle-wrapper.properties`, `settings.gradle.kts`, and `app/build.gradle.kts`.
 
 - Android Gradle Plugin release notes for AGP 9.x compatibility and built-in Kotlin behavior: <https://developer.android.com/build/releases/agp-9-2-0-release-notes> and <https://developer.android.com/build/releases/agp-9-0-0-release-notes>.
-- Jetpack Compose BOM guidance and BOM mapping: <https://developer.android.com/develop/ui/compose/bom/bom-mapping>.
-- Android DataStore guidance, including keeping DataStore operations in the data layer and exposing data through ViewModels: <https://developer.android.com/topic/libraries/architecture/datastore>.
-- Google Nearby Connections overview for the peer-to-peer, offline local multiplayer transport model: <https://developers.google.com/nearby/connections/overview>.
+- Gradle configuration cache user manual for the configuration-cache behavior that the local OWASP fallback avoids: <https://docs.gradle.org/current/userguide/configuration_cache.html>.
+- OWASP Dependency-Check Gradle task documentation and plugin portal version page for the current `dependencyCheckAnalyze` task name and plugin version surface: <https://dependency-check.github.io/DependencyCheck/dependency-check-gradle/configuration.html> and <https://plugins.gradle.org/plugin/org.owasp.dependencycheck>.
 
 For future dependency upgrades, re-check official Android, Google, JetBrains, Gradle, and library release notes before changing version numbers or API usage.
