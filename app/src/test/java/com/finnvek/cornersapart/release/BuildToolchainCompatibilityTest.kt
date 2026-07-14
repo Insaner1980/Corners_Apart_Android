@@ -31,7 +31,7 @@ class BuildToolchainCompatibilityTest {
         )
         assertTrue(
             wrapperProperties
-                .contains("distributionUrl=https\\://services.gradle.org/distributions/gradle-9.5.1-bin.zip"),
+                .contains("distributionUrl=https\\://services.gradle.org/distributions/gradle-9.6.1-bin.zip"),
         )
         assertTrue(wrapperProperties.contains("distributionSha256Sum="))
         assertTrue(versionsCatalog.contains("agp = \"9.2.1\""))
