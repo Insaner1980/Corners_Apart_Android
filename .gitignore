@@ -4,7 +4,6 @@
 .idea/
 /build/
 /app/build/
-/app/stability/
 /captures/
 .externalNativeBuild/
 .cxx/
@@ -28,6 +27,7 @@
 /kotlin-profile/
 /native/
 /notifications/
+/jdks/
 
 # Prevent CLAUDE.md files from breaking Android resource merger
 **/src/main/res/**/CLAUDE.md
