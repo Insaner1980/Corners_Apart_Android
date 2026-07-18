@@ -4,7 +4,14 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -24,6 +31,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +51,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -538,6 +548,13 @@ private fun DragGhostOverlay(
     val dragCells = dragController.dragCells ?: return
     val finger = dragController.fingerInRoot ?: return
     val previewSizePx = with(LocalDensity.current) { CornersApartSpacing.PiecePreviewSize.toPx() }
+    val appear = remember { Animatable(DRAG_GHOST_START_SCALE) }
+    LaunchedEffect(Unit) {
+        appear.animateTo(
+            targetValue = DRAG_GHOST_SCALE,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        )
+    }
     PieceShape(
         cells = dragCells,
         colorIndex = colorIndex,
@@ -548,13 +565,20 @@ private fun DragGhostOverlay(
                         x = (finger.x - previewSizePx / 2f).roundToInt(),
                         y = (finger.y - previewSizePx * DRAG_GHOST_LIFT_FACTOR).roundToInt(),
                     )
-                }.size(CornersApartSpacing.PiecePreviewSize),
+                }.size(CornersApartSpacing.PiecePreviewSize)
+                .graphicsLayer {
+                    scaleX = appear.value
+                    scaleY = appear.value
+                },
         alpha = DRAG_GHOST_ALPHA,
     )
 }
 
 private const val DRAG_GHOST_LIFT_FACTOR = 1.2f
 private const val DRAG_GHOST_ALPHA = 0.9f
+private const val DRAG_GHOST_START_SCALE = 0.7f
+private const val DRAG_GHOST_SCALE = 1.1f
+private const val PIECE_CARD_SELECTED_SCALE = 1.05f
 
 @Composable
 private fun CompactGameLayout(
@@ -680,12 +704,33 @@ private fun Header(
         horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = stringResource(R.string.app_name),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.displayMedium.withCandyShadow(),
-            color = CornersApartColors.TextOnDarkPrimary,
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.displayMedium.withCandyShadow(),
+                color = CornersApartColors.TextOnDarkPrimary,
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(
+                            width = CornersApartSpacing.TitleAccentBarWidth,
+                            height = CornersApartSpacing.TitleAccentBarHeight,
+                        ).background(
+                            brush =
+                                Brush.horizontalGradient(
+                                    colors =
+                                        listOf(
+                                            CornersApartColors.PlayerPink,
+                                            CornersApartColors.PlayerMango,
+                                            CornersApartColors.PlayerLime,
+                                            CornersApartColors.PlayerCyan,
+                                        ),
+                                ),
+                            shape = CircleShape,
+                        ),
+            )
+        }
         CandyChip(
             label = stringResource(state.gameMode.labelRes()),
             selected = true,
@@ -738,7 +783,7 @@ private fun NearbyActions(
             modifier = Modifier.fillMaxWidth(),
             style = CandyButtonStyle.Neutral,
         )
-        if (expandedByUser || mustShow) {
+        AnimatedVisibility(visible = expandedByUser || mustShow) {
             Surface(
                 modifier =
                     Modifier
@@ -922,13 +967,17 @@ private fun StatusLine(
             modifier = Modifier.padding(CornersApartSpacing.CompactGap),
             verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
         ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            if (notice != null) {
+            AnimatedContent(targetState = text, label = "turnText") { turnText ->
                 Text(
-                    text = notice,
+                    text = turnText,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            var lastNotice by remember { mutableStateOf("") }
+            if (notice != null) lastNotice = notice
+            AnimatedVisibility(visible = notice != null) {
+                Text(
+                    text = lastNotice,
                     style = MaterialTheme.typography.bodySmall,
                     color = CornersApartColors.ButtonWarnFace,
                 )
@@ -1077,11 +1126,19 @@ private fun PieceCard(
         } else {
             PieceTransforms.normalize(item.piece.cells)
         }
+    val selectionScale by
+        animateFloatAsState(
+            targetValue = if (item.isSelected) PIECE_CARD_SELECTED_SCALE else 1f,
+            label = "pieceCardScale",
+        )
     Surface(
         modifier =
             Modifier
                 .size(CornersApartSpacing.PieceCardSize)
-                .alpha(if (item.isUsed) CornersApartAlpha.UsedPiece else 1f)
+                .graphicsLayer {
+                    scaleX = selectionScale
+                    scaleY = selectionScale
+                }.alpha(if (item.isUsed) CornersApartAlpha.UsedPiece else 1f)
                 .semantics { contentDescription = description }
                 .clickable(enabled = !item.isUsed) { onSelectPiece(item.piece.id) }
                 .onGloballyPositioned { coordinates -> cardCoordinates = coordinates }

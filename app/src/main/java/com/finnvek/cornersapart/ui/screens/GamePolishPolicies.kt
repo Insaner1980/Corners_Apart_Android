@@ -22,6 +22,7 @@ enum class GameSoundEvent {
     PLACEMENT,
     BONUS_CLAIM,
     GAME_OVER,
+    REJECT,
 }
 
 object GameSoundPolicy {
@@ -38,8 +39,8 @@ object GameSoundPolicy {
                     GameSoundEvent.PLACEMENT
                 }
             GameEffect.GameOver -> GameSoundEvent.GAME_OVER
-            is GameEffect.MoveRejected -> null
-            is GameEffect.ActionFailed -> null
+            is GameEffect.MoveRejected -> GameSoundEvent.REJECT
+            is GameEffect.ActionFailed -> GameSoundEvent.REJECT
         }
     }
 }

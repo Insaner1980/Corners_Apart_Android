@@ -189,7 +189,7 @@ class GameScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Teal wins").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Lime wins").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Placed cells").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Bonus tiles").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Completion bonus").performScrollTo().assertIsDisplayed()

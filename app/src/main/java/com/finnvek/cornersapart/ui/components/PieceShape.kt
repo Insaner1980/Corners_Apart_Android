@@ -69,6 +69,21 @@ fun DrawScope.drawCandyCell(
     cellSize: Float,
     colors: PlayerPieceColors,
     alpha: Float = 1f,
+    scale: Float = 1f,
+) {
+    drawScaledCandyCell(
+        topLeft = topLeft + Offset(cellSize * (1f - scale) / 2f, cellSize * (1f - scale) / 2f),
+        cellSize = cellSize * scale,
+        colors = colors,
+        alpha = alpha,
+    )
+}
+
+private fun DrawScope.drawScaledCandyCell(
+    topLeft: Offset,
+    cellSize: Float,
+    colors: PlayerPieceColors,
+    alpha: Float,
 ) {
     val corner = CornerRadius(cellSize * CELL_CORNER_FRACTION)
     drawRoundRect(

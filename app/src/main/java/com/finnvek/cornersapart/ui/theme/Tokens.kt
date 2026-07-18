@@ -4,29 +4,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 object CornersApartColors {
-    val PlayerIndigo = Color(0xFF4338CA)
-    val PlayerIndigoDark = Color(0xFF312E81)
-    val PlayerIndigoHighlight = Color(0xFF6366F1)
-    val PlayerIndigoGhost = Color(0x4D4338CA)
+    val PlayerPink = Color(0xFFF0509E)
+    val PlayerPinkDark = Color(0xFFB62E72)
+    val PlayerPinkHighlight = Color(0xFFFF8AC2)
+    val PlayerPinkGhost = Color(0x4DF0509E)
 
-    val PlayerAmber = Color(0xFFE88C0A)
-    val PlayerAmberDark = Color(0xFFB56E08)
-    val PlayerAmberHighlight = Color(0xFFF5B040)
-    val PlayerAmberGhost = Color(0x4DE88C0A)
+    val PlayerMango = Color(0xFFFFA726)
+    val PlayerMangoDark = Color(0xFFC67908)
+    val PlayerMangoHighlight = Color(0xFFFFC46B)
+    val PlayerMangoGhost = Color(0x4DFFA726)
 
-    val PlayerCoral = Color(0xFFE8513D)
-    val PlayerCoralDark = Color(0xFFB02A20)
-    val PlayerCoralHighlight = Color(0xFFF08070)
-    val PlayerCoralGhost = Color(0x4DE8513D)
+    val PlayerCyan = Color(0xFF29C8E0)
+    val PlayerCyanDark = Color(0xFF17849B)
+    val PlayerCyanHighlight = Color(0xFF7BE3F2)
+    val PlayerCyanGhost = Color(0x4D29C8E0)
 
-    val PlayerTeal = Color(0xFF0D9488)
-    val PlayerTealDark = Color(0xFF0A6B62)
-    val PlayerTealHighlight = Color(0xFF2DD4BF)
-    val PlayerTealGhost = Color(0x4D0D9488)
+    val PlayerLime = Color(0xFF9BD934)
+    val PlayerLimeDark = Color(0xFF6FA51F)
+    val PlayerLimeHighlight = Color(0xFFC4EE7D)
+    val PlayerLimeGhost = Color(0x4D9BD934)
 
     val BonusAccent = Color(0xFFD8A928)
 
-    val BackgroundGradientTop = Color(0xFF312B63)
+    val BackgroundGradientTop = Color(0xFF3A3378)
     val BackgroundGradientBottom = Color(0xFF1D1940)
     val BoardPanel = Color(0xFF241F4E)
     val BoardCellEmpty = Color(0xFF1B173D)
@@ -66,8 +66,14 @@ object CornersApartSpacing {
     val ActivePlayerBorderWidth = 2.dp
 
     val ScoreSwatchSize = 16.dp
+    val ColorSwatchSize = 44.dp
+    val ColorSwatchRingWidth = 3.dp
+    val ConfettiHeight = 96.dp
     val BoardPanelRadius = 20.dp
     val BoardPanelPadding = 8.dp
+    val BoardPanelBorderWidth = 1.dp
+    val TitleAccentBarHeight = 4.dp
+    val TitleAccentBarWidth = 120.dp
     val CandyButtonRadius = 18.dp
     val CandyButtonBevel = 4.dp
     val CandyButtonHeight = 52.dp

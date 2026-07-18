@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.ui.screens
 
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -88,9 +90,14 @@ private fun PlayerScoreCard(
                     colors = colors,
                 )
             }
+            val animatedScore by
+                animateIntAsState(
+                    targetValue = player.totalScore,
+                    label = "scoreCount",
+                )
             Column {
                 Text(
-                    text = stringResource(R.string.player_score_label, player.name, player.totalScore),
+                    text = stringResource(R.string.player_score_label, player.name, animatedScore),
                     style = MaterialTheme.typography.titleMedium,
                     color = CornersApartColors.TextOnDarkPrimary,
                 )

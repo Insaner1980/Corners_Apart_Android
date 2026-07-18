@@ -1,14 +1,20 @@
 package com.finnvek.cornersapart.ui.screens
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -22,8 +28,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
@@ -35,7 +45,9 @@ import com.finnvek.cornersapart.ui.components.CandyButtonStyle
 import com.finnvek.cornersapart.ui.components.CandyChip
 import com.finnvek.cornersapart.ui.components.CandyDialog
 import com.finnvek.cornersapart.ui.components.CandySwitch
+import com.finnvek.cornersapart.ui.components.ConfettiBurst
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
+import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
 import com.finnvek.cornersapart.ui.theme.withCandyShadow
 import com.finnvek.cornersapart.viewmodel.ProfileUiState
@@ -141,31 +153,52 @@ private fun ModeSelector(
     selectedMode: GameMode,
     onModeSelected: (GameMode) -> Unit,
 ) {
-    SelectorSection(title = stringResource(R.string.settings_preferred_mode)) {
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
+        SelectorTitle(stringResource(R.string.settings_preferred_mode))
         GameModeUiOptions.modes.forEach { mode ->
             CandyChip(
                 label = stringResource(mode.labelRes()),
                 selected = selectedMode == mode,
                 onClick = { onModeSelected(mode) },
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
 }
 
 @Composable
+private fun SelectorTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = CornersApartColors.TextOnDarkSecondary,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProfileChipRow(chips: @Composable () -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+        verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+    ) {
+        chips()
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 private fun SelectorSection(
     title: String,
     chips: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = CornersApartColors.TextOnDarkSecondary,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        SelectorTitle(title)
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+            verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
         ) {
             chips()
         }
@@ -212,10 +245,7 @@ fun ProfilesDialog(
             )
         },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
-        ) {
+        ProfileChipRow {
             profiles.forEach { profile ->
                 CandyChip(
                     label =
@@ -257,15 +287,52 @@ private fun ProfileColorSelector(
     selectedColorIndex: Int,
     onColorSelected: (Int) -> Unit,
 ) {
-    SelectorSection(title = stringResource(R.string.profile_color_label)) {
-        GameConstants.PLAYER_COLORS.indices.forEach { colorIndex ->
-            CandyChip(
-                label = stringResource(R.string.profile_color_option, colorIndex + 1),
-                selected = selectedColorIndex == colorIndex,
-                onClick = { onColorSelected(colorIndex) },
-            )
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
+        SelectorTitle(stringResource(R.string.profile_color_label))
+        Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+            GameConstants.PLAYER_COLORS.indices.forEach { colorIndex ->
+                ColorSwatch(
+                    colorIndex = colorIndex,
+                    selected = selectedColorIndex == colorIndex,
+                    onClick = { onColorSelected(colorIndex) },
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun ColorSwatch(
+    colorIndex: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = CornersApartPlayerPalette.colorsFor(colorIndex)
+    val description = stringResource(R.string.profile_color_option, colorIndex + 1)
+    Box(
+        modifier =
+            Modifier
+                .size(CornersApartSpacing.ColorSwatchSize)
+                .semantics { contentDescription = description }
+                .then(
+                    if (selected) {
+                        Modifier.border(
+                            width = CornersApartSpacing.ColorSwatchRingWidth,
+                            color = CornersApartColors.TextOnDarkPrimary,
+                            shape = CircleShape,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ).padding(CornersApartSpacing.TinyGap)
+                .background(
+                    brush =
+                        Brush.verticalGradient(
+                            colors = listOf(colors.highlight, colors.base),
+                        ),
+                    shape = CircleShape,
+                ).selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+    )
 }
 
 @Composable
@@ -401,12 +468,20 @@ fun GameOverDialog(
         },
     ) {
         if (winner != null) {
-            Text(
-                text = stringResource(R.string.game_over_winner, winner.name),
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                style = MaterialTheme.typography.displayMedium.withCandyShadow(),
-                color = CornersApartColors.TextOnDarkPrimary,
-            )
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = CornersApartSpacing.ConfettiHeight),
+            ) {
+                ConfettiBurst(modifier = Modifier.matchParentSize())
+                Text(
+                    text = stringResource(R.string.game_over_winner, winner.name),
+                    modifier = Modifier.align(Alignment.Center),
+                    style = MaterialTheme.typography.displayMedium.withCandyShadow(),
+                    color = CornersApartColors.TextOnDarkPrimary,
+                )
+            }
         }
         Text(
             text = stringResource(R.string.game_over_duration, duration),

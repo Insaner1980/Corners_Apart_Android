@@ -17,6 +17,7 @@ import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.Player
+import com.finnvek.cornersapart.model.PlayerScore
 import com.finnvek.cornersapart.model.Profile
 import com.finnvek.cornersapart.model.SavedGameData
 import com.finnvek.cornersapart.model.hasValidIndexDomains
@@ -33,6 +34,7 @@ import com.finnvek.cornersapart.opponents.OpponentDifficultyMapper
 import com.finnvek.cornersapart.runtime.TimeProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -41,6 +43,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import com.finnvek.cornersapart.multiplayer.toSnapshotCopy as toNearbySnapshotCopy
 
 @HiltViewModel
@@ -67,9 +71,11 @@ class GameViewModel
         private var nearbySession: GameSession? = null
         private var nearbyGameStateJob: Job? = null
         private var nearbyEventsJob: Job? = null
+        private var localSessionActionJob: Job = newLocalSessionActionJob()
         private var resumeDecisionMade: Boolean = false
         private var recordedGameOverTurn: Int? = null
         private var defaultProfileCreationRequested: Boolean = false
+        private var finishedGameRanking: FinishedGameRanking? = null
         private val _uiState: MutableStateFlow<GameUiState> = MutableStateFlow(session.gameState.value.toUiState())
         private val session: GameSession
             get() = nearbySession ?: localSession
@@ -140,14 +146,6 @@ class GameViewModel
             }
         }
 
-        fun startFourPlayerGame() {
-            startGame(GameMode.FOUR_PLAYER)
-        }
-
-        fun startSoloGame() {
-            startGame(GameMode.SOLO)
-        }
-
         fun startGame(mode: GameMode) {
             val nextSettings = settings.copy(preferredMode = mode).normalized()
             settings = nextSettings
@@ -172,6 +170,7 @@ class GameViewModel
                 val savedSettings = savedGameData.settings.normalized()
                 settings = savedSettings
                 leaveNearbySessionForLocalPlay()
+                resetLocalSessionActions()
                 settingsRepository.updateSettings { savedSettings }
                 localSession = createLocalSession(savedSettings.copy(preferredMode = savedState.gameMode))
                 localSession.replaceState(savedState)
@@ -186,10 +185,10 @@ class GameViewModel
 
         fun discardSavedGameAndStartNewGame() {
             viewModelScope.launch {
-                gameRepository.clearSavedGame()
                 resumeDecisionMade = true
                 leaveNearbySessionForLocalPlay()
                 startLocalSession(settings)
+                gameRepository.clearSavedGame()
             }
         }
 
@@ -229,10 +228,6 @@ class GameViewModel
 
         fun rejectPendingNearbyConnection(endpointId: String) {
             nearbyConnectionsCoordinator.rejectPendingConnection(endpointId)
-        }
-
-        fun disconnectNearby() {
-            nearbyConnectionsCoordinator.disconnect()
         }
 
         fun setActiveProfile(profileId: String) {
@@ -320,8 +315,10 @@ class GameViewModel
             row: Int,
             col: Int,
         ) {
-            viewModelScope.launch {
-                val gameplaySession = session
+            // Pelaaminen on päätös jatkaa käynnissä olevaa peliä — estää
+            // resume-dialogin ponnahtamisen oman autosaven takia.
+            resumeDecisionMade = true
+            launchGameplayAction { gameplaySession ->
                 val stateBefore = gameplaySession.gameState.value
                 val currentPlayer = stateBefore.players[stateBefore.currentPlayerIndex]
                 val result =
@@ -348,10 +345,10 @@ class GameViewModel
         }
 
         fun passCurrentPlayer() {
-            viewModelScope.launch {
-                val gameplaySession = session
+            resumeDecisionMade = true
+            launchGameplayAction { gameplaySession ->
                 val stateBefore = gameplaySession.gameState.value
-                if (stateBefore.isGameOver) return@launch
+                if (stateBefore.isGameOver) return@launchGameplayAction
                 val playerIndex = stateBefore.currentPlayerIndex
                 val result = gameplaySession.sendPass(playerIndex)
                 if (result.isSuccess) {
@@ -383,11 +380,13 @@ class GameViewModel
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
             recordedGameOverTurn = null
+            resetLocalSessionActions()
             localSession = createLocalSession(nextSettings)
             refreshUiState()
         }
 
         private fun prepareForNearbySession() {
+            resetLocalSessionActions()
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
@@ -431,7 +430,7 @@ class GameViewModel
         }
 
         private fun GameState.toHistoryEntry(): HistoryEntry {
-            val rankedScores = Scoring.rankPlayers(this)
+            val rankedScores = rankedScoresForUiAndHistory()
             val activeOwnerIndex = DEFAULT_PROFILE_OWNER_INDEX
             val profileScore = rankedScores.firstOrNull { score -> score.ownerIndex == activeOwnerIndex }
             val ownerPlayers = players.filter { player -> player.ownerIndex == activeOwnerIndex }
@@ -490,9 +489,8 @@ class GameViewModel
                 hasSavedGame = savedGameData.gameState?.hasValidIndexDomains() == true && !resumeDecisionMade,
                 resumeSummary = savedGameData.toResumeSummary(),
                 rankedScores =
-                    Scoring
-                        .rankPlayers(this)
-                        .toSnapshotList(),
+                    rankedScoresForUiAndHistory(),
+                sessionType = session.sessionType,
                 nearbyState = nearbyState.toNearbySnapshotCopy(),
                 profiles = profilesUiState(),
             )
@@ -553,6 +551,36 @@ class GameViewModel
             )
         }
 
+        private fun launchGameplayAction(action: suspend (GameSession) -> Unit) {
+            val gameplaySession = session
+            val actionContext: CoroutineContext =
+                if (gameplaySession.sessionType == SessionType.LOCAL) {
+                    localSessionActionJob
+                } else {
+                    EmptyCoroutineContext
+                }
+            viewModelScope.launch(actionContext) {
+                action(gameplaySession)
+            }
+        }
+
+        private fun resetLocalSessionActions() {
+            localSessionActionJob.cancel()
+            localSessionActionJob = newLocalSessionActionJob()
+        }
+
+        private fun newLocalSessionActionJob(): Job = SupervisorJob(viewModelScope.coroutineContext[Job])
+
+        private fun GameState.rankedScoresForUiAndHistory(): List<PlayerScore> {
+            if (!isGameOver) return Scoring.rankPlayers(this)
+            finishedGameRanking
+                ?.takeIf { ranking -> ranking.state == this }
+                ?.let { ranking -> return ranking.scores }
+            return Scoring.rankPlayers(this).also { scores ->
+                finishedGameRanking = FinishedGameRanking(state = this, scores = scores)
+            }
+        }
+
         private fun Profile.toUiState(): ProfileUiState =
             ProfileUiState(
                 id = id,
@@ -566,6 +594,11 @@ class GameViewModel
             profiles
                 .map { profile -> profile.toUiState() }
                 .toSnapshotList()
+
+        private data class FinishedGameRanking(
+            val state: GameState,
+            val scores: List<PlayerScore>,
+        )
 
         private fun com.finnvek.cornersapart.model.PieceDef.toPanelItem(usedPieceIds: Set<String>): PiecePanelItem =
             PiecePanelItem(
