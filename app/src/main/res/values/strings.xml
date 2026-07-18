@@ -56,7 +56,12 @@
     <string name="profile_avatar_mosaic">Mosaic</string>
     <string name="profile_avatar_rings">Rings</string>
     <string name="profile_save">Save profile</string>
-    <string name="profile_add">Add profile</string>
+    <string name="profile_add">New profile</string>
+    <string name="profile_new_chip">New</string>
+    <string name="profile_delete">Delete</string>
+    <string name="profile_delete_confirm_title">Delete profile?</string>
+    <string name="profile_delete_confirm_body">%1$s and its history will be removed permanently.</string>
+    <string name="dialog_cancel">Cancel</string>
     <string name="resume_game_title">Continue saved game?</string>
     <string name="resume_game_saved_at">Saved: %1$d</string>
     <string name="resume_game_mode">Mode: %1$s</string>

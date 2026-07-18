@@ -36,6 +36,22 @@ class ProfileRepository(
         }
     }
 
+    /** Poistaa profiilin; viimeistä profiilia ei poisteta ja aktiivisuus siirtyy tarvittaessa. */
+    suspend fun deleteProfile(profileId: String) {
+        store.update { data ->
+            val storedProfiles = data.toSnapshotCopy().profiles
+            val remaining = storedProfiles.filterNot { profile -> profile.id == profileId }
+            if (remaining.isEmpty()) {
+                data.toSnapshotCopy()
+            } else {
+                val activeId = remaining.firstOrNull { profile -> profile.active }?.id ?: remaining.first().id
+                ProfilesData(
+                    profiles = remaining.withSingleActiveProfile(activeProfileId = activeId),
+                ).toSnapshotCopy()
+            }
+        }
+    }
+
     suspend fun setActiveProfile(profileId: String) {
         store.update { data ->
             val storedProfiles = data.toSnapshotCopy().profiles

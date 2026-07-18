@@ -260,6 +260,13 @@ class GameViewModel
             }
         }
 
+        fun deleteProfile(profileId: String) {
+            viewModelScope.launch {
+                if (profiles.size <= 1) return@launch
+                profileRepository.deleteProfile(profileId)
+            }
+        }
+
         fun updateProfile(
             profileId: String,
             name: String,
@@ -488,8 +495,7 @@ class GameViewModel
                 activeProfileName = activeProfile?.name ?: DEFAULT_PROFILE_NAME,
                 hasSavedGame = savedGameData.gameState?.hasValidIndexDomains() == true && !resumeDecisionMade,
                 resumeSummary = savedGameData.toResumeSummary(),
-                rankedScores =
-                    rankedScoresForUiAndHistory(),
+                rankedScores = rankedScoresForUiAndHistory(),
                 sessionType = session.sessionType,
                 nearbyState = nearbyState.toNearbySnapshotCopy(),
                 profiles = profilesUiState(),
@@ -505,13 +511,29 @@ class GameViewModel
                     )
                 }.toSnapshotList()
 
+        /**
+         * Paikallisissa peleissä omistaja 0 on laitteen pelaaja, joten aktiivisen
+         * profiilin nimi näytetään hänen pelaajanimenään.
+         */
+        private fun displayName(
+            engineName: String,
+            ownerIndex: Int,
+        ): String {
+            if (session.sessionType != SessionType.LOCAL) return engineName
+            if (ownerIndex != DEFAULT_PROFILE_OWNER_INDEX) return engineName
+            return activeProfile()
+                ?.name
+                ?.takeIf { name -> name.isNotBlank() }
+                ?: engineName
+        }
+
         private fun Player.toUiState(
             claimedBonusTiles: Int,
             isCurrentTurn: Boolean,
         ): PlayerUiState =
             PlayerUiState(
                 index = index,
-                name = name,
+                name = displayName(name, ownerIndex),
                 colorIndex = colorIndex,
                 ownerIndex = ownerIndex,
                 startRow = startCorner.row,
@@ -571,12 +593,15 @@ class GameViewModel
 
         private fun newLocalSessionActionJob(): Job = SupervisorJob(viewModelScope.coroutineContext[Job])
 
+        private fun List<PlayerScore>.withDisplayNames(): List<PlayerScore> =
+            map { score -> score.copy(name = displayName(score.name, score.ownerIndex)) }.toSnapshotList()
+
         private fun GameState.rankedScoresForUiAndHistory(): List<PlayerScore> {
-            if (!isGameOver) return Scoring.rankPlayers(this)
+            if (!isGameOver) return Scoring.rankPlayers(this).withDisplayNames()
             finishedGameRanking
                 ?.takeIf { ranking -> ranking.state == this }
                 ?.let { ranking -> return ranking.scores }
-            return Scoring.rankPlayers(this).also { scores ->
+            return Scoring.rankPlayers(this).withDisplayNames().also { scores ->
                 finishedGameRanking = FinishedGameRanking(state = this, scores = scores)
             }
         }
@@ -631,7 +656,7 @@ class GameViewModel
             if (delta > 0) {
                 _effects.tryEmit(
                     GameEffect.MoveAccepted(
-                        playerName = playerBefore.name,
+                        playerName = displayName(playerBefore.name, playerBefore.ownerIndex),
                         scoreDelta = delta,
                         bonusTileClaimed =
                             playerAfter.scoreBreakdown.bonusTilePoints >

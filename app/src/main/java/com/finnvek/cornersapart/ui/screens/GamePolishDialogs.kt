@@ -211,6 +211,7 @@ fun ProfilesDialog(
     onSetActiveProfile: (String) -> Unit,
     onAddProfile: (name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit,
     onUpdateProfile: (profileId: String, name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit,
+    onDeleteProfile: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -221,14 +222,43 @@ fun ProfilesDialog(
     var draftAvatarStyle by remember(
         profiles,
     ) { mutableStateOf(activeProfile?.avatarStyle ?: LocalAvatarStyle.INITIALS) }
+    var confirmDeleteId by remember { mutableStateOf<String?>(null) }
+    confirmDeleteId?.let { deleteId ->
+        val deleteName = profiles.firstOrNull { profile -> profile.id == deleteId }?.name.orEmpty()
+        CandyDialog(
+            title = stringResource(R.string.profile_delete_confirm_title),
+            onDismiss = { confirmDeleteId = null },
+            buttons = {
+                CandyButton(
+                    text = stringResource(R.string.dialog_cancel),
+                    onClick = { confirmDeleteId = null },
+                    style = CandyButtonStyle.Neutral,
+                )
+                CandyButton(
+                    text = stringResource(R.string.profile_delete),
+                    onClick = {
+                        confirmDeleteId = null
+                        onDeleteProfile(deleteId)
+                    },
+                    style = CandyButtonStyle.Warn,
+                )
+            },
+        ) {
+            Text(
+                text = stringResource(R.string.profile_delete_confirm_body, deleteName),
+                style = MaterialTheme.typography.bodyLarge,
+                color = CornersApartColors.TextOnDarkSecondary,
+            )
+        }
+    }
     CandyDialog(
         title = stringResource(R.string.profiles_title),
         onDismiss = onDismiss,
         modifier = modifier,
         buttons = {
             CandyButton(
-                text = stringResource(R.string.profile_add),
-                onClick = { onAddProfile(draftName, draftColorIndex, draftAvatarStyle) },
+                text = stringResource(R.string.dialog_close),
+                onClick = onDismiss,
                 style = CandyButtonStyle.Neutral,
             )
             CandyButton(
@@ -240,6 +270,7 @@ fun ProfilesDialog(
                     } else {
                         onUpdateProfile(selectedId, draftName, draftColorIndex, draftAvatarStyle)
                     }
+                    onDismiss()
                 },
                 style = CandyButtonStyle.Positive,
             )
@@ -264,6 +295,13 @@ fun ProfilesDialog(
                     },
                 )
             }
+            if (selectedProfileId == null) {
+                CandyChip(
+                    label = stringResource(R.string.profile_new_chip),
+                    selected = true,
+                    onClick = {},
+                )
+            }
         }
         OutlinedTextField(
             value = draftName,
@@ -279,6 +317,26 @@ fun ProfilesDialog(
             selectedStyle = draftAvatarStyle,
             onStyleSelected = { draftAvatarStyle = it },
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+            CandyButton(
+                text = stringResource(R.string.profile_add),
+                onClick = {
+                    selectedProfileId = null
+                    draftName = ""
+                    draftColorIndex = 0
+                    draftAvatarStyle = LocalAvatarStyle.INITIALS
+                },
+                style = CandyButtonStyle.Primary,
+            )
+            val deletableId = selectedProfileId
+            if (deletableId != null && profiles.size > 1) {
+                CandyButton(
+                    text = stringResource(R.string.profile_delete),
+                    onClick = { confirmDeleteId = deletableId },
+                    style = CandyButtonStyle.Warn,
+                )
+            }
+        }
     }
 }
 

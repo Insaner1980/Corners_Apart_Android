@@ -137,6 +137,7 @@ data class GameProfileActions(
     val onAddProfile: (name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit = { _, _, _ -> },
     val onUpdateProfile: (profileId: String, name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit =
         { _, _, _, _ -> },
+    val onDeleteProfile: (String) -> Unit = {},
 )
 
 data class GameDialogState(
@@ -350,6 +351,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                 onSetActiveProfile = viewModel::setActiveProfile,
                 onAddProfile = viewModel::addProfile,
                 onUpdateProfile = viewModel::updateProfile,
+                onDeleteProfile = viewModel::deleteProfile,
             ),
         dialogState =
             GameDialogState(
@@ -478,6 +480,7 @@ fun GameScreenContent(
             onSetActiveProfile = profileActions.onSetActiveProfile,
             onAddProfile = profileActions.onAddProfile,
             onUpdateProfile = profileActions.onUpdateProfile,
+            onDeleteProfile = profileActions.onDeleteProfile,
             onDismiss = { showProfiles = false },
         )
     }
