@@ -24,18 +24,7 @@ object CornersApartColors {
     val PlayerTealHighlight = Color(0xFF2DD4BF)
     val PlayerTealGhost = Color(0x4D0D9488)
 
-    val AppBackground = Color(0xFFE4E4E8)
-    val BoardCellGap = Color(0xFFDCDCE0)
-    val BoardCellSurface = Color(0xFFFAFAFA)
-    val BoardFrame = Color(0xFF2C2C30)
-    val CardSurface = Color(0xFFFFFFFF)
     val BonusAccent = Color(0xFFD8A928)
-
-    val TextPrimary = Color(0xFF1A1A1E)
-    val TextSecondary = Color(0xFF4A4A52)
-    val TextMuted = Color(0xFF8A8A92)
-    val OnPlayerColor = Color(0xFFFFFFFF)
-    val PieceShadowOverlay = Color(0xFF000000)
 
     val BackgroundGradientTop = Color(0xFF312B63)
     val BackgroundGradientBottom = Color(0xFF1D1940)
@@ -70,7 +59,6 @@ object CornersApartSpacing {
     val CompactGap = 8.dp
     val TinyGap = 4.dp
     val BoardCellGap = 2.dp
-    val BoardFrameWidth = 4.dp
     val TouchTargetMin = 48.dp
     val PieceCardSize = 64.dp
     val PiecePreviewSize = 84.dp
@@ -90,15 +78,10 @@ object CornersApartSpacing {
 object CornersApartAlpha {
     const val PassedPlayer = 0.40f
     const val UsedPiece = 0.35f
-    const val PieceHighlight = 0.35f
-    const val PieceShadow = 0.50f
-    const val PieceInnerInset = 0.08f
-    const val PieceDropShadow = 0.12f
     const val StartMarker = 0.55f
     const val CellGloss = 0.18f
     const val TextShadow = 0.35f
     const val BonusGlow = 0.30f
-    const val EmptyCellInnerShadow = 0.25f
     const val GhostOutline = 0.60f
     const val DisabledCandy = 0.40f
 }

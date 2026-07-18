@@ -15,8 +15,11 @@ class CornersApartTokensTest {
 
     @Test
     fun surfacePaletteMatchesReviewedSpecification() {
-        assertEquals(Color(0xFFE4E4E8), CornersApartColors.AppBackground)
-        assertEquals(Color(0xFF2C2C30), CornersApartColors.BoardFrame)
+        assertEquals(Color(0xFF312B63), CornersApartColors.BackgroundGradientTop)
+        assertEquals(Color(0xFF1D1940), CornersApartColors.BackgroundGradientBottom)
+        assertEquals(Color(0xFF241F4E), CornersApartColors.BoardPanel)
+        assertEquals(Color(0xFF1B173D), CornersApartColors.BoardCellEmpty)
         assertEquals(Color(0xFFD8A928), CornersApartColors.BonusAccent)
+        assertEquals(Color(0xFFFFC53D), CornersApartColors.BonusAccentBright)
     }
 }

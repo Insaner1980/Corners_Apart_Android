@@ -40,6 +40,9 @@
 - `NearbySession` sends client move/pass requests to the host, applies host sync messages, and exposes `NearbyLobbyState` for reconnect tracking
 - `GameViewModel` exposes `StateFlow<GameUiState>` and one-shot `SharedFlow<GameEffect>`; Compose screens must collect state with `collectAsStateWithLifecycle()`
 - `GameScreen` is the playable Compose entry screen and owns only presentation/input mapping, not game rules; Nearby create/find actions must request runtime permissions before advertising or discovery; History/Stats UI reads prepared history models rather than calculating rules inline
+- Visual style is "candy bevel" (see `UI_RESTYLE_PLAN.md`): single always-dark indigo theme (`CandyColorScheme` in `Theme.kt`, gradient via `Modifier.candyBackground()`), Nunito font (static TTFs in `res/font/`), 3D tiles via `drawCandyCell` in `ui/components/PieceShape.kt` (used by board, tray, preview, and score swatches)
+- Reusable candy chrome lives in `ui/components/`: `CandyButton`/`CandyIconButton`, `CandyDialog`, `CandySwitch`, `CandyChip`; do not use stock M3 `Button`, `AlertDialog`, or `FilterChip` in production UI
+- Guardrail unit tests enforce: no `Color(0x` outside `Tokens.kt`, no unused dependency seams (e.g. compose-animation imports); run `./gradlew test` after UI changes
 
 ## Conventions
 
