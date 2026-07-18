@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -37,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,11 +64,14 @@ import com.finnvek.cornersapart.multiplayer.NearbyEndpointUiState
 import com.finnvek.cornersapart.multiplayer.NearbyPendingConnection
 import com.finnvek.cornersapart.multiplayer.NearbyPermissions
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
+import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.ui.components.PieceShape
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
+import com.finnvek.cornersapart.ui.theme.candyBackground
+import com.finnvek.cornersapart.ui.theme.withCandyShadow
 import com.finnvek.cornersapart.viewmodel.GameEffect
 import com.finnvek.cornersapart.viewmodel.GameUiState
 import com.finnvek.cornersapart.viewmodel.GameViewModel
@@ -126,12 +129,24 @@ private data class GameLayoutContent(
     val onShowHelp: () -> Unit,
 )
 
+private enum class PendingNearbyAction {
+    Host,
+    Discover,
+}
+
+private fun PendingNearbyAction.run(viewModel: GameViewModel) {
+    when (this) {
+        PendingNearbyAction.Host -> viewModel.startNearbyHosting()
+        PendingNearbyAction.Discover -> viewModel.startNearbyDiscovery()
+    }
+}
+
 @Composable
 fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showHistoryStats by remember { mutableStateOf(false) }
     var accessibilityAnnouncement by remember { mutableStateOf<AccessibilityAnnouncement?>(null) }
-    var pendingNearbyAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var pendingNearbyAction by rememberSaveable { mutableStateOf<PendingNearbyAction?>(null) }
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     val soundPlayer = rememberGameSoundPlayer()
@@ -143,11 +158,11 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
             val action = pendingNearbyAction
             pendingNearbyAction = null
             if (grantResults.values.all { granted -> granted }) {
-                action?.invoke()
+                action?.run(viewModel)
             }
         }
 
-    fun runWithNearbyPermissions(action: () -> Unit) {
+    fun runWithNearbyPermissions(action: PendingNearbyAction) {
         val missingPermissions =
             NearbyPermissions
                 .requiredRuntimePermissions()
@@ -155,7 +170,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                     ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
                 }
         if (missingPermissions.isEmpty()) {
-            action()
+            action.run(viewModel)
         } else {
             pendingNearbyAction = action
             nearbyPermissionLauncher.launch(missingPermissions.toTypedArray())
@@ -183,8 +198,8 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
         screenActions =
             GameScreenActions(
                 onModeSelected = viewModel::startGame,
-                onCreateNearbyGame = { runWithNearbyPermissions(viewModel::startNearbyHosting) },
-                onFindNearbyGame = { runWithNearbyPermissions(viewModel::startNearbyDiscovery) },
+                onCreateNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Host) },
+                onFindNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Discover) },
                 onConnectToNearbyEndpoint = viewModel::connectToNearbyEndpoint,
                 onAcceptPendingNearbyConnection = viewModel::acceptPendingNearbyConnection,
                 onRejectPendingNearbyConnection = viewModel::rejectPendingNearbyConnection,
@@ -371,7 +386,7 @@ fun GameScreenContent(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(CornersApartColors.AppBackground)
+                .candyBackground()
                 .safeDrawingPadding(),
     ) {
         val scrollState = rememberScrollState()
@@ -466,6 +481,7 @@ private fun GameHeaderActions(content: GameLayoutContent) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
         Header(state = content.state, onModeSelected = content.screenActions.onModeSelected)
         NearbyActions(
+            sessionType = content.state.sessionType,
             nearbyState = content.state.nearbyState,
             onCreateNearbyGame = content.screenActions.onCreateNearbyGame,
             onFindNearbyGame = content.screenActions.onFindNearbyGame,
@@ -501,8 +517,8 @@ private fun Header(
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
         Text(
             text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.displayLarge,
-            color = CornersApartColors.TextPrimary,
+            style = MaterialTheme.typography.displayMedium.withCandyShadow(),
+            color = CornersApartColors.TextOnDarkPrimary,
         )
         Row(
             modifier =
@@ -524,6 +540,7 @@ private fun Header(
 
 @Composable
 private fun NearbyActions(
+    sessionType: SessionType,
     nearbyState: NearbyUiState,
     onCreateNearbyGame: () -> Unit,
     onFindNearbyGame: () -> Unit,
@@ -547,10 +564,12 @@ private fun NearbyActions(
                 text = stringResource(R.string.nearby_game),
                 style = MaterialTheme.typography.headlineMedium,
             )
-            Text(
-                text = stringResource(nearbyState.connectionState.labelRes()),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            if (sessionType == SessionType.NEARBY) {
+                Text(
+                    text = stringResource(nearbyState.connectionState.labelRes()),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
             nearbyState.errorMessage?.let { message ->
                 Text(
                     text = message,

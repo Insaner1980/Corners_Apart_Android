@@ -33,6 +33,7 @@ import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.LocalAvatarStyle
+import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PlayerScore
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
 import com.finnvek.cornersapart.viewmodel.ProfileUiState
@@ -316,6 +317,18 @@ private fun SettingSwitchRow(
 
 @Composable
 fun GameHelpDialog(onDismiss: () -> Unit) {
+    val placedCellPoints =
+        pluralStringResource(
+            R.plurals.points_count,
+            GameConstants.PLACED_CELL_POINTS,
+            GameConstants.PLACED_CELL_POINTS,
+        )
+    val bonusTilePoints =
+        pluralStringResource(
+            R.plurals.points_count,
+            GameConstants.BONUS_TILE_POINTS,
+            GameConstants.BONUS_TILE_POINTS,
+        )
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = stringResource(R.string.help_title)) },
@@ -324,14 +337,23 @@ fun GameHelpDialog(onDismiss: () -> Unit) {
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
             ) {
-                HelpRuleSection(R.string.help_goal_title, R.string.help_goal_body)
-                HelpRuleSection(R.string.help_start_title, R.string.help_start_body)
-                HelpRuleSection(R.string.help_contact_title, R.string.help_contact_body)
-                HelpRuleSection(R.string.help_scoring_title, R.string.help_scoring_body)
-                HelpRuleSection(R.string.help_bonus_title, R.string.help_bonus_body)
-                HelpRuleSection(R.string.help_passing_title, R.string.help_passing_body)
-                HelpRuleSection(R.string.help_controls_title, R.string.help_controls_body)
-                HelpRuleSection(R.string.help_nearby_title, R.string.help_nearby_body)
+                HelpRuleSection(
+                    R.string.help_goal_title,
+                    stringResource(R.string.help_goal_body, placedCellPoints),
+                )
+                HelpRuleSection(R.string.help_start_title, stringResource(R.string.help_start_body))
+                HelpRuleSection(R.string.help_contact_title, stringResource(R.string.help_contact_body))
+                HelpRuleSection(
+                    R.string.help_scoring_title,
+                    stringResource(R.string.help_scoring_body, placedCellPoints, PieceCatalog.all.size),
+                )
+                HelpRuleSection(
+                    R.string.help_bonus_title,
+                    stringResource(R.string.help_bonus_body, bonusTilePoints),
+                )
+                HelpRuleSection(R.string.help_passing_title, stringResource(R.string.help_passing_body))
+                HelpRuleSection(R.string.help_controls_title, stringResource(R.string.help_controls_body))
+                HelpRuleSection(R.string.help_nearby_title, stringResource(R.string.help_nearby_body))
             }
         },
         confirmButton = {
@@ -345,7 +367,7 @@ fun GameHelpDialog(onDismiss: () -> Unit) {
 @Composable
 private fun HelpRuleSection(
     @StringRes title: Int,
-    @StringRes body: Int,
+    body: String,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
         Text(
@@ -353,7 +375,7 @@ private fun HelpRuleSection(
             style = MaterialTheme.typography.titleMedium,
         )
         Text(
-            text = stringResource(body),
+            text = body,
             style = MaterialTheme.typography.bodyMedium,
         )
     }

@@ -2,48 +2,29 @@ package com.finnvek.cornersapart.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-private val LightColorScheme =
-    lightColorScheme(
-        primary = CornersApartColors.PlayerIndigo,
-        onPrimary = CornersApartColors.OnPlayerColor,
-        secondary = CornersApartColors.PlayerTeal,
-        onSecondary = CornersApartColors.OnPlayerColor,
-        tertiary = CornersApartColors.BonusAccent,
-        background = CornersApartColors.AppBackground,
-        onBackground = CornersApartColors.TextPrimary,
-        surface = CornersApartColors.CardSurface,
-        onSurface = CornersApartColors.TextPrimary,
-        surfaceVariant = CornersApartColors.BoardCellGap,
-        onSurfaceVariant = CornersApartColors.TextSecondary,
-        outline = CornersApartColors.TextMuted,
-    )
-
-private val DarkColorScheme =
+private val CandyColorScheme =
     darkColorScheme(
-        primary = CornersApartColors.PlayerIndigoHighlight,
-        onPrimary = CornersApartColors.OnPlayerColor,
-        secondary = CornersApartColors.PlayerTealHighlight,
-        onSecondary = CornersApartColors.TextPrimary,
-        tertiary = CornersApartColors.BonusAccent,
-        background = CornersApartColors.BoardFrame,
-        onBackground = CornersApartColors.AppBackground,
-        surface = CornersApartColors.TextPrimary,
-        onSurface = CornersApartColors.AppBackground,
-        surfaceVariant = CornersApartColors.TextSecondary,
-        onSurfaceVariant = CornersApartColors.AppBackground,
-        outline = CornersApartColors.TextMuted,
+        primary = CornersApartColors.ButtonPrimaryFace,
+        onPrimary = CornersApartColors.TextOnDarkPrimary,
+        secondary = CornersApartColors.ButtonPositiveFace,
+        onSecondary = CornersApartColors.TextOnDarkPrimary,
+        tertiary = CornersApartColors.BonusAccentBright,
+        background = CornersApartColors.BackgroundGradientBottom,
+        onBackground = CornersApartColors.TextOnDarkPrimary,
+        surface = CornersApartColors.PanelSurface,
+        onSurface = CornersApartColors.TextOnDarkPrimary,
+        surfaceVariant = CornersApartColors.PanelSurfaceRaised,
+        onSurfaceVariant = CornersApartColors.TextOnDarkSecondary,
+        outline = CornersApartColors.TextOnDarkMuted,
+        surfaceContainerHigh = CornersApartColors.DialogSurface,
     )
 
 @Composable
-fun CornersApartTheme(
-    darkTheme: Boolean = false,
-    content: @Composable () -> Unit,
-) {
+fun CornersApartTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+        colorScheme = CandyColorScheme,
         typography = CornersApartTypography,
         shapes = CornersApartShapes,
         content = content,

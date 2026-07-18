@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -21,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.CellPosition
+import com.finnvek.cornersapart.model.targetCells
 import com.finnvek.cornersapart.ui.components.drawGlossyCell
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
@@ -37,6 +42,7 @@ fun GameBoard(
 ) {
     val boardDescription = stringResource(R.string.game_board_content_description)
     val gapPx = with(LocalDensity.current) { CornersApartSpacing.BoardCellGap.toPx() }
+    var previewCells by remember(state.board.size, state.selectedCells) { mutableStateOf(emptyList<CellPosition>()) }
     Box(
         modifier =
             modifier
@@ -50,13 +56,28 @@ fun GameBoard(
                 Modifier
                     .matchParentSize()
                     .semantics { contentDescription = boardDescription }
-                    .pointerInput(state.board) {
-                        detectTapGestures { offset ->
-                            val cellPitch = size.width / state.board.size
-                            val row = floor(offset.y / cellPitch).toInt().coerceIn(0, state.board.size - 1)
-                            val col = floor(offset.x / cellPitch).toInt().coerceIn(0, state.board.size - 1)
-                            onPlaceCell(row, col)
-                        }
+                    .pointerInput(state.board.size, state.selectedCells) {
+                        var pressedCell: CellPosition? = null
+                        detectTapGestures(
+                            onPress = { offset ->
+                                val anchor = offset.toBoardCell(state.board.size, size.width)
+                                pressedCell = anchor
+                                previewCells =
+                                    targetCells(
+                                        anchorRow = anchor.row,
+                                        anchorCol = anchor.col,
+                                        offsets = state.selectedCells,
+                                    )
+                                val released = tryAwaitRelease()
+                                previewCells = emptyList()
+                                if (!released) pressedCell = null
+                            },
+                            onTap = { offset ->
+                                val anchor = pressedCell ?: offset.toBoardCell(state.board.size, size.width)
+                                pressedCell = null
+                                onPlaceCell(anchor.row, anchor.col)
+                            },
+                        )
                     },
         ) {
             val boardSize = state.board.size
@@ -66,8 +87,20 @@ fun GameBoard(
             drawBonusTiles(state, cellSize, pitch)
             drawStartMarkers(state, cellSize, pitch)
             drawOccupiedCells(state, cellSize, pitch)
+            drawPlacementPreview(state, previewCells, cellSize, pitch)
         }
     }
+}
+
+private fun Offset.toBoardCell(
+    boardSize: Int,
+    boardWidth: Int,
+): CellPosition {
+    val cellPitch = boardWidth.toFloat() / boardSize
+    return CellPosition(
+        row = floor(y / cellPitch).toInt().coerceIn(0, boardSize - 1),
+        col = floor(x / cellPitch).toInt().coerceIn(0, boardSize - 1),
+    )
 }
 
 private fun DrawScope.drawEmptyCells(
@@ -146,6 +179,24 @@ private fun DrawScope.drawOccupiedCells(
             }
         }
     }
+}
+
+private fun DrawScope.drawPlacementPreview(
+    state: GameUiState,
+    previewCells: List<CellPosition>,
+    cellSize: Float,
+    pitch: Float,
+) {
+    val previewColor = CornersApartPlayerPalette.colorsFor(state.currentPlayer.colorIndex).ghost
+    previewCells
+        .filter { position -> state.board.contains(position) }
+        .forEach { position ->
+            drawRect(
+                color = previewColor,
+                topLeft = Offset(position.col * pitch, position.row * pitch),
+                size = Size(cellSize, cellSize),
+            )
+        }
 }
 
 private const val BONUS_MARKER_RADIUS_FRACTION = 0.24f
