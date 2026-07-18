@@ -7,6 +7,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -29,7 +31,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -38,8 +42,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -48,14 +57,18 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.finnvek.cornersapart.R
+import com.finnvek.cornersapart.model.CellOffset
+import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.LocalAvatarStyle
+import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.multiplayer.ConnectionState
 import com.finnvek.cornersapart.multiplayer.NearbyEndpointUiState
 import com.finnvek.cornersapart.multiplayer.NearbyPendingConnection
@@ -78,6 +91,8 @@ import com.finnvek.cornersapart.viewmodel.GameEffect
 import com.finnvek.cornersapart.viewmodel.GameUiState
 import com.finnvek.cornersapart.viewmodel.GameViewModel
 import com.finnvek.cornersapart.viewmodel.PiecePanelItem
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 data class GameScreenActions(
     val onModeSelected: (GameMode) -> Unit = {},
@@ -116,6 +131,7 @@ data class GameProfileActions(
 
 data class GameDialogState(
     val accessibilityAnnouncement: String? = null,
+    val statusNotice: String? = null,
     val showHistoryStatsDialog: Boolean = false,
     val history: List<HistoryEntry> = emptyList(),
     val onDismissHistoryStats: () -> Unit = {},
@@ -124,12 +140,73 @@ data class GameDialogState(
 private data class GameLayoutContent(
     val state: GameUiState,
     val accessibilityAnnouncement: String?,
+    val statusNotice: String?,
     val screenActions: GameScreenActions,
     val pieceActions: GamePieceActions,
+    val dragController: BoardDragController,
     val onShowSettings: () -> Unit,
     val onShowProfiles: () -> Unit,
     val onShowHelp: () -> Unit,
 )
+
+/**
+ * Välittää palavalikoimasta alkavan raahauksen sormen sijainnin laudalle:
+ * laskee esikatselusolun ja pudotuksen laudan koordinaateissa.
+ */
+@Stable
+internal class BoardDragController {
+    var rootCoordinates: LayoutCoordinates? = null
+    var boardCoordinates: LayoutCoordinates? = null
+    var boardCellCount: Int = 0
+    var onPlaceCell: (row: Int, col: Int) -> Unit = { _, _ -> }
+    var dragCells: List<CellOffset>? by mutableStateOf(null)
+    var fingerInRoot: Offset? by mutableStateOf(null)
+    var previewAnchor: CellPosition? by mutableStateOf(null)
+
+    fun startDrag(cells: List<CellOffset>) {
+        dragCells = cells
+    }
+
+    fun updateFinger(
+        sourceCoordinates: LayoutCoordinates,
+        positionInSource: Offset,
+    ) {
+        val root = rootCoordinates ?: return
+        fingerInRoot = root.localPositionOf(sourceCoordinates, positionInSource)
+        previewAnchor = boardAnchorOf(sourceCoordinates, positionInSource)
+    }
+
+    fun drop(
+        sourceCoordinates: LayoutCoordinates,
+        positionInSource: Offset,
+    ) {
+        val anchor = boardAnchorOf(sourceCoordinates, positionInSource)
+        clear()
+        if (anchor != null) {
+            onPlaceCell(anchor.row, anchor.col)
+        }
+    }
+
+    fun clear() {
+        dragCells = null
+        fingerInRoot = null
+        previewAnchor = null
+    }
+
+    private fun boardAnchorOf(
+        sourceCoordinates: LayoutCoordinates,
+        positionInSource: Offset,
+    ): CellPosition? {
+        val board = boardCoordinates ?: return null
+        if (boardCellCount <= 0) return null
+        val local = board.localPositionOf(sourceCoordinates, positionInSource)
+        val insideBoard =
+            local.x in 0f..board.size.width.toFloat() &&
+                local.y in 0f..board.size.height.toFloat()
+        if (!insideBoard) return null
+        return local.toBoardCell(boardCellCount, board.size.width)
+    }
+}
 
 private enum class PendingNearbyAction {
     Host,
@@ -148,6 +225,8 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showHistoryStats by remember { mutableStateOf(false) }
     var accessibilityAnnouncement by remember { mutableStateOf<AccessibilityAnnouncement?>(null) }
+    var announcementId by remember { mutableIntStateOf(0) }
+    var noticeVisible by remember { mutableStateOf(false) }
     var pendingNearbyAction by rememberSaveable { mutableStateOf<PendingNearbyAction?>(null) }
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
@@ -182,10 +261,26 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             accessibilityAnnouncement = effect.toAccessibilityAnnouncement()
+            announcementId += 1
             GameSoundPolicy.eventFor(effect, soundEnabled)?.let(soundPlayer::play)
             if (hapticsEnabled) {
                 hapticFeedback.performHapticFeedback(effect.hapticFeedbackType())
             }
+        }
+    }
+
+    val statusNotice =
+        when (accessibilityAnnouncement) {
+            AccessibilityAnnouncement.MoveRejected,
+            is AccessibilityAnnouncement.ActionFailed,
+            -> accessibilityAnnouncementText
+            else -> null
+        }
+    LaunchedEffect(announcementId) {
+        if (statusNotice != null) {
+            noticeVisible = true
+            delay(STATUS_NOTICE_DURATION_MS)
+            noticeVisible = false
         }
     }
 
@@ -249,11 +344,14 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
         dialogState =
             GameDialogState(
                 accessibilityAnnouncement = accessibilityAnnouncementText,
+                statusNotice = if (noticeVisible) statusNotice else null,
                 showHistoryStatsDialog = showHistoryStats,
                 onDismissHistoryStats = { showHistoryStats = false },
             ),
     )
 }
+
+private const val STATUS_NOTICE_DURATION_MS = 2500L
 
 private sealed interface AccessibilityAnnouncement {
     data class ScoreGained(
@@ -384,12 +482,16 @@ fun GameScreenContent(
             onShowStats = screenActions.onShowHistoryStats,
         )
     }
+    val dragController = remember { BoardDragController() }
+    dragController.boardCellCount = state.board.size
+    dragController.onPlaceCell = pieceActions.onPlaceCell
     BoxWithConstraints(
         modifier =
             modifier
                 .fillMaxSize()
                 .candyBackground()
-                .safeDrawingPadding(),
+                .safeDrawingPadding()
+                .onGloballyPositioned { dragController.rootCoordinates = it },
     ) {
         val scrollState = rememberScrollState()
         val layoutMode = GameLayoutPolicy.modeForWidthDp(maxWidth.value.toInt())
@@ -397,8 +499,10 @@ fun GameScreenContent(
             GameLayoutContent(
                 state = state,
                 accessibilityAnnouncement = dialogState.accessibilityAnnouncement,
+                statusNotice = dialogState.statusNotice,
                 screenActions = screenActions,
                 pieceActions = pieceActions,
+                dragController = dragController,
                 onShowSettings = { showSettings = true },
                 onShowProfiles = { showProfiles = true },
                 onShowHelp = { showHelp = true },
@@ -419,8 +523,38 @@ fun GameScreenContent(
                     modifier = layoutModifier,
                 )
         }
+        DragGhostOverlay(
+            dragController = dragController,
+            colorIndex = state.currentPlayer.colorIndex,
+        )
     }
 }
+
+@Composable
+private fun DragGhostOverlay(
+    dragController: BoardDragController,
+    colorIndex: Int,
+) {
+    val dragCells = dragController.dragCells ?: return
+    val finger = dragController.fingerInRoot ?: return
+    val previewSizePx = with(LocalDensity.current) { CornersApartSpacing.PiecePreviewSize.toPx() }
+    PieceShape(
+        cells = dragCells,
+        colorIndex = colorIndex,
+        modifier =
+            Modifier
+                .offset {
+                    IntOffset(
+                        x = (finger.x - previewSizePx / 2f).roundToInt(),
+                        y = (finger.y - previewSizePx * DRAG_GHOST_LIFT_FACTOR).roundToInt(),
+                    )
+                }.size(CornersApartSpacing.PiecePreviewSize),
+        alpha = DRAG_GHOST_ALPHA,
+    )
+}
+
+private const val DRAG_GHOST_LIFT_FACTOR = 1.2f
+private const val DRAG_GHOST_ALPHA = 0.9f
 
 @Composable
 private fun CompactGameLayout(
@@ -432,15 +566,22 @@ private fun CompactGameLayout(
         verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
     ) {
         GameHeaderActions(content)
-        GameBoard(state = content.state, onPlaceCell = content.pieceActions.onPlaceCell)
+        GameBoard(
+            state = content.state,
+            onPlaceCell = content.pieceActions.onPlaceCell,
+            externalPreviewAnchor = content.dragController.previewAnchor,
+            onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
+        )
         AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
-        StatusLine(content.state)
+        StatusLine(state = content.state, notice = content.statusNotice)
         ControlBar(content.pieceActions)
         SelectedPiecePreview(content.state)
         PiecePanel(
             pieces = content.state.pieces,
             colorIndex = content.state.currentPlayer.colorIndex,
+            selectedCells = content.state.selectedCells,
             onSelectPiece = content.pieceActions.onSelectPiece,
+            dragController = content.dragController,
         )
     }
 }
@@ -460,7 +601,7 @@ private fun ExpandedGameLayout(
         ) {
             GameHeaderActions(content)
             AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
-            StatusLine(content.state)
+            StatusLine(state = content.state, notice = content.statusNotice)
             ControlBar(content.pieceActions)
             SelectedPiecePreview(content.state)
         }
@@ -468,11 +609,18 @@ private fun ExpandedGameLayout(
             modifier = Modifier.weight(1.2f),
             verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
         ) {
-            GameBoard(state = content.state, onPlaceCell = content.pieceActions.onPlaceCell)
+            GameBoard(
+                state = content.state,
+                onPlaceCell = content.pieceActions.onPlaceCell,
+                externalPreviewAnchor = content.dragController.previewAnchor,
+                onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
+            )
             PiecePanel(
                 pieces = content.state.pieces,
                 colorIndex = content.state.currentPlayer.colorIndex,
+                selectedCells = content.state.selectedCells,
                 onSelectPiece = content.pieceActions.onSelectPiece,
+                dragController = content.dragController,
             )
         }
     }
@@ -755,7 +903,10 @@ private fun AccessibilityAnnouncementNode(accessibilityAnnouncement: String?) {
 }
 
 @Composable
-private fun StatusLine(state: GameUiState) {
+private fun StatusLine(
+    state: GameUiState,
+    notice: String?,
+) {
     val text =
         if (state.isGameOver) {
             stringResource(R.string.game_status_game_over)
@@ -767,11 +918,22 @@ private fun StatusLine(state: GameUiState) {
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Text(
-            text = text,
+        Column(
             modifier = Modifier.padding(CornersApartSpacing.CompactGap),
-            style = MaterialTheme.typography.titleMedium,
-        )
+            verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (notice != null) {
+                Text(
+                    text = notice,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CornersApartColors.ButtonWarnFace,
+                )
+            }
+        }
     }
 }
 
@@ -864,7 +1026,9 @@ private fun SelectedPiecePreview(state: GameUiState) {
 private fun PiecePanel(
     pieces: List<PiecePanelItem>,
     colorIndex: Int,
+    selectedCells: List<CellOffset>,
     onSelectPiece: (String) -> Unit,
+    dragController: BoardDragController,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
         Text(
@@ -882,7 +1046,9 @@ private fun PiecePanel(
                 PieceCard(
                     item = item,
                     colorIndex = colorIndex,
+                    selectedCells = selectedCells,
                     onSelectPiece = onSelectPiece,
+                    dragController = dragController,
                 )
             }
         }
@@ -893,7 +1059,9 @@ private fun PiecePanel(
 private fun PieceCard(
     item: PiecePanelItem,
     colorIndex: Int,
+    selectedCells: List<CellOffset>,
     onSelectPiece: (String) -> Unit,
+    dragController: BoardDragController,
 ) {
     val colors = CornersApartPlayerPalette.colorsFor(colorIndex)
     val description =
@@ -902,13 +1070,47 @@ private fun PieceCard(
         } else {
             stringResource(R.string.piece_content_description, item.piece.displayName)
         }
+    var cardCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val dragCells =
+        if (item.isSelected && selectedCells.isNotEmpty()) {
+            PieceTransforms.normalize(selectedCells)
+        } else {
+            PieceTransforms.normalize(item.piece.cells)
+        }
     Surface(
         modifier =
             Modifier
                 .size(CornersApartSpacing.PieceCardSize)
                 .alpha(if (item.isUsed) CornersApartAlpha.UsedPiece else 1f)
                 .semantics { contentDescription = description }
-                .clickable(enabled = !item.isUsed) { onSelectPiece(item.piece.id) },
+                .clickable(enabled = !item.isUsed) { onSelectPiece(item.piece.id) }
+                .onGloballyPositioned { coordinates -> cardCoordinates = coordinates }
+                .pointerInput(item.piece.id, item.isUsed, dragCells) {
+                    if (item.isUsed) return@pointerInput
+                    var position = Offset.Zero
+                    detectDragGestures(
+                        onDragStart = { startPosition ->
+                            position = startPosition
+                            onSelectPiece(item.piece.id)
+                            dragController.startDrag(dragCells)
+                            cardCoordinates?.let { dragController.updateFinger(it, position) }
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            position = change.position
+                            cardCoordinates?.let { dragController.updateFinger(it, position) }
+                        },
+                        onDragEnd = {
+                            val coordinates = cardCoordinates
+                            if (coordinates != null) {
+                                dragController.drop(coordinates, position)
+                            } else {
+                                dragController.clear()
+                            }
+                        },
+                        onDragCancel = { dragController.clear() },
+                    )
+                },
         shape = MaterialTheme.shapes.small,
         color =
             if (item.isSelected) {

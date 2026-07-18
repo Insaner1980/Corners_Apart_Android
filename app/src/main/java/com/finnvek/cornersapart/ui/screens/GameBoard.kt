@@ -2,7 +2,8 @@ package com.finnvek.cornersapart.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -43,10 +46,22 @@ fun GameBoard(
     state: GameUiState,
     onPlaceCell: (row: Int, col: Int) -> Unit,
     modifier: Modifier = Modifier,
+    externalPreviewAnchor: CellPosition? = null,
+    onCanvasPositioned: (LayoutCoordinates) -> Unit = {},
 ) {
     val boardDescription = stringResource(R.string.game_board_content_description)
     val gapPx = with(LocalDensity.current) { CornersApartSpacing.BoardCellGap.toPx() }
     var previewCells by remember(state.board.size, state.selectedCells) { mutableStateOf(emptyList<CellPosition>()) }
+    val externalPreviewCells =
+        remember(externalPreviewAnchor, state.selectedCells) {
+            externalPreviewAnchor?.let { anchor ->
+                targetCells(
+                    anchorRow = anchor.row,
+                    anchorCol = anchor.col,
+                    offsets = state.selectedCells,
+                )
+            }.orEmpty()
+        }
     Box(
         modifier =
             modifier
@@ -60,29 +75,49 @@ fun GameBoard(
             modifier =
                 Modifier
                     .matchParentSize()
+                    .onGloballyPositioned(onCanvasPositioned)
                     .semantics { contentDescription = boardDescription }
                     .pointerInput(state.board.size, state.selectedCells) {
-                        var pressedCell: CellPosition? = null
-                        detectTapGestures(
-                            onPress = { offset ->
-                                val anchor = offset.toBoardCell(state.board.size, size.width)
-                                pressedCell = anchor
+                        // Paina näyttääksesi esikatselun, raahaa siirtääksesi sitä,
+                        // vapauta laudan päällä asettaaksesi palan.
+                        awaitEachGesture {
+                            val down = awaitFirstDown()
+                            var lastPosition = down.position
+                            var cancelled = false
+                            val downAnchor = lastPosition.toBoardCell(state.board.size, size.width)
+                            previewCells =
+                                targetCells(
+                                    anchorRow = downAnchor.row,
+                                    anchorCol = downAnchor.col,
+                                    offsets = state.selectedCells,
+                                )
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null || change.isConsumed) {
+                                    cancelled = true
+                                    break
+                                }
+                                lastPosition = change.position
+                                if (!change.pressed) break
+                                val anchor = lastPosition.toBoardCell(state.board.size, size.width)
                                 previewCells =
                                     targetCells(
                                         anchorRow = anchor.row,
                                         anchorCol = anchor.col,
                                         offsets = state.selectedCells,
                                     )
-                                val released = tryAwaitRelease()
-                                previewCells = emptyList()
-                                if (!released) pressedCell = null
-                            },
-                            onTap = { offset ->
-                                val anchor = pressedCell ?: offset.toBoardCell(state.board.size, size.width)
-                                pressedCell = null
+                                change.consume()
+                            }
+                            previewCells = emptyList()
+                            val insideBoard =
+                                lastPosition.x in 0f..size.width.toFloat() &&
+                                    lastPosition.y in 0f..size.height.toFloat()
+                            if (!cancelled && insideBoard) {
+                                val anchor = lastPosition.toBoardCell(state.board.size, size.width)
                                 onPlaceCell(anchor.row, anchor.col)
-                            },
-                        )
+                            }
+                        }
                     },
         ) {
             val boardSize = state.board.size
@@ -92,12 +127,12 @@ fun GameBoard(
             drawBonusTiles(state, cellSize, pitch)
             drawStartMarkers(state, cellSize, pitch)
             drawOccupiedCells(state, cellSize, pitch)
-            drawPlacementPreview(state, previewCells, cellSize, pitch)
+            drawPlacementPreview(state, previewCells.ifEmpty { externalPreviewCells }, cellSize, pitch)
         }
     }
 }
 
-private fun Offset.toBoardCell(
+internal fun Offset.toBoardCell(
     boardSize: Int,
     boardWidth: Int,
 ): CellPosition {
