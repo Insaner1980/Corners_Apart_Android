@@ -6,9 +6,9 @@ import androidx.compose.ui.unit.dp
 
 val CornersApartShapes =
     Shapes(
-        extraSmall = RoundedCornerShape(4.dp),
-        small = RoundedCornerShape(6.dp),
-        medium = RoundedCornerShape(8.dp),
-        large = RoundedCornerShape(12.dp),
-        extraLarge = RoundedCornerShape(16.dp),
+        extraSmall = RoundedCornerShape(8.dp),
+        small = RoundedCornerShape(12.dp),
+        medium = RoundedCornerShape(16.dp),
+        large = RoundedCornerShape(20.dp),
+        extraLarge = RoundedCornerShape(28.dp),
     )

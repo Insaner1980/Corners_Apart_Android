@@ -1,5 +1,7 @@
 package com.finnvek.cornersapart.ui.theme
 
+import com.finnvek.cornersapart.model.GameConstants
+
 data class PlayerPieceColors(
     val base: androidx.compose.ui.graphics.Color,
     val dark: androidx.compose.ui.graphics.Color,
@@ -9,7 +11,7 @@ data class PlayerPieceColors(
 
 object CornersApartPlayerPalette {
     fun colorsFor(colorIndex: Int): PlayerPieceColors =
-        when (colorIndex.mod(PLAYER_COLOR_COUNT)) {
+        when (colorIndex.mod(GameConstants.PLAYER_COLORS.size)) {
             0 ->
                 PlayerPieceColors(
                     base = CornersApartColors.PlayerIndigo,
@@ -39,6 +41,4 @@ object CornersApartPlayerPalette {
                     ghost = CornersApartColors.PlayerTealGhost,
                 )
         }
-
-    private const val PLAYER_COLOR_COUNT = 4
 }
