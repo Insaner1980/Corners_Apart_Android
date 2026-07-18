@@ -52,6 +52,7 @@ object CornersApartColors {
     val TextShadow = Color(0xFF000000)
 
     val BonusAccentBright = Color(0xFFFFC53D)
+    val GlossTint = Color(0xFFFFFFFF)
 
     val ButtonPrimaryFace = Color(0xFF5B4FE8)
     val ButtonPrimaryBevel = Color(0xFF3A31A8)
@@ -76,6 +77,7 @@ object CornersApartSpacing {
     val ScoreCardMinHeight = 40.dp
     val ActivePlayerBorderWidth = 2.dp
 
+    val ScoreSwatchSize = 16.dp
     val BoardPanelRadius = 20.dp
     val BoardPanelPadding = 8.dp
     val CandyButtonRadius = 18.dp

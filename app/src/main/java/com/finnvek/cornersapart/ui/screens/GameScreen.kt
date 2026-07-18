@@ -23,10 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -65,6 +62,11 @@ import com.finnvek.cornersapart.multiplayer.NearbyPendingConnection
 import com.finnvek.cornersapart.multiplayer.NearbyPermissions
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
 import com.finnvek.cornersapart.multiplayer.SessionType
+import com.finnvek.cornersapart.ui.components.CandyButton
+import com.finnvek.cornersapart.ui.components.CandyButtonStyle
+import com.finnvek.cornersapart.ui.components.CandyChip
+import com.finnvek.cornersapart.ui.components.CandyDialog
+import com.finnvek.cornersapart.ui.components.CandyIconButton
 import com.finnvek.cornersapart.ui.components.PieceShape
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
@@ -480,6 +482,12 @@ private fun ExpandedGameLayout(
 private fun GameHeaderActions(content: GameLayoutContent) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
         Header(state = content.state, onModeSelected = content.screenActions.onModeSelected)
+        UtilityActions(
+            onShowHistoryStats = content.screenActions.onShowHistoryStats,
+            onShowSettings = content.onShowSettings,
+            onShowProfiles = content.onShowProfiles,
+            onShowHelp = content.onShowHelp,
+        )
         NearbyActions(
             sessionType = content.state.sessionType,
             nearbyState = content.state.nearbyState,
@@ -488,12 +496,6 @@ private fun GameHeaderActions(content: GameLayoutContent) {
             onConnectToNearbyEndpoint = content.screenActions.onConnectToNearbyEndpoint,
             onAcceptPendingNearbyConnection = content.screenActions.onAcceptPendingNearbyConnection,
             onRejectPendingNearbyConnection = content.screenActions.onRejectPendingNearbyConnection,
-        )
-        UtilityActions(
-            onShowHistoryStats = content.screenActions.onShowHistoryStats,
-            onShowSettings = content.onShowSettings,
-            onShowProfiles = content.onShowProfiles,
-            onShowHelp = content.onShowHelp,
         )
         PlayerScoreBar(players = content.state.players)
     }
@@ -514,26 +516,53 @@ private fun Header(
     state: GameUiState,
     onModeSelected: (GameMode) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+    var showModePicker by rememberSaveable { mutableStateOf(false) }
+    if (showModePicker) {
+        GameModePickerDialog(
+            currentMode = state.gameMode,
+            onModeSelected = { mode ->
+                showModePicker = false
+                onModeSelected(mode)
+            },
+            onDismiss = { showModePicker = false },
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
             text = stringResource(R.string.app_name),
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.displayMedium.withCandyShadow(),
             color = CornersApartColors.TextOnDarkPrimary,
         )
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
-        ) {
-            GameModeUiOptions.modes.forEach { mode ->
-                ModeChip(
-                    text = stringResource(mode.labelRes()),
-                    selected = state.gameMode == mode,
-                    onClick = { onModeSelected(mode) },
-                )
-            }
+        CandyChip(
+            label = stringResource(state.gameMode.labelRes()),
+            selected = true,
+            onClick = { showModePicker = true },
+        )
+    }
+}
+
+@Composable
+private fun GameModePickerDialog(
+    currentMode: GameMode,
+    onModeSelected: (GameMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    CandyDialog(
+        title = stringResource(R.string.game_mode_picker_title),
+        onDismiss = onDismiss,
+    ) {
+        GameModeUiOptions.modes.forEach { mode ->
+            CandyChip(
+                label = stringResource(mode.labelRes()),
+                selected = currentMode == mode,
+                onClick = { onModeSelected(mode) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -548,54 +577,72 @@ private fun NearbyActions(
     onAcceptPendingNearbyConnection: (String) -> Unit,
     onRejectPendingNearbyConnection: (String) -> Unit,
 ) {
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .semantics { liveRegion = LiveRegionMode.Polite },
-        shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        Column(
-            modifier = Modifier.padding(CornersApartSpacing.CompactGap),
-            verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
-        ) {
-            Text(
-                text = stringResource(R.string.nearby_game),
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            if (sessionType == SessionType.NEARBY) {
-                Text(
-                    text = stringResource(nearbyState.connectionState.labelRes()),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-            nearbyState.errorMessage?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-                Button(onClick = onCreateNearbyGame) {
-                    Text(text = stringResource(R.string.create_nearby_game))
+    var expandedByUser by rememberSaveable { mutableStateOf(false) }
+    val mustShow =
+        sessionType == SessionType.NEARBY ||
+            nearbyState.pendingConnection != null ||
+            nearbyState.discoveredEndpoints.isNotEmpty() ||
+            nearbyState.errorMessage != null
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+        CandyButton(
+            text = stringResource(R.string.nearby_game),
+            onClick = { expandedByUser = !expandedByUser },
+            modifier = Modifier.fillMaxWidth(),
+            style = CandyButtonStyle.Neutral,
+        )
+        if (expandedByUser || mustShow) {
+            Surface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(
+                    modifier = Modifier.padding(CornersApartSpacing.SectionGap),
+                    verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
+                ) {
+                    if (sessionType == SessionType.NEARBY) {
+                        Text(
+                            text = stringResource(nearbyState.connectionState.labelRes()),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    nearbyState.errorMessage?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+                        CandyButton(
+                            text = stringResource(R.string.create_nearby_game),
+                            onClick = onCreateNearbyGame,
+                            modifier = Modifier.weight(1f),
+                            style = CandyButtonStyle.Primary,
+                        )
+                        CandyButton(
+                            text = stringResource(R.string.find_nearby_game),
+                            onClick = onFindNearbyGame,
+                            modifier = Modifier.weight(1f),
+                            style = CandyButtonStyle.Positive,
+                        )
+                    }
+                    nearbyState.pendingConnection?.let { pendingConnection ->
+                        NearbyPendingConnectionActions(
+                            pendingConnection = pendingConnection,
+                            onAccept = onAcceptPendingNearbyConnection,
+                            onReject = onRejectPendingNearbyConnection,
+                        )
+                    }
+                    NearbyEndpointList(
+                        endpoints = nearbyState.discoveredEndpoints,
+                        onConnect = onConnectToNearbyEndpoint,
+                    )
                 }
-                Button(onClick = onFindNearbyGame) {
-                    Text(text = stringResource(R.string.find_nearby_game))
-                }
             }
-            nearbyState.pendingConnection?.let { pendingConnection ->
-                NearbyPendingConnectionActions(
-                    pendingConnection = pendingConnection,
-                    onAccept = onAcceptPendingNearbyConnection,
-                    onReject = onRejectPendingNearbyConnection,
-                )
-            }
-            NearbyEndpointList(
-                endpoints = nearbyState.discoveredEndpoints,
-                onConnect = onConnectToNearbyEndpoint,
-            )
         }
     }
 }
@@ -610,12 +657,16 @@ private fun NearbyPendingConnectionActions(
         Text(text = stringResource(R.string.nearby_pending_connection, pendingConnection.endpointName))
         Text(text = stringResource(R.string.nearby_authentication_code, pendingConnection.authenticationToken))
         Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-            Button(onClick = { onAccept(pendingConnection.endpointId) }) {
-                Text(text = stringResource(R.string.nearby_accept_connection))
-            }
-            Button(onClick = { onReject(pendingConnection.endpointId) }) {
-                Text(text = stringResource(R.string.nearby_reject_connection))
-            }
+            CandyButton(
+                text = stringResource(R.string.nearby_accept_connection),
+                onClick = { onAccept(pendingConnection.endpointId) },
+                style = CandyButtonStyle.Positive,
+            )
+            CandyButton(
+                text = stringResource(R.string.nearby_reject_connection),
+                onClick = { onReject(pendingConnection.endpointId) },
+                style = CandyButtonStyle.Warn,
+            )
         }
     }
 }
@@ -629,9 +680,11 @@ private fun NearbyEndpointList(
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
         Text(text = stringResource(R.string.nearby_discovered_endpoints))
         endpoints.forEach { endpoint ->
-            Button(onClick = { onConnect(endpoint.endpointId) }) {
-                Text(text = stringResource(R.string.nearby_connect_endpoint, endpoint.endpointName))
-            }
+            CandyButton(
+                text = stringResource(R.string.nearby_connect_endpoint, endpoint.endpointName),
+                onClick = { onConnect(endpoint.endpointId) },
+                style = CandyButtonStyle.Positive,
+            )
         }
     }
 }
@@ -660,33 +713,29 @@ private fun UtilityActions(
         horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Button(
+        CandyIconButton(
+            contentDescription = stringResource(R.string.history_stats_title),
             onClick = onShowHistoryStats,
-            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
             Icon(painter = painterResource(R.drawable.ic_history_24), contentDescription = null)
-            Text(text = stringResource(R.string.history_stats_title))
         }
-        Button(
+        CandyIconButton(
+            contentDescription = stringResource(R.string.profiles_title),
             onClick = onShowProfiles,
-            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
             Icon(painter = painterResource(R.drawable.ic_person_24), contentDescription = null)
-            Text(text = stringResource(R.string.profiles_title))
         }
-        Button(
+        CandyIconButton(
+            contentDescription = stringResource(R.string.settings_title),
             onClick = onShowSettings,
-            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
             Icon(painter = painterResource(R.drawable.ic_settings_24), contentDescription = null)
-            Text(text = stringResource(R.string.settings_title))
         }
-        Button(
+        CandyIconButton(
+            contentDescription = stringResource(R.string.help_title),
             onClick = onShowHelp,
-            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
             Icon(painter = painterResource(R.drawable.ic_help_24), contentDescription = null)
-            Text(text = stringResource(R.string.help_title))
         }
     }
 }
@@ -706,19 +755,6 @@ private fun AccessibilityAnnouncementNode(accessibilityAnnouncement: String?) {
 }
 
 @Composable
-private fun ModeChip(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(text) },
-    )
-}
-
-@Composable
 private fun StatusLine(state: GameUiState) {
     val text =
         if (state.isGameOver) {
@@ -728,13 +764,13 @@ private fun StatusLine(state: GameUiState) {
         }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(CornersApartSpacing.CompactGap),
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.titleMedium,
         )
     }
 }
@@ -751,19 +787,19 @@ private fun ControlBar(
         horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        GameIconButton(
+        CandyIconButton(
             contentDescription = stringResource(R.string.control_rotate_counterclockwise),
             onClick = onRotateCounterClockwise,
         ) {
             Icon(painter = painterResource(R.drawable.ic_rotate_left_24), contentDescription = null)
         }
-        GameIconButton(
+        CandyIconButton(
             contentDescription = stringResource(R.string.control_rotate_clockwise),
             onClick = onRotateClockwise,
         ) {
             Icon(painter = painterResource(R.drawable.ic_rotate_right_24), contentDescription = null)
         }
-        GameIconButton(
+        CandyIconButton(
             contentDescription = stringResource(R.string.control_flip),
             onClick = onFlip,
         ) {
@@ -774,38 +810,20 @@ private fun ControlBar(
 }
 
 @Composable
-private fun GameIconButton(
-    contentDescription: String,
-    onClick: () -> Unit,
-    icon: @Composable () -> Unit,
-) {
-    IconButton(
-        onClick = onClick,
-        modifier =
-            Modifier
-                .sizeIn(
-                    minWidth = CornersApartSpacing.TouchTargetMin,
-                    minHeight = CornersApartSpacing.TouchTargetMin,
-                ).semantics { this.contentDescription = contentDescription },
-    ) {
-        icon()
-    }
-}
-
-@Composable
 private fun RowScope.PassButton(onPass: () -> Unit) {
     val description = stringResource(R.string.control_pass)
-    Button(
+    CandyButton(
+        text = description,
         onClick = onPass,
         modifier =
             Modifier
                 .weight(1f)
-                .heightIn(min = CornersApartSpacing.TouchTargetMin)
                 .semantics { contentDescription = description },
-    ) {
-        Icon(painter = painterResource(R.drawable.ic_skip_next_24), contentDescription = null)
-        Text(text = description)
-    }
+        style = CandyButtonStyle.Warn,
+        leadingIcon = {
+            Icon(painter = painterResource(R.drawable.ic_skip_next_24), contentDescription = null)
+        },
+    )
 }
 
 @Composable
@@ -892,7 +910,12 @@ private fun PieceCard(
                 .semantics { contentDescription = description }
                 .clickable(enabled = !item.isUsed) { onSelectPiece(item.piece.id) },
         shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surface,
+        color =
+            if (item.isSelected) {
+                CornersApartColors.PanelSurfaceRaised
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
         border =
             if (item.isSelected) {
                 BorderStroke(CornersApartSpacing.ActivePlayerBorderWidth, colors.base)

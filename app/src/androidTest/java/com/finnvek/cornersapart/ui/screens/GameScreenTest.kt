@@ -26,6 +26,7 @@ import com.finnvek.cornersapart.multiplayer.ConnectionState
 import com.finnvek.cornersapart.multiplayer.NearbyEndpointUiState
 import com.finnvek.cornersapart.multiplayer.NearbyPendingConnection
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
+import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.testing.ComposeTestActivity
 import com.finnvek.cornersapart.ui.theme.CornersApartTheme
 import com.finnvek.cornersapart.viewmodel.GameUiState
@@ -59,6 +60,23 @@ class GameScreenTest {
     }
 
     @Test
+    fun localGameDoesNotShowNearbyConnectionStatus() {
+        composeRule.setContent {
+            CornersApartTheme {
+                GameScreenContent(
+                    state =
+                        testUiState(
+                            nearbyState = NearbyUiState(connectionState = ConnectionState.CONNECTED),
+                        ),
+                )
+            }
+        }
+
+        composeRule.onAllNodesWithText("Status: Connected").assertCountEquals(0)
+        composeRule.onNodeWithText("Nearby game").assertIsDisplayed()
+    }
+
+    @Test
     fun historyStatsDialogShowsHistoryAndStatsTabs() {
         composeRule.setContent {
             CornersApartTheme {
@@ -78,7 +96,7 @@ class GameScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("History & stats").performScrollTo().performClick()
+        composeRule.onNodeWithContentDescription("History & stats").performScrollTo().performClick()
 
         composeRule.onNode(hasTextExactly("History") and hasClickAction()).assertIsDisplayed()
         composeRule.onNode(hasTextExactly("Stats") and hasClickAction()).assertIsDisplayed().performClick()
@@ -95,7 +113,7 @@ class GameScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithContentDescription("Settings").performClick()
 
         composeRule.onNodeWithText("Sound").assertIsDisplayed()
         composeRule.onNodeWithText("Haptics").assertIsDisplayed()
@@ -112,7 +130,7 @@ class GameScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Help").performScrollTo().performClick()
+        composeRule.onNodeWithContentDescription("Help").performScrollTo().performClick()
 
         composeRule.onNodeWithText("Goal").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Start in your corner").performScrollTo().assertIsDisplayed()
@@ -130,6 +148,7 @@ class GameScreenTest {
                 GameScreenContent(
                     state =
                         testUiState(
+                            sessionType = SessionType.NEARBY,
                             nearbyState =
                                 NearbyUiState(
                                     connectionState = ConnectionState.FAILED,
@@ -151,6 +170,7 @@ class GameScreenTest {
         composeRule.onNodeWithText("Connect to Tablet").assertIsDisplayed().performClick()
         composeRule.onNodeWithText("Authentication code: 1234").assertIsDisplayed()
         composeRule.onNodeWithText("Already discovering").assertIsDisplayed()
+        composeRule.onNodeWithText("Status: Failed").assertIsDisplayed()
         composeRule.onNodeWithText("Accept").performClick()
         composeRule.onNodeWithText("Reject").performClick()
 
@@ -178,6 +198,7 @@ class GameScreenTest {
 
     private fun testUiState(
         isGameOver: Boolean = false,
+        sessionType: SessionType = SessionType.LOCAL,
         nearbyState: NearbyUiState = NearbyUiState(),
     ): GameUiState {
         val selectedPiece = PieceCatalog.require(PieceCatalog.THREE_BEND_ID)
@@ -196,7 +217,7 @@ class GameScreenTest {
                     completionBonus = if (index == 0) 10 else 0,
                     claimedBonusTiles = index,
                     piecesPlaced = index,
-                    piecesRemaining = GameConstants.PIECE_COUNT - index,
+                    piecesRemaining = PieceCatalog.all.size - index,
                     hasPassed = false,
                     isCurrentTurn = index == 0,
                     isComputerControlled = false,
@@ -220,6 +241,7 @@ class GameScreenTest {
                     )
                 },
             isGameOver = isGameOver,
+            sessionType = sessionType,
             rankedScores =
                 players
                     .map { player ->

@@ -5,11 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -22,6 +20,9 @@ import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.HistoryStats
 import com.finnvek.cornersapart.model.HistoryStatsCalculator
+import com.finnvek.cornersapart.ui.components.CandyButton
+import com.finnvek.cornersapart.ui.components.CandyButtonStyle
+import com.finnvek.cornersapart.ui.components.CandyDialog
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
 
 @Composable
@@ -32,37 +33,40 @@ fun HistoryStatsDialog(
     stats: HistoryStats = HistoryStatsCalculator.calculate(history),
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    AlertDialog(
-        modifier = modifier,
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.history_stats_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-                PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
-                    Tab(
-                        selected = selectedTabIndex == 0,
-                        onClick = { selectedTabIndex = 0 },
-                        text = { Text(text = stringResource(R.string.history_tab)) },
-                    )
-                    Tab(
-                        selected = selectedTabIndex == 1,
-                        onClick = { selectedTabIndex = 1 },
-                        text = { Text(text = stringResource(R.string.stats_tab)) },
-                    )
-                }
-                if (selectedTabIndex == 0) {
-                    HistoryTab(history)
-                } else {
-                    StatsTab(stats)
-                }
-            }
+    CandyDialog(
+        title = stringResource(R.string.history_stats_title),
+        onDismiss = onDismiss,
+        buttons = {
+            CandyButton(
+                text = stringResource(R.string.dialog_close),
+                onClick = onDismiss,
+                style = CandyButtonStyle.Primary,
+            )
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.dialog_close))
+    ) {
+        Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
+        ) {
+            PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 },
+                    text = { Text(text = stringResource(R.string.history_tab)) },
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 },
+                    text = { Text(text = stringResource(R.string.stats_tab)) },
+                )
             }
-        },
-    )
+            if (selectedTabIndex == 0) {
+                HistoryTab(history)
+            } else {
+                StatsTab(stats)
+            }
+        }
+    }
 }
 
 @Composable

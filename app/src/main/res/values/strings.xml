@@ -6,6 +6,7 @@
     <string name="game_mode_compact_duel">Compact duel</string>
     <string name="game_mode_three_player">Three players</string>
     <string name="nearby_game">Nearby game</string>
+    <string name="game_mode_picker_title">Game mode</string>
     <string name="create_nearby_game">Create nearby game</string>
     <string name="find_nearby_game">Find nearby game</string>
     <string name="nearby_connection_disconnected">Status: Disconnected</string>
@@ -66,15 +67,15 @@
     <string name="resume_game_new_game">New game</string>
     <string name="help_title">Help</string>
     <string name="help_goal_title">Goal</string>
-    <string name="help_goal_body">Place as many of your pieces as possible and score one point for each covered cell.</string>
+    <string name="help_goal_body">Place as many of your pieces as possible and score %1$s for each covered cell.</string>
     <string name="help_start_title">Start in your corner</string>
     <string name="help_start_body">Your first piece must cover your starting corner. After that, every new piece must touch one of your own pieces by a corner.</string>
     <string name="help_contact_title">Corner contact, no edge contact</string>
     <string name="help_contact_body">Your own pieces may touch at corners, but they may not share an edge. Touching opponent pieces by corners or edges is allowed.</string>
     <string name="help_scoring_title">Scoring</string>
-    <string name="help_scoring_body">Every placed cell adds one point. If you place all 21 pieces, you also earn the completion bonus.</string>
+    <string name="help_scoring_body">Every placed cell adds %1$s. If you place all %2$d pieces, you also earn the completion bonus.</string>
     <string name="help_bonus_title">Bonus tiles</string>
-    <string name="help_bonus_body">Cover an unclaimed bonus tile to claim it and add three points to your score.</string>
+    <string name="help_bonus_body">Cover an unclaimed bonus tile to claim it and add %1$s to your score.</string>
     <string name="help_passing_title">Passing and game end</string>
     <string name="help_passing_body">Pass when you cannot or do not want to place a piece. The game ends when every active player has passed.</string>
     <string name="help_controls_title">Controls</string>

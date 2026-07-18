@@ -7,11 +7,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
+import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 import com.finnvek.cornersapart.ui.theme.PlayerPieceColors
 
@@ -94,7 +94,7 @@ fun DrawScope.drawCandyCell(
         cornerRadius = corner,
     )
     drawRoundRect(
-        color = Color.White.copy(alpha = CornersApartAlpha.CellGloss * alpha),
+        color = CornersApartColors.GlossTint.copy(alpha = CornersApartAlpha.CellGloss * alpha),
         topLeft =
             topLeft +
                 Offset(
