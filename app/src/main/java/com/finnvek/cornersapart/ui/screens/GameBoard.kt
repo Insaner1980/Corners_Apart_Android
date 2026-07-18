@@ -7,16 +7,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -26,7 +30,7 @@ import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.targetCells
-import com.finnvek.cornersapart.ui.components.drawGlossyCell
+import com.finnvek.cornersapart.ui.components.drawCandyCell
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
@@ -48,8 +52,9 @@ fun GameBoard(
             modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .background(CornersApartColors.BoardFrame)
-                .padding(CornersApartSpacing.BoardFrameWidth),
+                .clip(RoundedCornerShape(CornersApartSpacing.BoardPanelRadius))
+                .background(CornersApartColors.BoardPanel)
+                .padding(CornersApartSpacing.BoardPanelPadding),
     ) {
         Canvas(
             modifier =
@@ -108,12 +113,14 @@ private fun DrawScope.drawEmptyCells(
     cellSize: Float,
     pitch: Float,
 ) {
+    val corner = CornerRadius(cellSize * EMPTY_CELL_CORNER_FRACTION)
     for (row in 0 until board.size) {
         for (col in 0 until board.size) {
-            drawRect(
-                color = CornersApartColors.BoardCellSurface,
+            drawRoundRect(
+                color = CornersApartColors.BoardCellEmpty,
                 topLeft = Offset(col * pitch, row * pitch),
                 size = Size(cellSize, cellSize),
+                cornerRadius = corner,
             )
         }
     }
@@ -129,17 +136,27 @@ private fun DrawScope.drawBonusTiles(
         .forEach { tile ->
             val center = Offset(tile.col * pitch + cellSize / 2f, tile.row * pitch + cellSize / 2f)
             val radius = cellSize * BONUS_MARKER_RADIUS_FRACTION
-            val marker =
-                Path().apply {
-                    moveTo(center.x, center.y - radius)
-                    lineTo(center.x + radius, center.y)
-                    lineTo(center.x, center.y + radius)
-                    lineTo(center.x - radius, center.y)
-                    close()
-                }
-            drawPath(marker, CornersApartColors.BonusAccent)
+            drawCircle(
+                color = CornersApartColors.BonusAccentBright.copy(alpha = CornersApartAlpha.BonusGlow),
+                radius = cellSize * BONUS_GLOW_RADIUS_FRACTION,
+                center = center,
+            )
+            drawPath(diamondPath(center, radius), CornersApartColors.BonusAccentBright)
+            drawPath(diamondPath(center, radius * BONUS_INNER_DIAMOND_FRACTION), CornersApartColors.BonusAccent)
         }
 }
+
+private fun diamondPath(
+    center: Offset,
+    radius: Float,
+): Path =
+    Path().apply {
+        moveTo(center.x, center.y - radius)
+        lineTo(center.x + radius, center.y)
+        lineTo(center.x, center.y + radius)
+        lineTo(center.x - radius, center.y)
+        close()
+    }
 
 private fun DrawScope.drawStartMarkers(
     state: GameUiState,
@@ -154,6 +171,7 @@ private fun DrawScope.drawStartMarkers(
                 color = colors.base.copy(alpha = CornersApartAlpha.StartMarker),
                 radius = cellSize * START_MARKER_RADIUS_FRACTION,
                 center = Offset(position.col * pitch + cellSize / 2f, position.row * pitch + cellSize / 2f),
+                style = Stroke(width = cellSize * START_MARKER_STROKE_FRACTION),
             )
         }
     }
@@ -168,13 +186,10 @@ private fun DrawScope.drawOccupiedCells(
         for (col in 0 until state.board.size) {
             val playerIndex = state.board.get(row, col)
             if (playerIndex != BoardSnapshot.EMPTY) {
-                val colors = CornersApartPlayerPalette.colorsFor(playerIndex)
-                drawGlossyCell(
+                drawCandyCell(
                     topLeft = Offset(col * pitch, row * pitch),
                     cellSize = cellSize,
-                    base = colors.base,
-                    dark = colors.dark,
-                    highlight = colors.highlight,
+                    colors = CornersApartPlayerPalette.colorsFor(playerIndex),
                 )
             }
         }
@@ -187,17 +202,33 @@ private fun DrawScope.drawPlacementPreview(
     cellSize: Float,
     pitch: Float,
 ) {
-    val previewColor = CornersApartPlayerPalette.colorsFor(state.currentPlayer.colorIndex).ghost
+    val colors = CornersApartPlayerPalette.colorsFor(state.currentPlayer.colorIndex)
+    val corner = CornerRadius(cellSize * PREVIEW_CORNER_FRACTION)
     previewCells
         .filter { position -> state.board.contains(position) }
         .forEach { position ->
-            drawRect(
-                color = previewColor,
-                topLeft = Offset(position.col * pitch, position.row * pitch),
+            val topLeft = Offset(position.col * pitch, position.row * pitch)
+            drawRoundRect(
+                color = colors.ghost,
+                topLeft = topLeft,
                 size = Size(cellSize, cellSize),
+                cornerRadius = corner,
+            )
+            drawRoundRect(
+                color = colors.highlight.copy(alpha = CornersApartAlpha.GhostOutline),
+                topLeft = topLeft,
+                size = Size(cellSize, cellSize),
+                cornerRadius = corner,
+                style = Stroke(width = cellSize * PREVIEW_OUTLINE_STROKE_FRACTION),
             )
         }
 }
 
 private const val BONUS_MARKER_RADIUS_FRACTION = 0.24f
+private const val BONUS_GLOW_RADIUS_FRACTION = 0.42f
+private const val BONUS_INNER_DIAMOND_FRACTION = 0.55f
 private const val START_MARKER_RADIUS_FRACTION = 0.18f
+private const val START_MARKER_STROKE_FRACTION = 0.08f
+private const val EMPTY_CELL_CORNER_FRACTION = 0.12f
+private const val PREVIEW_CORNER_FRACTION = 0.18f
+private const val PREVIEW_OUTLINE_STROKE_FRACTION = 0.06f
