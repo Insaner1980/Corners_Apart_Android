@@ -144,6 +144,7 @@ data class GameProfileActions(
 data class GameDialogState(
     val accessibilityAnnouncement: String? = null,
     val statusNotice: String? = null,
+    val scoreNotice: String? = null,
     val showHistoryStatsDialog: Boolean = false,
     val history: List<HistoryEntry> = emptyList(),
     val onDismissHistoryStats: () -> Unit = {},
@@ -153,6 +154,7 @@ private data class GameLayoutContent(
     val state: GameUiState,
     val accessibilityAnnouncement: String?,
     val statusNotice: String?,
+    val scoreNotice: String?,
     val screenActions: GameScreenActions,
     val pieceActions: GamePieceActions,
     val dragController: BoardDragController,
@@ -289,10 +291,18 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
             -> accessibilityAnnouncementText
             else -> null
         }
+    val scoreNotice =
+        (accessibilityAnnouncement as? AccessibilityAnnouncement.ScoreGained)?.let { gained ->
+            if (gained.bonusTileClaimed) {
+                "+${gained.scoreDelta} ♦"
+            } else {
+                "+${gained.scoreDelta}"
+            }
+        }
     LaunchedEffect(announcementId) {
-        if (statusNotice != null) {
+        if (statusNotice != null || scoreNotice != null) {
             noticeVisible = true
-            delay(STATUS_NOTICE_DURATION_MS)
+            delay(if (scoreNotice != null) SCORE_NOTICE_DURATION_MS else STATUS_NOTICE_DURATION_MS)
             noticeVisible = false
         }
     }
@@ -360,6 +370,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
             GameDialogState(
                 accessibilityAnnouncement = accessibilityAnnouncementText,
                 statusNotice = if (noticeVisible) statusNotice else null,
+                scoreNotice = if (noticeVisible) scoreNotice else null,
                 showHistoryStatsDialog = showHistoryStats,
                 onDismissHistoryStats = { showHistoryStats = false },
             ),
@@ -367,6 +378,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
 }
 
 private const val STATUS_NOTICE_DURATION_MS = 2500L
+private const val SCORE_NOTICE_DURATION_MS = 1200L
 
 private sealed interface AccessibilityAnnouncement {
     data class ScoreGained(
@@ -512,6 +524,7 @@ fun GameScreenContent(
             },
             onShowStats = screenActions.onShowHistoryStats,
             challengeResult = state.challengeResult,
+            isNewBestScore = state.isNewBestScore,
         )
     }
     val dragController = remember { BoardDragController() }
@@ -532,6 +545,7 @@ fun GameScreenContent(
                 state = state,
                 accessibilityAnnouncement = dialogState.accessibilityAnnouncement,
                 statusNotice = dialogState.statusNotice,
+                scoreNotice = dialogState.scoreNotice,
                 screenActions = screenActions,
                 pieceActions = pieceActions,
                 dragController = dragController,
@@ -620,7 +634,7 @@ private fun CompactGameLayout(
             onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
         )
         AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
-        StatusLine(state = content.state, notice = content.statusNotice)
+        StatusLine(state = content.state, notice = content.statusNotice, scoreNotice = content.scoreNotice)
         ControlBar(content.pieceActions)
         SelectedPiecePreview(content.state)
         PiecePanel(
@@ -648,7 +662,7 @@ private fun ExpandedGameLayout(
         ) {
             GameHeaderActions(content)
             AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
-            StatusLine(state = content.state, notice = content.statusNotice)
+            StatusLine(state = content.state, notice = content.statusNotice, scoreNotice = content.scoreNotice)
             ControlBar(content.pieceActions)
             SelectedPiecePreview(content.state)
         }
@@ -984,6 +998,7 @@ private fun AccessibilityAnnouncementNode(accessibilityAnnouncement: String?) {
 private fun StatusLine(
     state: GameUiState,
     notice: String?,
+    scoreNotice: String?,
 ) {
     val text =
         if (state.isGameOver) {
@@ -1000,11 +1015,22 @@ private fun StatusLine(
             modifier = Modifier.padding(CornersApartSpacing.CompactGap),
             verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
         ) {
-            AnimatedContent(targetState = text, label = "turnText") { turnText ->
-                Text(
-                    text = turnText,
-                    style = MaterialTheme.typography.titleMedium,
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+                AnimatedContent(targetState = text, label = "turnText") { turnText ->
+                    Text(
+                        text = turnText,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                var lastScoreNotice by remember { mutableStateOf("") }
+                if (scoreNotice != null) lastScoreNotice = scoreNotice
+                AnimatedVisibility(visible = scoreNotice != null) {
+                    Text(
+                        text = lastScoreNotice,
+                        style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                        color = CornersApartColors.PlayerLime,
+                    )
+                }
             }
             var lastNotice by remember { mutableStateOf("") }
             if (notice != null) lastNotice = notice

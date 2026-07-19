@@ -77,6 +77,7 @@ class GameViewModel
         private var resumeDecisionMade: Boolean = false
         private var activeChallengeLevel: Int? = null
         private var lastChallengeResult: ChallengeResult? = null
+        private var lastGameWasBestScore: Boolean = false
         private val profileDisplayMapper =
             ProfileDisplayMapper(
                 isLocalSession = { session.sessionType == SessionType.LOCAL },
@@ -394,6 +395,7 @@ class GameViewModel
         private fun startLocalSession(nextSettings: GameSettings) {
             activeChallengeLevel = null
             lastChallengeResult = null
+            lastGameWasBestScore = false
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
@@ -424,6 +426,7 @@ class GameViewModel
                 )
             activeChallengeLevel = level.number
             lastChallengeResult = null
+            lastGameWasBestScore = false
             refreshUiState()
         }
 
@@ -468,7 +471,11 @@ class GameViewModel
             if (recordedGameOverTurn == state.turnNumber) return
             recordedGameOverTurn = state.turnNumber
             val profile = activeProfile() ?: defaultProfile().also { profileRepository.upsertProfile(it) }
-            profileRepository.appendHistory(profile.id, state.toHistoryEntry())
+            val entry = state.toHistoryEntry()
+            lastGameWasBestScore =
+                profile.history.isNotEmpty() &&
+                    entry.totalScore > profile.history.maxOf { previous -> previous.totalScore }
+            profileRepository.appendHistory(profile.id, entry)
             recordChallengeResult(state, profile.id)
         }
 
@@ -553,6 +560,7 @@ class GameViewModel
                 activeChallengeLevel = activeChallengeLevel,
                 challengeStars = activeProfile()?.challengeStars.orEmpty(),
                 challengeResult = lastChallengeResult,
+                isNewBestScore = lastGameWasBestScore,
             )
         }
 

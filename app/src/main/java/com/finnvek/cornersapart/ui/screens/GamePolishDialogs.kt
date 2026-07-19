@@ -507,6 +507,7 @@ fun GameOverDialog(
     onShowStats: () -> Unit,
     modifier: Modifier = Modifier,
     challengeResult: ChallengeResult? = null,
+    isNewBestScore: Boolean = false,
 ) {
     val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val winner = rankedScores.firstOrNull()
@@ -559,6 +560,14 @@ fun GameOverDialog(
                     color = CornersApartColors.TextOnDarkPrimary,
                 )
             }
+        }
+        if (isNewBestScore) {
+            Text(
+                text = stringResource(R.string.game_over_new_best_score),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                color = CornersApartColors.PlayerLime,
+            )
         }
         Text(
             text = stringResource(R.string.game_over_duration, duration),
