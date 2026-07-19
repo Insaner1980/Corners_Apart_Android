@@ -8,6 +8,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.finnvek.cornersapart.R
+import kotlin.random.Random
 
 /** Soittaa lyhyet peliäänet SoundPoolilla res/raw-sampleista. */
 class GameSoundPlayer(
@@ -35,7 +36,15 @@ class GameSoundPlayer(
 
     fun play(event: GameSoundEvent) {
         val soundId = soundIds[event] ?: return
-        soundPool.play(soundId, VOLUME, VOLUME, DEFAULT_PRIORITY, NO_LOOP, NORMAL_RATE)
+        // Pieni satunnainen sävelkorkeusvaihtelu palan asetukseen,
+        // ettei toistuva klik kuulosta konemaiselta.
+        val rate =
+            if (event == GameSoundEvent.PLACEMENT) {
+                Random.nextDouble(RATE_VARIATION_MIN, RATE_VARIATION_MAX).toFloat()
+            } else {
+                NORMAL_RATE
+            }
+        soundPool.play(soundId, VOLUME, VOLUME, DEFAULT_PRIORITY, NO_LOOP, rate)
     }
 
     fun release() {
@@ -48,6 +57,8 @@ class GameSoundPlayer(
         const val VOLUME = 1f
         const val NO_LOOP = 0
         const val NORMAL_RATE = 1f
+        const val RATE_VARIATION_MIN = 0.94
+        const val RATE_VARIATION_MAX = 1.06
     }
 }
 
