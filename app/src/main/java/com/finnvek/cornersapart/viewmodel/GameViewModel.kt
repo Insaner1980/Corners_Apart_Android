@@ -73,6 +73,11 @@ class GameViewModel
         private var nearbyEventsJob: Job? = null
         private var localSessionActionJob: Job = newLocalSessionActionJob()
         private var resumeDecisionMade: Boolean = false
+        private val profileDisplayMapper =
+            ProfileDisplayMapper(
+                isLocalSession = { session.sessionType == SessionType.LOCAL },
+                activeProfile = ::activeProfile,
+            )
         private var recordedGameOverTurn: Int? = null
         private var defaultProfileCreationRequested: Boolean = false
         private var finishedGameRanking: FinishedGameRanking? = null
@@ -511,30 +516,14 @@ class GameViewModel
                     )
                 }.toSnapshotList()
 
-        /**
-         * Paikallisissa peleissä omistaja 0 on laitteen pelaaja, joten aktiivisen
-         * profiilin nimi näytetään hänen pelaajanimenään.
-         */
-        private fun displayName(
-            engineName: String,
-            ownerIndex: Int,
-        ): String {
-            if (session.sessionType != SessionType.LOCAL) return engineName
-            if (ownerIndex != DEFAULT_PROFILE_OWNER_INDEX) return engineName
-            return activeProfile()
-                ?.name
-                ?.takeIf { name -> name.isNotBlank() }
-                ?: engineName
-        }
-
         private fun Player.toUiState(
             claimedBonusTiles: Int,
             isCurrentTurn: Boolean,
         ): PlayerUiState =
             PlayerUiState(
                 index = index,
-                name = displayName(name, ownerIndex),
-                colorIndex = colorIndex,
+                name = profileDisplayMapper.displayName(name, ownerIndex, colorIndex),
+                colorIndex = profileDisplayMapper.visualColorIndex(colorIndex),
                 ownerIndex = ownerIndex,
                 startRow = startCorner.row,
                 startCol = startCorner.col,
@@ -594,7 +583,12 @@ class GameViewModel
         private fun newLocalSessionActionJob(): Job = SupervisorJob(viewModelScope.coroutineContext[Job])
 
         private fun List<PlayerScore>.withDisplayNames(): List<PlayerScore> =
-            map { score -> score.copy(name = displayName(score.name, score.ownerIndex)) }.toSnapshotList()
+            map { score ->
+                score.copy(
+                    name = profileDisplayMapper.displayName(score.name, score.ownerIndex, score.colorIndex),
+                    colorIndex = profileDisplayMapper.visualColorIndex(score.colorIndex),
+                )
+            }.toSnapshotList()
 
         private fun GameState.rankedScoresForUiAndHistory(): List<PlayerScore> {
             if (!isGameOver) return Scoring.rankPlayers(this).withDisplayNames()
@@ -656,7 +650,12 @@ class GameViewModel
             if (delta > 0) {
                 _effects.tryEmit(
                     GameEffect.MoveAccepted(
-                        playerName = displayName(playerBefore.name, playerBefore.ownerIndex),
+                        playerName =
+                            profileDisplayMapper.displayName(
+                                playerBefore.name,
+                                playerBefore.ownerIndex,
+                                playerBefore.colorIndex,
+                            ),
                         scoreDelta = delta,
                         bonusTileClaimed =
                             playerAfter.scoreBreakdown.bonusTilePoints >
@@ -710,6 +709,5 @@ class GameViewModel
 
 private const val DEFAULT_PROFILE_ID = "local-default"
 private const val DEFAULT_PROFILE_NAME = "Player"
-private const val DEFAULT_PROFILE_OWNER_INDEX = 0
 private const val MILLIS_PER_SECOND = 1_000L
 private const val ACTION_FAILED_MESSAGE = "Action failed."

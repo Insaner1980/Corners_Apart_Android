@@ -4,11 +4,13 @@ import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.BonusTile
 import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.GameModeConfigs
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.LocalAvatarStyle
 import com.finnvek.cornersapart.model.PieceDef
 import com.finnvek.cornersapart.model.PlayerScore
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
+import com.finnvek.cornersapart.multiplayer.SessionType
 
 data class GameUiState(
     val gameMode: GameMode,
@@ -25,12 +27,13 @@ data class GameUiState(
     val hapticsEnabled: Boolean = true,
     val gameDurationSeconds: Int = 0,
     val preferredDifficulty: Int = 3,
-    val preferredMode: GameMode = GameMode.FOUR_PLAYER,
+    val preferredMode: GameMode = GameModeConfigs.defaultMode,
     val history: List<HistoryEntry> = emptyList(),
     val activeProfileName: String = "Player",
     val hasSavedGame: Boolean = false,
     val resumeSummary: ResumeGameSummary? = null,
     val rankedScores: List<PlayerScore> = emptyList(),
+    val sessionType: SessionType = SessionType.LOCAL,
     val nearbyState: NearbyUiState = NearbyUiState(),
     val profiles: List<ProfileUiState> = emptyList(),
 ) {

@@ -291,10 +291,11 @@ private fun DrawScope.drawOccupiedCells(
         for (col in 0 until state.board.size) {
             val playerIndex = state.board.get(row, col)
             if (playerIndex != BoardSnapshot.EMPTY) {
+                val colorIndex = state.players.getOrNull(playerIndex)?.colorIndex ?: playerIndex
                 drawCandyCell(
                     topLeft = Offset(col * pitch, row * pitch),
                     cellSize = cellSize,
-                    colors = CornersApartPlayerPalette.colorsFor(playerIndex),
+                    colors = CornersApartPlayerPalette.colorsFor(colorIndex),
                     scale = if (CellPosition(row, col) in popCells) popScale else 1f,
                 )
             }
