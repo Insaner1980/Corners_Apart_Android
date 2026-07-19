@@ -1,6 +1,7 @@
 package com.finnvek.cornersapart.opponents
 
 import com.finnvek.cornersapart.engine.GameEngine
+import com.finnvek.cornersapart.engine.MoveResult
 import com.finnvek.cornersapart.engine.SeedMixer
 import com.finnvek.cornersapart.model.GameState
 import kotlinx.coroutines.CoroutineDispatcher
@@ -32,7 +33,9 @@ class ComputerOpponentEngine(
     ): OpponentAction {
         val candidates = moveGenerator.generateMoves(state, playerIndex, difficulty)
         if (candidates.isEmpty()) return OpponentAction.Pass(playerIndex)
-        val evaluated = evaluateCandidates(state, candidates, style, difficulty)
+        val evaluated =
+            evaluateCandidates(state, candidates, style, difficulty)
+                .let { items -> applyLookahead(state, items, playerIndex, difficulty) }
         val chosen = chooseByTemperature(evaluated, seededSelection(state, playerIndex, difficulty, style), difficulty)
         val preview = gameEngine.previewPlacement(state, chosen.candidate.move)
         return if (preview.isValid) {
@@ -60,6 +63,51 @@ class ComputerOpponentEngine(
                     evaluation = moveEvaluator.evaluate(state, candidate, style, difficulty),
                 )
             }.sortedByDescending { item -> item.evaluation.total }
+
+    /**
+     * MASTER-tason 2-ply-haku: parhaille kandidaateille arvioidaan seuraavan
+     * pelaajan paras vastasiirto ja kandidaatit järjestetään erotuksen mukaan.
+     */
+    private fun applyLookahead(
+        state: GameState,
+        evaluated: List<EvaluatedMove>,
+        playerIndex: Int,
+        difficulty: OpponentDifficulty,
+    ): List<EvaluatedMove> {
+        if (difficulty.lookaheadCandidates <= 0) return evaluated
+        val head = evaluated.take(difficulty.lookaheadCandidates)
+        val tail = evaluated.drop(difficulty.lookaheadCandidates)
+        val reordered =
+            head
+                .map { item ->
+                    item to (item.evaluation.total - OPPONENT_REPLY_WEIGHT * bestReplyScore(state, item, playerIndex))
+                }.sortedByDescending { (_, adjusted) -> adjusted }
+                .map { (item, _) -> item }
+        return reordered + tail
+    }
+
+    private fun bestReplyScore(
+        state: GameState,
+        item: EvaluatedMove,
+        playerIndex: Int,
+    ): Double {
+        val result = gameEngine.applyMove(state, item.candidate.move) as? MoveResult.Accepted ?: return 0.0
+        val nextState = result.state
+        if (nextState.isGameOver) return 0.0
+        val replyPlayerIndex = nextState.currentPlayerIndex
+        if (replyPlayerIndex == playerIndex) return 0.0
+        val replyCandidates = moveGenerator.generateMoves(nextState, replyPlayerIndex, LOOKAHEAD_REPLY_DIFFICULTY)
+        if (replyCandidates.isEmpty()) return 0.0
+        return replyCandidates.maxOf { candidate ->
+            moveEvaluator
+                .evaluate(
+                    nextState,
+                    candidate,
+                    defaultStyleFor(replyPlayerIndex),
+                    LOOKAHEAD_REPLY_DIFFICULTY,
+                ).total
+        }
+    }
 
     private fun chooseByTemperature(
         evaluated: List<EvaluatedMove>,
@@ -115,5 +163,7 @@ class ComputerOpponentEngine(
         private const val STYLE_SHIFT = 4
         private const val LOW_TEMPERATURE_THRESHOLD = 0.25
         private const val MIN_WEIGHT = 0.000_001
+        private const val OPPONENT_REPLY_WEIGHT = 0.6
+        private val LOOKAHEAD_REPLY_DIFFICULTY = OpponentDifficulty.EASY
     }
 }

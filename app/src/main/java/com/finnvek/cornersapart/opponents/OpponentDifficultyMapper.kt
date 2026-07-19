@@ -9,7 +9,8 @@ object OpponentDifficultyMapper {
             2 -> OpponentDifficulty.EASY
             3 -> OpponentDifficulty.MEDIUM
             4 -> OpponentDifficulty.HARD
-            else -> OpponentDifficulty.EXPERT
+            5 -> OpponentDifficulty.EXPERT
+            else -> OpponentDifficulty.MASTER
         }
 
     fun toPersistedLevel(level: Int): Int = level.coerceIn(MIN_DIFFICULTY_LEVEL, GameConstants.DIFFICULTY_LEVELS)

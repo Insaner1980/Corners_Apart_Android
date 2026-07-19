@@ -6,6 +6,7 @@ enum class OpponentDifficulty(
     internal val largePieceBias: Double,
     internal val bonusTileAwareness: Double,
     internal val blockingAwareness: Double,
+    internal val lookaheadCandidates: Int = 0,
 ) {
     BEGINNER(
         temperature = 3.0,
@@ -41,5 +42,13 @@ enum class OpponentDifficulty(
         largePieceBias = 0.45,
         bonusTileAwareness = 1.8,
         blockingAwareness = 1.7,
+    ),
+    MASTER(
+        temperature = 0.1,
+        candidateSoftCap = 500,
+        largePieceBias = 0.5,
+        bonusTileAwareness = 2.0,
+        blockingAwareness = 2.0,
+        lookaheadCandidates = 12,
     ),
 }

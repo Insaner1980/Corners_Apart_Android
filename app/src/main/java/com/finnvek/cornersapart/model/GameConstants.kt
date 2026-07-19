@@ -11,7 +11,7 @@ object GameConstants {
     const val COMPLETION_BONUS_POINTS = 10
 
     const val MAX_HISTORY_ENTRIES = 50
-    const val DIFFICULTY_LEVELS = 5
+    const val DIFFICULTY_LEVELS = 6
     const val OPPONENT_TURN_DELAY_MIN_MS = 300L
     const val OPPONENT_TURN_DELAY_RANGE_MS = 400L
 
