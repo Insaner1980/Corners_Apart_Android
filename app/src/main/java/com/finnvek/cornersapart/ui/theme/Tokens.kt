@@ -90,5 +90,6 @@ object CornersApartAlpha {
     const val TextShadow = 0.35f
     const val BonusGlow = 0.30f
     const val GhostOutline = 0.60f
+    const val InvalidGhost = 0.45f
     const val DisabledCandy = 0.40f
 }

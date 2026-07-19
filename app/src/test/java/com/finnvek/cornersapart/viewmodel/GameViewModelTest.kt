@@ -714,6 +714,7 @@ class GameViewModelTest {
                 settingsRepository = settingsRepository,
                 timeProvider = timeProvider,
                 nearbyConnectionsCoordinator = nearbyConnectionsCoordinator,
+                gameEngine = GameEngine(),
             )
     }
 

@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.BoardSnapshot
+import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.targetCells
 import com.finnvek.cornersapart.ui.components.drawCandyCell
@@ -58,10 +59,11 @@ fun GameBoard(
     modifier: Modifier = Modifier,
     externalPreviewAnchor: CellPosition? = null,
     onCanvasPositioned: (LayoutCoordinates) -> Unit = {},
+    isPlacementLegal: (row: Int, col: Int) -> Boolean = { _, _ -> true },
 ) {
     val boardDescription = stringResource(R.string.game_board_content_description)
     val gapPx = with(LocalDensity.current) { CornersApartSpacing.BoardCellGap.toPx() }
-    var previewCells by remember(state.board.size, state.selectedCells) { mutableStateOf(emptyList<CellPosition>()) }
+    var pressAnchor by remember(state.board.size, state.selectedCells) { mutableStateOf<CellPosition?>(null) }
     val placementPop = remember { Animatable(1f) }
     var popCells by remember { mutableStateOf(emptySet<CellPosition>()) }
     var previousBoard by remember { mutableStateOf(state.board) }
@@ -90,15 +92,20 @@ fun GameBoard(
                 ),
             label = "bonusAlpha",
         )
-    val externalPreviewCells =
-        remember(externalPreviewAnchor, state.selectedCells) {
-            externalPreviewAnchor?.let { anchor ->
+    val activeAnchor = pressAnchor ?: externalPreviewAnchor
+    val previewCells =
+        remember(activeAnchor, state.selectedCells) {
+            activeAnchor?.let { anchor ->
                 targetCells(
                     anchorRow = anchor.row,
                     anchorCol = anchor.col,
                     offsets = state.selectedCells,
                 )
             }.orEmpty()
+        }
+    val previewIsValid =
+        remember(activeAnchor, state.board, state.selectedCells) {
+            activeAnchor?.let { anchor -> isPlacementLegal(anchor.row, anchor.col) } ?: true
         }
     Box(
         modifier =
@@ -120,17 +127,17 @@ fun GameBoard(
                     .onGloballyPositioned(onCanvasPositioned)
                     .semantics { contentDescription = boardDescription }
                     .pointerInput(state.board.size, state.selectedCells) {
-                        // Paina näyttääksesi esikatselun, raahaa siirtääksesi sitä,
-                        // vapauta laudan päällä asettaaksesi palan.
+                        // Paina näyttääksesi esikatselun sormen yläpuolella, raahaa
+                        // siirtääksesi sitä, vapauta laudan päällä asettaaksesi palan.
                         awaitEachGesture {
                             val down = awaitFirstDown()
                             var lastPosition = down.position
                             var cancelled = false
-                            val downAnchor = lastPosition.toBoardCell(state.board.size, size.width)
-                            previewCells =
-                                targetCells(
-                                    anchorRow = downAnchor.row,
-                                    anchorCol = downAnchor.col,
+                            pressAnchor =
+                                liftedBoardAnchor(
+                                    position = lastPosition,
+                                    boardSize = state.board.size,
+                                    boardWidthPx = size.width.toFloat(),
                                     offsets = state.selectedCells,
                                 )
                             while (true) {
@@ -142,22 +149,26 @@ fun GameBoard(
                                 }
                                 lastPosition = change.position
                                 if (!change.pressed) break
-                                val anchor = lastPosition.toBoardCell(state.board.size, size.width)
-                                previewCells =
-                                    targetCells(
-                                        anchorRow = anchor.row,
-                                        anchorCol = anchor.col,
+                                pressAnchor =
+                                    liftedBoardAnchor(
+                                        position = lastPosition,
+                                        boardSize = state.board.size,
+                                        boardWidthPx = size.width.toFloat(),
                                         offsets = state.selectedCells,
                                     )
                                 change.consume()
                             }
-                            previewCells = emptyList()
+                            pressAnchor = null
                             val insideBoard =
                                 lastPosition.x in 0f..size.width.toFloat() &&
                                     lastPosition.y in 0f..size.height.toFloat()
                             if (!cancelled && insideBoard) {
-                                val anchor = lastPosition.toBoardCell(state.board.size, size.width)
-                                onPlaceCell(anchor.row, anchor.col)
+                                liftedBoardAnchor(
+                                    position = lastPosition,
+                                    boardSize = state.board.size,
+                                    boardWidthPx = size.width.toFloat(),
+                                    offsets = state.selectedCells,
+                                )?.let { anchor -> onPlaceCell(anchor.row, anchor.col) }
                             }
                         }
                     },
@@ -169,7 +180,7 @@ fun GameBoard(
             drawBonusTiles(state, cellSize, pitch, bonusAlpha)
             drawStartMarkers(state, cellSize, pitch)
             drawOccupiedCells(state, cellSize, pitch, popCells, placementPop.value)
-            drawPlacementPreview(state, previewCells.ifEmpty { externalPreviewCells }, cellSize, pitch)
+            drawPlacementPreview(state, previewCells, previewIsValid, cellSize, pitch)
         }
     }
 }
@@ -188,14 +199,27 @@ private fun BoardSnapshot.newlyOccupiedCellsSince(previous: BoardSnapshot): Set<
     }
 }
 
-internal fun Offset.toBoardCell(
+/**
+ * Laskee palan ankkurisolun niin, että pala kelluu sormen yläpuolella
+ * ([PREVIEW_LIFT_CELLS] solua) ja on vaakasuunnassa keskitetty sormeen.
+ * Ankkuri rajataan niin, että koko pala pysyy laudalla — pala liukuu
+ * laidoilla reunaa pitkin sen sijaan että osa jäisi laudan ulkopuolelle.
+ */
+internal fun liftedBoardAnchor(
+    position: Offset,
     boardSize: Int,
-    boardWidth: Int,
-): CellPosition {
-    val cellPitch = boardWidth.toFloat() / boardSize
+    boardWidthPx: Float,
+    offsets: List<CellOffset>,
+): CellPosition? {
+    if (boardSize <= 0 || boardWidthPx <= 0f) return null
+    val cellPitch = boardWidthPx / boardSize
+    val fingerRow = floor(position.y / cellPitch).toInt()
+    val fingerCol = floor(position.x / cellPitch).toInt()
+    val pieceRowSpan = offsets.maxOfOrNull { offset -> offset.row } ?: 0
+    val pieceColSpan = offsets.maxOfOrNull { offset -> offset.col } ?: 0
     return CellPosition(
-        row = floor(y / cellPitch).toInt().coerceIn(0, boardSize - 1),
-        col = floor(x / cellPitch).toInt().coerceIn(0, boardSize - 1),
+        row = (fingerRow - pieceRowSpan - PREVIEW_LIFT_CELLS).coerceIn(0, (boardSize - 1 - pieceRowSpan).coerceAtLeast(0)),
+        col = (fingerCol - pieceColSpan / 2).coerceIn(0, (boardSize - 1 - pieceColSpan).coerceAtLeast(0)),
     )
 }
 
@@ -306,23 +330,36 @@ private fun DrawScope.drawOccupiedCells(
 private fun DrawScope.drawPlacementPreview(
     state: GameUiState,
     previewCells: List<CellPosition>,
+    isValid: Boolean,
     cellSize: Float,
     pitch: Float,
 ) {
     val colors = CornersApartPlayerPalette.colorsFor(state.currentPlayer.colorIndex)
+    val fillColor =
+        if (isValid) {
+            colors.ghost
+        } else {
+            CornersApartColors.ButtonWarnFace.copy(alpha = CornersApartAlpha.InvalidGhost)
+        }
+    val outlineColor =
+        if (isValid) {
+            colors.highlight.copy(alpha = CornersApartAlpha.GhostOutline)
+        } else {
+            CornersApartColors.ButtonWarnFace.copy(alpha = CornersApartAlpha.GhostOutline)
+        }
     val corner = CornerRadius(cellSize * PREVIEW_CORNER_FRACTION)
     previewCells
         .filter { position -> state.board.contains(position) }
         .forEach { position ->
             val topLeft = Offset(position.col * pitch, position.row * pitch)
             drawRoundRect(
-                color = colors.ghost,
+                color = fillColor,
                 topLeft = topLeft,
                 size = Size(cellSize, cellSize),
                 cornerRadius = corner,
             )
             drawRoundRect(
-                color = colors.highlight.copy(alpha = CornersApartAlpha.GhostOutline),
+                color = outlineColor,
                 topLeft = topLeft,
                 size = Size(cellSize, cellSize),
                 cornerRadius = corner,
@@ -330,6 +367,9 @@ private fun DrawScope.drawPlacementPreview(
             )
         }
 }
+
+/** Montako solua esikatselu kelluu sormen yläpuolella. */
+internal const val PREVIEW_LIFT_CELLS = 2
 
 private const val PLACEMENT_POP_START_SCALE = 0.55f
 private const val BONUS_PULSE_MIN_ALPHA = 0.72f

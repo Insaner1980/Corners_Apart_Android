@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.finnvek.cornersapart.data.GameRepository
 import com.finnvek.cornersapart.data.ProfileRepository
 import com.finnvek.cornersapart.data.SettingsRepository
+import com.finnvek.cornersapart.engine.GameEngine
 import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.Scoring
 import com.finnvek.cornersapart.model.AchievementEvaluator
@@ -51,7 +52,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 import com.finnvek.cornersapart.multiplayer.toSnapshotCopy as toNearbySnapshotCopy
 
 @HiltViewModel
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class GameViewModel
     @Inject
     constructor(
@@ -61,6 +62,7 @@ class GameViewModel
         private val settingsRepository: SettingsRepository,
         private val timeProvider: TimeProvider,
         private val nearbyConnectionsCoordinator: NearbyConnectionsCoordinator,
+        private val gameEngine: GameEngine,
     ) : ViewModel() {
         private val _effects = MutableSharedFlow<GameEffect>(extraBufferCapacity = 1)
         private var selectedPieceId: String = PieceCatalog.SINGLE_CELL_ID
@@ -329,6 +331,25 @@ class GameViewModel
             selectedOrientationIndex =
                 orientations.indexOf(flipped).takeIf { index -> index >= 0 } ?: selectedOrientationIndex
             refreshUiState()
+        }
+
+        /** Kertoo esikatselulle, olisiko valitun palan sijoitus annettuun ankkuriin laillinen. */
+        fun isPlacementLegal(
+            row: Int,
+            col: Int,
+        ): Boolean {
+            val state = session.gameState.value
+            return gameEngine
+                .previewPlacement(
+                    state,
+                    Move(
+                        playerIndex = state.currentPlayerIndex,
+                        pieceId = selectedPieceId,
+                        anchorRow = row,
+                        anchorCol = col,
+                        orientationIndex = selectedOrientationIndex,
+                    ),
+                ).isValid
         }
 
         fun placeSelectedAt(

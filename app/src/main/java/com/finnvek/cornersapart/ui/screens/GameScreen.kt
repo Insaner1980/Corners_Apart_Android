@@ -73,6 +73,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.finnvek.cornersapart.R
+import com.finnvek.cornersapart.engine.MoveRejectionReason
 import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.GameConstants
@@ -126,6 +127,7 @@ data class GamePieceActions(
     val onFlip: () -> Unit = {},
     val onPass: () -> Unit = {},
     val onPlaceCell: (row: Int, col: Int) -> Unit = { _, _ -> },
+    val isPlacementLegal: (row: Int, col: Int) -> Boolean = { _, _ -> true },
 )
 
 data class GameSettingsActions(
@@ -221,7 +223,12 @@ internal class BoardDragController {
             local.x in 0f..board.size.width.toFloat() &&
                 local.y in 0f..board.size.height.toFloat()
         if (!insideBoard) return null
-        return local.toBoardCell(boardCellCount, board.size.width)
+        return liftedBoardAnchor(
+            position = local,
+            boardSize = boardCellCount,
+            boardWidthPx = board.size.width.toFloat(),
+            offsets = dragCells.orEmpty(),
+        )
     }
 }
 
@@ -288,7 +295,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
 
     val statusNotice =
         when (accessibilityAnnouncement) {
-            AccessibilityAnnouncement.MoveRejected,
+            is AccessibilityAnnouncement.MoveRejected,
             is AccessibilityAnnouncement.ActionFailed,
             -> accessibilityAnnouncementText
             else -> null
@@ -354,6 +361,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                     viewModel.passCurrentPlayer()
                 },
                 onPlaceCell = viewModel::placeSelectedAt,
+                isPlacementLegal = viewModel::isPlacementLegal,
             ),
         settingsActions =
             GameSettingsActions(
@@ -390,7 +398,9 @@ private sealed interface AccessibilityAnnouncement {
         val bonusTileClaimed: Boolean,
     ) : AccessibilityAnnouncement
 
-    data object MoveRejected : AccessibilityAnnouncement
+    data class MoveRejected(
+        val reason: MoveRejectionReason,
+    ) : AccessibilityAnnouncement
 
     data class ActionFailed(
         val message: String,
@@ -407,7 +417,7 @@ private fun GameEffect.toAccessibilityAnnouncement(): AccessibilityAnnouncement 
                 scoreDelta = scoreDelta,
                 bonusTileClaimed = bonusTileClaimed,
             )
-        is GameEffect.MoveRejected -> AccessibilityAnnouncement.MoveRejected
+        is GameEffect.MoveRejected -> AccessibilityAnnouncement.MoveRejected(reason)
         is GameEffect.ActionFailed -> AccessibilityAnnouncement.ActionFailed(message)
         GameEffect.GameOver -> AccessibilityAnnouncement.GameOver
     }
@@ -424,6 +434,24 @@ private fun GameEffect.hapticFeedbackType(): HapticFeedbackType =
         is GameEffect.ActionFailed,
         GameEffect.GameOver,
         -> HapticFeedbackType.LongPress
+    }
+
+@StringRes
+private fun MoveRejectionReason.messageRes(): Int =
+    when (this) {
+        MoveRejectionReason.START_CORNER_NOT_COVERED -> R.string.move_rejected_start_corner
+        MoveRejectionReason.SAME_PLAYER_EDGE_TOUCH -> R.string.move_rejected_edge_touch
+        MoveRejectionReason.NO_DIAGONAL_TOUCH -> R.string.move_rejected_no_diagonal
+        MoveRejectionReason.CELL_OCCUPIED -> R.string.move_rejected_occupied
+        MoveRejectionReason.OUT_OF_BOUNDS -> R.string.move_rejected_out_of_bounds
+        MoveRejectionReason.PIECE_ALREADY_USED -> R.string.move_rejected_piece_used
+        MoveRejectionReason.GAME_OVER,
+        MoveRejectionReason.NOT_PLAYERS_TURN,
+        MoveRejectionReason.INVALID_PLAYER,
+        MoveRejectionReason.PLAYER_HAS_PASSED,
+        MoveRejectionReason.UNKNOWN_PIECE,
+        MoveRejectionReason.UNKNOWN_ORIENTATION,
+        -> R.string.accessibility_move_rejected
     }
 
 @Composable
@@ -448,7 +476,7 @@ private fun AccessibilityAnnouncement.toAnnouncementText(): String =
                 stringResource(R.string.accessibility_score_gained, playerName, scoreText)
             }
         }
-        AccessibilityAnnouncement.MoveRejected -> stringResource(R.string.accessibility_move_rejected)
+        is AccessibilityAnnouncement.MoveRejected -> stringResource(reason.messageRes())
         is AccessibilityAnnouncement.ActionFailed -> stringResource(R.string.accessibility_action_failed, message)
         AccessibilityAnnouncement.GameOver -> stringResource(R.string.accessibility_game_over)
     }
@@ -640,6 +668,7 @@ private fun CompactGameLayout(
             onPlaceCell = content.pieceActions.onPlaceCell,
             externalPreviewAnchor = content.dragController.previewAnchor,
             onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
+            isPlacementLegal = content.pieceActions.isPlacementLegal,
         )
         AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
         StatusLine(state = content.state, notice = content.statusNotice, scoreNotice = content.scoreNotice)
@@ -683,6 +712,7 @@ private fun ExpandedGameLayout(
                 onPlaceCell = content.pieceActions.onPlaceCell,
                 externalPreviewAnchor = content.dragController.previewAnchor,
                 onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
+                isPlacementLegal = content.pieceActions.isPlacementLegal,
             )
             PiecePanel(
                 pieces = content.state.pieces,

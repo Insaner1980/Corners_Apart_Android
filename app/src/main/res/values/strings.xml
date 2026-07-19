@@ -117,7 +117,13 @@
     <string name="game_over_play_again">Play again</string>
     <string name="accessibility_score_gained">%1$s gained %2$s</string>
     <string name="accessibility_bonus_claimed">%1$s gained %2$s. Bonus tile claimed, plus %3$s.</string>
-    <string name="accessibility_move_rejected">Move rejected — pieces may touch your own pieces only at corners</string>
+    <string name="accessibility_move_rejected">Move rejected — that placement is not allowed</string>
+    <string name="move_rejected_start_corner">First piece must cover your start corner</string>
+    <string name="move_rejected_edge_touch">Your pieces may touch each other only at corners</string>
+    <string name="move_rejected_no_diagonal">Piece must touch one of your pieces corner to corner</string>
+    <string name="move_rejected_occupied">Those squares are already taken</string>
+    <string name="move_rejected_out_of_bounds">Piece does not fit on the board there</string>
+    <string name="move_rejected_piece_used">That piece has already been played</string>
     <string name="accessibility_action_failed">Action failed: %1$s</string>
     <string name="accessibility_game_over">Game over</string>
     <string name="game_board_content_description">Game board</string>
