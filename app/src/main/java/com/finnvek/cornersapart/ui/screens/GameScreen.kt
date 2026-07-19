@@ -107,6 +107,7 @@ import kotlin.math.roundToInt
 data class GameScreenActions(
     val onModeSelected: (GameMode) -> Unit = {},
     val onStartChallengeLevel: (Int) -> Unit = {},
+    val onStartDailyChallenge: () -> Unit = {},
     val onCreateNearbyGame: () -> Unit = {},
     val onFindNearbyGame: () -> Unit = {},
     val onConnectToNearbyEndpoint: (String) -> Unit = {},
@@ -319,6 +320,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
             GameScreenActions(
                 onModeSelected = viewModel::startGame,
                 onStartChallengeLevel = viewModel::startChallengeLevel,
+                onStartDailyChallenge = viewModel::startDailyChallenge,
                 onCreateNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Host) },
                 onFindNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Discover) },
                 onConnectToNearbyEndpoint = viewModel::connectToNearbyEndpoint,
@@ -468,7 +470,9 @@ fun GameScreenContent(
         ChallengeDialog(
             challengeStars = state.challengeStars,
             onStartLevel = screenActions.onStartChallengeLevel,
+            onStartDaily = screenActions.onStartDailyChallenge,
             onDismiss = { showChallenges = false },
+            dailyBestScore = state.dailyBestScore,
         )
     }
     if (state.hasSavedGame && state.resumeSummary != null) {
@@ -527,6 +531,7 @@ fun GameScreenContent(
             challengeResult = state.challengeResult,
             isNewBestScore = state.isNewBestScore,
             newAchievements = state.newAchievements,
+            dailyBestScore = if (state.isDailyChallenge) state.dailyBestScore else null,
         )
     }
     val dragController = remember { BoardDragController() }

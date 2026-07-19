@@ -42,6 +42,8 @@ data class GameUiState(
     val isNewBestScore: Boolean = false,
     val newAchievements: List<String> = emptyList(),
     val unlockedAchievements: Set<String> = emptySet(),
+    val isDailyChallenge: Boolean = false,
+    val dailyBestScore: Int? = null,
 ) {
     val currentPlayer: PlayerUiState
         get() = players[currentPlayerIndex]

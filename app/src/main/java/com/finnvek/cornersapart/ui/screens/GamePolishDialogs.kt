@@ -510,6 +510,7 @@ fun GameOverDialog(
     challengeResult: ChallengeResult? = null,
     isNewBestScore: Boolean = false,
     newAchievements: List<String> = emptyList(),
+    dailyBestScore: Int? = null,
 ) {
     val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val winner = rankedScores.firstOrNull()
@@ -569,6 +570,14 @@ fun GameOverDialog(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
                 style = MaterialTheme.typography.titleMedium.withCandyShadow(),
                 color = CornersApartColors.PlayerLime,
+            )
+        }
+        if (dailyBestScore != null) {
+            Text(
+                text = stringResource(R.string.game_over_daily_result, dailyBestScore),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                color = CornersApartColors.BonusAccentBright,
             )
         }
         newAchievements.mapNotNull(Achievement::fromId).forEach { achievement ->

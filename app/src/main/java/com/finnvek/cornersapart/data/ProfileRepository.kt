@@ -81,6 +81,35 @@ class ProfileRepository(
         }
     }
 
+    /** Tallentaa päivän haasteen tuloksen; parasta ei huononneta ja vanhimmat karsitaan. */
+    suspend fun recordDailyBest(
+        profileId: String,
+        date: String,
+        score: Int,
+    ) {
+        store.update { data ->
+            val storedProfiles = data.toSnapshotCopy().profiles
+            data
+                .copy(
+                    profiles =
+                        storedProfiles.map { profile ->
+                            if (profile.id == profileId && score > (profile.dailyBestScores[date] ?: -1)) {
+                                val updated = profile.dailyBestScores + (date to score)
+                                profile.copy(
+                                    dailyBestScores =
+                                        updated.entries
+                                            .sortedByDescending { entry -> entry.key }
+                                            .take(MAX_DAILY_BEST_ENTRIES)
+                                            .associate { entry -> entry.key to entry.value },
+                                )
+                            } else {
+                                profile
+                            }
+                        },
+                ).toSnapshotCopy()
+        }
+    }
+
     /** Poistaa profiilin; viimeistä profiilia ei poisteta ja aktiivisuus siirtyy tarvittaessa. */
     suspend fun deleteProfile(profileId: String) {
         store.update { data ->
@@ -141,5 +170,9 @@ class ProfileRepository(
         return map { profile ->
             profile.copy(active = profile.id == resolvedActiveProfileId)
         }.toSnapshotList()
+    }
+
+    private companion object {
+        const val MAX_DAILY_BEST_ENTRIES = 60
     }
 }

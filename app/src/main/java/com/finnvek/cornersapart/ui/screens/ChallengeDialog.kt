@@ -32,8 +32,10 @@ fun starsLabel(stars: Int): String =
 fun ChallengeDialog(
     challengeStars: Map<Int, Int>,
     onStartLevel: (Int) -> Unit,
+    onStartDaily: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    dailyBestScore: Int? = null,
 ) {
     CandyDialog(
         title = stringResource(R.string.challenge_title),
@@ -47,6 +49,21 @@ fun ChallengeDialog(
             )
         },
     ) {
+        CandyButton(
+            text =
+                if (dailyBestScore != null) {
+                    stringResource(R.string.daily_challenge_button) +
+                        " — " + stringResource(R.string.daily_challenge_best, dailyBestScore)
+                } else {
+                    stringResource(R.string.daily_challenge_button)
+                },
+            onClick = {
+                onStartDaily()
+                onDismiss()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            style = CandyButtonStyle.Primary,
+        )
         val totalStars = challengeStars.values.sum()
         Text(
             text = "$totalStars / ${ChallengeLevels.LEVEL_COUNT * ChallengeLevels.MAX_STARS} $STAR_FILLED",

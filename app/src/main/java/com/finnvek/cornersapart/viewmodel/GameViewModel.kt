@@ -80,6 +80,7 @@ class GameViewModel
         private var lastChallengeResult: ChallengeResult? = null
         private var lastGameWasBestScore: Boolean = false
         private var lastGameNewAchievements: List<String> = emptyList()
+        private var activeDailyDate: String? = null
         private val profileDisplayMapper =
             ProfileDisplayMapper(
                 isLocalSession = { session.sessionType == SessionType.LOCAL },
@@ -396,6 +397,7 @@ class GameViewModel
 
         private fun startLocalSession(nextSettings: GameSettings) {
             activeChallengeLevel = null
+            activeDailyDate = null
             lastChallengeResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
@@ -405,6 +407,33 @@ class GameViewModel
             recordedGameOverTurn = null
             resetLocalSessionActions()
             localSession = createLocalSession(nextSettings)
+            refreshUiState()
+        }
+
+        /** Päivän haaste: sama lauta kaikille saman päivän aikana. */
+        fun startDailyChallenge() {
+            val date = timeProvider.todayIsoDate()
+            resumeDecisionMade = true
+            leaveNearbySessionForLocalPlay()
+            selectedPieceId = PieceCatalog.SINGLE_CELL_ID
+            selectedOrientationIndex = 0
+            gameStartedAtMillis = timeProvider.nowEpochMillis()
+            recordedGameOverTurn = null
+            resetLocalSessionActions()
+            localSession =
+                sessionFactory.create(
+                    initialConfig =
+                        GameModeConfigs.defaultGameConfig(
+                            mode = GameMode.SOLO,
+                            randomSeed = date.hashCode().toLong(),
+                        ),
+                    persistedDifficulty = settings.preferredDifficulty,
+                )
+            activeChallengeLevel = null
+            activeDailyDate = date
+            lastChallengeResult = null
+            lastGameWasBestScore = false
+            lastGameNewAchievements = emptyList()
             refreshUiState()
         }
 
@@ -428,6 +457,7 @@ class GameViewModel
                     persistedDifficulty = level.difficultyLevel,
                 )
             activeChallengeLevel = level.number
+            activeDailyDate = null
             lastChallengeResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
@@ -482,6 +512,9 @@ class GameViewModel
             profileRepository.appendHistory(profile.id, entry)
             recordChallengeResult(state, profile.id)
             recordAchievements(profile, entry)
+            activeDailyDate?.let { date ->
+                profileRepository.recordDailyBest(profile.id, date, entry.totalScore)
+            }
         }
 
         private suspend fun recordAchievements(
@@ -586,6 +619,8 @@ class GameViewModel
                 isNewBestScore = lastGameWasBestScore,
                 newAchievements = lastGameNewAchievements,
                 unlockedAchievements = activeProfile()?.achievements.orEmpty().toSet(),
+                isDailyChallenge = activeDailyDate != null,
+                dailyBestScore = activeProfile()?.dailyBestScores?.get(timeProvider.todayIsoDate()),
             )
         }
 

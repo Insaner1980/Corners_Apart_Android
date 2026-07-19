@@ -8,6 +8,9 @@
     <string name="nearby_game">Nearby game</string>
     <string name="game_mode_picker_title">Game mode</string>
     <string name="challenge_title">Challenges</string>
+    <string name="daily_challenge_button">Daily challenge</string>
+    <string name="daily_challenge_best">Daily best: %1$d</string>
+    <string name="game_over_daily_result">Daily challenge — best today: %1$d</string>
     <string name="challenge_level_content_description">Level %1$d, %2$d stars</string>
     <string name="challenge_locked_content_description">Level %1$d locked</string>
     <string name="game_over_challenge_cleared">Level %1$d cleared! %2$s</string>
