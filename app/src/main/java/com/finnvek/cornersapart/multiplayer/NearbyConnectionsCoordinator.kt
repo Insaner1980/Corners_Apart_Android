@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+@Suppress("TooManyFunctions")
 class NearbyConnectionsCoordinator(
     private val facade: ConnectionsClientFacade,
     private val gameEngine: GameEngine,

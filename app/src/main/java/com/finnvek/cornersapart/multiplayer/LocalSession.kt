@@ -68,6 +68,8 @@ class LocalSession(
             }
         }
 
+    // Yleinen catch on tahallinen: istuntoraja muuntaa kaikki virheet Result-arvoiksi
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun sendPass(playerIndex: Int): Result<Unit> =
         mutationMutex.withLock {
             try {
