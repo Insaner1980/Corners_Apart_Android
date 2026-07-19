@@ -14,7 +14,11 @@ data class MoveEvaluation(
     val spreadScore: Double,
     val centerScore: Double,
     val blockingScore: Double,
+    val mobilityScore: Double = 0.0,
+    val conservationScore: Double = 0.0,
 ) {
     val total: Double
-        get() = placedCellScore + bonusScore + spreadScore + centerScore + blockingScore
+        get() =
+            placedCellScore + bonusScore + spreadScore + centerScore + blockingScore +
+                mobilityScore + conservationScore
 }
