@@ -482,6 +482,7 @@ fun GameScreenContent(
         HistoryStatsDialog(
             history = state.history,
             onDismiss = dialogState.onDismissHistoryStats,
+            unlockedAchievements = state.unlockedAchievements,
         )
     }
     if (showSettings) {
@@ -525,6 +526,7 @@ fun GameScreenContent(
             onShowStats = screenActions.onShowHistoryStats,
             challengeResult = state.challengeResult,
             isNewBestScore = state.isNewBestScore,
+            newAchievements = state.newAchievements,
         )
     }
     val dragController = remember { BoardDragController() }

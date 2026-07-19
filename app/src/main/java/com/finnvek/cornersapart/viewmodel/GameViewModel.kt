@@ -7,6 +7,7 @@ import com.finnvek.cornersapart.data.ProfileRepository
 import com.finnvek.cornersapart.data.SettingsRepository
 import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.Scoring
+import com.finnvek.cornersapart.model.AchievementEvaluator
 import com.finnvek.cornersapart.model.ChallengeLevels
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
@@ -78,6 +79,7 @@ class GameViewModel
         private var activeChallengeLevel: Int? = null
         private var lastChallengeResult: ChallengeResult? = null
         private var lastGameWasBestScore: Boolean = false
+        private var lastGameNewAchievements: List<String> = emptyList()
         private val profileDisplayMapper =
             ProfileDisplayMapper(
                 isLocalSession = { session.sessionType == SessionType.LOCAL },
@@ -396,6 +398,7 @@ class GameViewModel
             activeChallengeLevel = null
             lastChallengeResult = null
             lastGameWasBestScore = false
+            lastGameNewAchievements = emptyList()
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
@@ -427,6 +430,7 @@ class GameViewModel
             activeChallengeLevel = level.number
             lastChallengeResult = null
             lastGameWasBestScore = false
+            lastGameNewAchievements = emptyList()
             refreshUiState()
         }
 
@@ -477,6 +481,25 @@ class GameViewModel
                     entry.totalScore > profile.history.maxOf { previous -> previous.totalScore }
             profileRepository.appendHistory(profile.id, entry)
             recordChallengeResult(state, profile.id)
+            recordAchievements(profile, entry)
+        }
+
+        private suspend fun recordAchievements(
+            profile: Profile,
+            entry: HistoryEntry,
+        ) {
+            val starsAfterGame =
+                lastChallengeResult
+                    ?.takeIf { result -> result.stars > (profile.challengeStars[result.level] ?: 0) }
+                    ?.let { result -> profile.challengeStars + (result.level to result.stars) }
+                    ?: profile.challengeStars
+            val newAchievements =
+                AchievementEvaluator
+                    .earnedAfterGame(entry, profile.history, starsAfterGame)
+                    .map { achievement -> achievement.id }
+                    .filterNot { id -> id in profile.achievements }
+            lastGameNewAchievements = newAchievements
+            profileRepository.addAchievements(profile.id, newAchievements)
         }
 
         private suspend fun recordChallengeResult(
@@ -561,6 +584,8 @@ class GameViewModel
                 challengeStars = activeProfile()?.challengeStars.orEmpty(),
                 challengeResult = lastChallengeResult,
                 isNewBestScore = lastGameWasBestScore,
+                newAchievements = lastGameNewAchievements,
+                unlockedAchievements = activeProfile()?.achievements.orEmpty().toSet(),
             )
         }
 

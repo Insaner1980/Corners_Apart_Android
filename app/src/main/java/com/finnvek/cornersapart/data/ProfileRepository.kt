@@ -58,6 +58,29 @@ class ProfileRepository(
         }
     }
 
+    suspend fun addAchievements(
+        profileId: String,
+        achievementIds: List<String>,
+    ) {
+        if (achievementIds.isEmpty()) return
+        store.update { data ->
+            val storedProfiles = data.toSnapshotCopy().profiles
+            data
+                .copy(
+                    profiles =
+                        storedProfiles.map { profile ->
+                            if (profile.id == profileId) {
+                                profile.copy(
+                                    achievements = (profile.achievements + achievementIds).distinct(),
+                                )
+                            } else {
+                                profile
+                            }
+                        },
+                ).toSnapshotCopy()
+        }
+    }
+
     /** Poistaa profiilin; viimeistä profiilia ei poisteta ja aktiivisuus siirtyy tarvittaessa. */
     suspend fun deleteProfile(profileId: String) {
         store.update { data ->

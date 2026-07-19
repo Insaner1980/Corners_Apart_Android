@@ -12,6 +12,7 @@ data class Profile(
     val active: Boolean = false,
     val history: List<HistoryEntry> = emptyList(),
     val challengeStars: Map<Int, Int> = emptyMap(),
+    val achievements: List<String> = emptyList(),
 )
 
 @Serializable

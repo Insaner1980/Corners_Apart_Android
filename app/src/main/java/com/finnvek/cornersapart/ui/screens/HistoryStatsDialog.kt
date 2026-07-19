@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -14,15 +15,19 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.finnvek.cornersapart.R
+import com.finnvek.cornersapart.model.Achievement
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.HistoryStats
 import com.finnvek.cornersapart.model.HistoryStatsCalculator
 import com.finnvek.cornersapart.ui.components.CandyButton
 import com.finnvek.cornersapart.ui.components.CandyButtonStyle
 import com.finnvek.cornersapart.ui.components.CandyDialog
+import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
+import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
 
 @Composable
@@ -31,6 +36,7 @@ fun HistoryStatsDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     stats: HistoryStats = HistoryStatsCalculator.calculate(history),
+    unlockedAchievements: Set<String> = emptySet(),
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     CandyDialog(
@@ -64,6 +70,7 @@ fun HistoryStatsDialog(
                 HistoryTab(history)
             } else {
                 StatsTab(stats)
+                AchievementsSection(unlockedAchievements)
             }
         }
     }
@@ -106,6 +113,29 @@ private fun StatsTab(stats: HistoryStats) {
             label = stringResource(R.string.stats_average_bonus_tiles),
             value = stats.averageClaimedBonusTiles.formatOneDecimal(),
         )
+    }
+}
+
+@Composable
+private fun AchievementsSection(unlockedAchievements: Set<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
+        Text(
+            text = stringResource(R.string.achievements_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Achievement.entries.forEach { achievement ->
+            val unlocked = achievement.id in unlockedAchievements
+            Text(
+                text = "${if (unlocked) "★" else "☆"} ${stringResource(achievement.labelRes())}",
+                modifier = Modifier.alpha(if (unlocked) 1f else CornersApartAlpha.PassedPlayer),
+                color =
+                    if (unlocked) {
+                        CornersApartColors.BonusAccentBright
+                    } else {
+                        CornersApartColors.TextOnDarkSecondary
+                    },
+            )
+        }
     }
 }
 

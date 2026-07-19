@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.finnvek.cornersapart.R
+import com.finnvek.cornersapart.model.Achievement
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.LocalAvatarStyle
@@ -508,6 +509,7 @@ fun GameOverDialog(
     modifier: Modifier = Modifier,
     challengeResult: ChallengeResult? = null,
     isNewBestScore: Boolean = false,
+    newAchievements: List<String> = emptyList(),
 ) {
     val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val winner = rankedScores.firstOrNull()
@@ -567,6 +569,13 @@ fun GameOverDialog(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
                 style = MaterialTheme.typography.titleMedium.withCandyShadow(),
                 color = CornersApartColors.PlayerLime,
+            )
+        }
+        newAchievements.mapNotNull(Achievement::fromId).forEach { achievement ->
+            Text(
+                text = stringResource(R.string.achievement_unlocked, stringResource(achievement.labelRes())),
+                style = MaterialTheme.typography.bodyLarge,
+                color = CornersApartColors.BonusAccentBright,
             )
         }
         Text(
@@ -629,6 +638,18 @@ private fun PlayerScoreBreakdown(
         }
     }
 }
+
+@StringRes
+fun Achievement.labelRes(): Int =
+    when (this) {
+        Achievement.FIRST_WIN -> R.string.achievement_first_win
+        Achievement.BONUS_HUNTER -> R.string.achievement_bonus_hunter
+        Achievement.ALL_PIECES -> R.string.achievement_all_pieces
+        Achievement.EXPERT_WIN -> R.string.achievement_expert_win
+        Achievement.WIN_STREAK_3 -> R.string.achievement_win_streak_3
+        Achievement.PERFECT_LEVEL -> R.string.achievement_perfect_level
+        Achievement.CHALLENGE_CHAMP -> R.string.achievement_challenge_champ
+    }
 
 private fun LocalAvatarStyle.labelRes(): Int =
     when (this) {

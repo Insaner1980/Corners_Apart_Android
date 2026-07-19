@@ -13,6 +13,15 @@
     <string name="game_over_challenge_cleared">Level %1$d cleared! %2$s</string>
     <string name="game_over_challenge_failed">Level %1$d — win the game to clear it!</string>
     <string name="game_over_new_best_score">New best score!</string>
+    <string name="achievements_title">Achievements</string>
+    <string name="achievement_unlocked">Achievement unlocked: %1$s</string>
+    <string name="achievement_first_win">First win</string>
+    <string name="achievement_bonus_hunter">Bonus hunter — 3 bonus tiles in one game</string>
+    <string name="achievement_all_pieces">Full house — all 21 pieces placed</string>
+    <string name="achievement_expert_win">Expert slayer — win on level 5+</string>
+    <string name="achievement_win_streak_3">On fire — 3 wins in a row</string>
+    <string name="achievement_perfect_level">Perfectionist — 3 stars on a challenge</string>
+    <string name="achievement_challenge_champ">Challenge champ — clear 10 challenges</string>
     <string name="create_nearby_game">Create nearby game</string>
     <string name="find_nearby_game">Find nearby game</string>
     <string name="nearby_connection_disconnected">Status: Disconnected</string>
