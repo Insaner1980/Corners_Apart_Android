@@ -9,13 +9,10 @@ data class Profile(
     val colorIndex: Int = 0,
     val avatarStyle: LocalAvatarStyle = LocalAvatarStyle.INITIALS,
     val avatarSeed: String = id,
-    val customAvatarPath: String? = null,
     val active: Boolean = false,
     val history: List<HistoryEntry> = emptyList(),
-) {
-    val preferredColorIndex: Int
-        get() = colorIndex
-}
+    val challengeStars: Map<Int, Int> = emptyMap(),
+)
 
 @Serializable
 enum class LocalAvatarStyle {

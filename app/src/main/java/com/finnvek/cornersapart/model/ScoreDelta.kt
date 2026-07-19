@@ -1,4 +1,4 @@
-package com.finnvek.cornersapart.engine
+package com.finnvek.cornersapart.model
 
 import kotlinx.serialization.Serializable
 

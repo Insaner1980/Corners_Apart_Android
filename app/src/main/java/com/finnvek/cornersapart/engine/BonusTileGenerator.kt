@@ -7,8 +7,6 @@ import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.toSnapshotList
 
 object BonusTileGenerator {
-    const val MIN_BONUS_DISTANCE = 2
-
     private val standardTemplates =
         listOf(
             BonusTileLayout(

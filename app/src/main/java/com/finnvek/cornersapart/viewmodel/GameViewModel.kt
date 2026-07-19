@@ -7,8 +7,10 @@ import com.finnvek.cornersapart.data.ProfileRepository
 import com.finnvek.cornersapart.data.SettingsRepository
 import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.Scoring
+import com.finnvek.cornersapart.model.ChallengeLevels
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.GameModeConfigs
 import com.finnvek.cornersapart.model.GameSettings
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.HistoryEntry
@@ -73,6 +75,8 @@ class GameViewModel
         private var nearbyEventsJob: Job? = null
         private var localSessionActionJob: Job = newLocalSessionActionJob()
         private var resumeDecisionMade: Boolean = false
+        private var activeChallengeLevel: Int? = null
+        private var lastChallengeResult: ChallengeResult? = null
         private val profileDisplayMapper =
             ProfileDisplayMapper(
                 isLocalSession = { session.sessionType == SessionType.LOCAL },
@@ -388,12 +392,38 @@ class GameViewModel
         }
 
         private fun startLocalSession(nextSettings: GameSettings) {
+            activeChallengeLevel = null
+            lastChallengeResult = null
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
             recordedGameOverTurn = null
             resetLocalSessionActions()
             localSession = createLocalSession(nextSettings)
+            refreshUiState()
+        }
+
+        /** Käynnistää solo-haastetason kiinteällä siemenellä ja tason vaikeudella. */
+        fun startChallengeLevel(levelNumber: Int) {
+            val level = ChallengeLevels.forNumber(levelNumber) ?: return
+            resumeDecisionMade = true
+            leaveNearbySessionForLocalPlay()
+            selectedPieceId = PieceCatalog.SINGLE_CELL_ID
+            selectedOrientationIndex = 0
+            gameStartedAtMillis = timeProvider.nowEpochMillis()
+            recordedGameOverTurn = null
+            resetLocalSessionActions()
+            localSession =
+                sessionFactory.create(
+                    initialConfig =
+                        GameModeConfigs.defaultGameConfig(
+                            mode = GameMode.SOLO,
+                            randomSeed = level.randomSeed,
+                        ),
+                    persistedDifficulty = level.difficultyLevel,
+                )
+            activeChallengeLevel = level.number
+            lastChallengeResult = null
             refreshUiState()
         }
 
@@ -439,6 +469,22 @@ class GameViewModel
             recordedGameOverTurn = state.turnNumber
             val profile = activeProfile() ?: defaultProfile().also { profileRepository.upsertProfile(it) }
             profileRepository.appendHistory(profile.id, state.toHistoryEntry())
+            recordChallengeResult(state, profile.id)
+        }
+
+        private suspend fun recordChallengeResult(
+            state: GameState,
+            profileId: String,
+        ) {
+            val level = activeChallengeLevel?.let(ChallengeLevels::forNumber) ?: return
+            val ranked = state.rankedScoresForUiAndHistory()
+            val rank = ranked.indexOfFirst { score -> score.ownerIndex == DEFAULT_PROFILE_OWNER_INDEX } + 1
+            val score = ranked.firstOrNull { it.ownerIndex == DEFAULT_PROFILE_OWNER_INDEX }?.totalScore ?: 0
+            val stars = ChallengeLevels.starsFor(level, rank, score)
+            lastChallengeResult = ChallengeResult(level = level.number, stars = stars)
+            if (stars > 0) {
+                profileRepository.recordChallengeStars(profileId, level.number, stars)
+            }
         }
 
         private fun GameState.toHistoryEntry(): HistoryEntry {
@@ -504,6 +550,9 @@ class GameViewModel
                 sessionType = session.sessionType,
                 nearbyState = nearbyState.toNearbySnapshotCopy(),
                 profiles = profilesUiState(),
+                activeChallengeLevel = activeChallengeLevel,
+                challengeStars = activeProfile()?.challengeStars.orEmpty(),
+                challengeResult = lastChallengeResult,
             )
         }
 

@@ -1,9 +1,9 @@
 package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.MoveRejectionReason
-import com.finnvek.cornersapart.engine.ScoreDelta
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.Move
+import com.finnvek.cornersapart.model.ScoreDelta
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -61,14 +61,6 @@ sealed interface GameMessage {
     data class GameConfig(
         val config: ModelGameConfig,
     ) : GameMessage
-
-    @Serializable
-    @SerialName("ping")
-    data object Ping : GameMessage
-
-    @Serializable
-    @SerialName("pong")
-    data object Pong : GameMessage
 }
 
 object GameProtocol {

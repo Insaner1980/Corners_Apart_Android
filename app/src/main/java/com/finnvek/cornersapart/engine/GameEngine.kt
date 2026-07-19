@@ -2,6 +2,7 @@ package com.finnvek.cornersapart.engine
 
 import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.BonusTile
+import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameModeConfig
 import com.finnvek.cornersapart.model.GameModeConfigs
@@ -12,6 +13,7 @@ import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.Player
 import com.finnvek.cornersapart.model.ScoreBreakdown
+import com.finnvek.cornersapart.model.ScoreDelta
 import com.finnvek.cornersapart.model.toSnapshotCopy
 import com.finnvek.cornersapart.model.toSnapshotList
 
@@ -40,6 +42,8 @@ class GameEngine {
             randomSeed = config.randomSeed,
             bonusTiles = (config.bonusTiles ?: generatedLayout.orEmptyBonusTiles()).toSnapshotList(),
             bonusLayoutId = generatedLayout?.id,
+            moveHistory = emptyList(),
+            isGameOver = false,
         ).toSnapshotCopy()
     }
 
@@ -98,13 +102,25 @@ class GameEngine {
     fun hasValidMove(
         state: GameState,
         playerIndex: Int,
-    ): Boolean = getValidMoves(state, playerIndex).isNotEmpty()
+    ): Boolean {
+        val player = state.players.getOrNull(playerIndex) ?: return false
+        if (player.passed || state.isGameOver) return false
+        val targetCorners = CornerCache.targetCorners(state, playerIndex)
+        return player.availablePieces().any { pieceId ->
+            val piece = PieceCatalog.require(pieceId)
+            PieceTransforms.getAllOrientations(piece).withIndex().any { (orientationIndex, orientation) ->
+                CornerCache.candidateAnchors(targetCorners, orientation).any { anchor ->
+                    validCandidateMove(state, playerIndex, pieceId, orientationIndex, anchor) != null
+                }
+            }
+        }
+    }
 
     fun previewPlacement(
         state: GameState,
         move: Move,
     ): PlacementPreview {
-        val validation = PlacementValidator.validate(state, move, enforceTurn = false)
+        val validation = PlacementValidator.validate(state, move)
         val scoreDelta =
             if (validation.isValid) {
                 previewScoreDelta(state, move, validation)
@@ -116,6 +132,7 @@ class GameEngine {
             targetCells = validation.targetCells,
             rejectionReason = validation.reason,
             scoreDelta = scoreDelta,
+            claimedBonusTileCount = validation.claimedBonusTiles.size,
         )
     }
 
@@ -126,6 +143,9 @@ class GameEngine {
                 name = slot.name,
                 colorIndex = slot.colorIndex,
                 startCorner = slot.startCorner,
+                usedPieceIds = emptySet(),
+                scoreBreakdown = ScoreBreakdown(),
+                passed = false,
                 isActiveScoring = slot.isActiveScoring,
                 isComputerControlled = slot.isComputerControlled,
                 ownerIndex = slot.ownerIndex,
@@ -206,13 +226,19 @@ class GameEngine {
         val piece = PieceCatalog.require(pieceId)
         val orientation = PieceTransforms.getOrientation(piece, orientationIndex) ?: return emptyList()
         return CornerCache.candidateAnchors(state, playerIndex, orientation).mapNotNull { anchor ->
-            val move = Move(playerIndex, pieceId, anchor.row, anchor.col, orientationIndex)
-            if (PlacementValidator.validate(state, move, enforceTurn = false).isValid) {
-                move
-            } else {
-                null
-            }
+            validCandidateMove(state, playerIndex, pieceId, orientationIndex, anchor)
         }
+    }
+
+    private fun validCandidateMove(
+        state: GameState,
+        playerIndex: Int,
+        pieceId: String,
+        orientationIndex: Int,
+        anchor: CellPosition,
+    ): Move? {
+        val move = Move(playerIndex, pieceId, anchor.row, anchor.col, orientationIndex)
+        return move.takeIf { PlacementValidator.validate(state, move, enforceTurn = false).isValid }
     }
 
     private fun previewScoreDelta(

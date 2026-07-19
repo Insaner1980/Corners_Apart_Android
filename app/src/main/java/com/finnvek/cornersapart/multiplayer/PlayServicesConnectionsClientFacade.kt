@@ -168,6 +168,9 @@ class PlayServicesConnectionsClientFacade(
                     } else {
                         onPayloadFailure(endpointId)
                     }
+                } else {
+                    payload.close()
+                    onPayloadFailure(endpointId)
                 }
             }
 

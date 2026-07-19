@@ -36,10 +36,18 @@ data class GameUiState(
     val sessionType: SessionType = SessionType.LOCAL,
     val nearbyState: NearbyUiState = NearbyUiState(),
     val profiles: List<ProfileUiState> = emptyList(),
+    val activeChallengeLevel: Int? = null,
+    val challengeStars: Map<Int, Int> = emptyMap(),
+    val challengeResult: ChallengeResult? = null,
 ) {
     val currentPlayer: PlayerUiState
         get() = players[currentPlayerIndex]
 }
+
+data class ChallengeResult(
+    val level: Int,
+    val stars: Int,
+)
 
 data class PlayerUiState(
     val index: Int,

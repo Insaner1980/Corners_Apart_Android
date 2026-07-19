@@ -6,6 +6,7 @@ import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.Player
 import com.finnvek.cornersapart.model.PlayerScore
 import com.finnvek.cornersapart.model.ScoreBreakdown
+import com.finnvek.cornersapart.model.ScoreDelta
 import com.finnvek.cornersapart.model.toSnapshotList
 
 object Scoring {

@@ -36,6 +36,28 @@ class ProfileRepository(
         }
     }
 
+    /** Tallentaa haastetason tähdet; parasta tulosta ei koskaan huononneta. */
+    suspend fun recordChallengeStars(
+        profileId: String,
+        level: Int,
+        stars: Int,
+    ) {
+        store.update { data ->
+            val storedProfiles = data.toSnapshotCopy().profiles
+            data
+                .copy(
+                    profiles =
+                        storedProfiles.map { profile ->
+                            if (profile.id == profileId && stars > (profile.challengeStars[level] ?: 0)) {
+                                profile.copy(challengeStars = profile.challengeStars + (level to stars))
+                            } else {
+                                profile
+                            }
+                        },
+                ).toSnapshotCopy()
+        }
+    }
+
     /** Poistaa profiilin; viimeistä profiilia ei poisteta ja aktiivisuus siirtyy tarvittaessa. */
     suspend fun deleteProfile(profileId: String) {
         store.update { data ->

@@ -7,6 +7,11 @@
     <string name="game_mode_three_player">Three players</string>
     <string name="nearby_game">Nearby game</string>
     <string name="game_mode_picker_title">Game mode</string>
+    <string name="challenge_title">Challenges</string>
+    <string name="challenge_level_content_description">Level %1$d, %2$d stars</string>
+    <string name="challenge_locked_content_description">Level %1$d locked</string>
+    <string name="game_over_challenge_cleared">Level %1$d cleared! %2$s</string>
+    <string name="game_over_challenge_failed">Level %1$d — win the game to clear it!</string>
     <string name="create_nearby_game">Create nearby game</string>
     <string name="find_nearby_game">Find nearby game</string>
     <string name="nearby_connection_disconnected">Status: Disconnected</string>

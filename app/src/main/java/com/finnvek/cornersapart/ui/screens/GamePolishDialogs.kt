@@ -50,6 +50,7 @@ import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
 import com.finnvek.cornersapart.ui.theme.withCandyShadow
+import com.finnvek.cornersapart.viewmodel.ChallengeResult
 import com.finnvek.cornersapart.viewmodel.ProfileUiState
 import com.finnvek.cornersapart.viewmodel.ResumeGameSummary
 
@@ -505,6 +506,7 @@ fun GameOverDialog(
     onPlayAgain: () -> Unit,
     onShowStats: () -> Unit,
     modifier: Modifier = Modifier,
+    challengeResult: ChallengeResult? = null,
 ) {
     val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val winner = rankedScores.firstOrNull()
@@ -525,6 +527,23 @@ fun GameOverDialog(
             )
         },
     ) {
+        if (challengeResult != null) {
+            Text(
+                text =
+                    if (challengeResult.stars > 0) {
+                        stringResource(
+                            R.string.game_over_challenge_cleared,
+                            challengeResult.level,
+                            starsLabel(challengeResult.stars),
+                        )
+                    } else {
+                        stringResource(R.string.game_over_challenge_failed, challengeResult.level)
+                    },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.headlineMedium.withCandyShadow(),
+                color = CornersApartColors.BonusAccentBright,
+            )
+        }
         if (winner != null) {
             Box(
                 modifier =

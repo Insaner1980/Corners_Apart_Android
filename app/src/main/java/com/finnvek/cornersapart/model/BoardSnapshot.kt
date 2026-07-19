@@ -22,7 +22,7 @@ class BoardSnapshot private constructor(
 
     init {
         require(size > 0) { "Board size must be positive." }
-        require(cells.size == size * size) { "Board cells must match board size." }
+        require(cells.size.toLong() == size.toLong() * size.toLong()) { "Board cells must match board size." }
     }
 
     override fun cellAt(index: Int): Int = cells[index]

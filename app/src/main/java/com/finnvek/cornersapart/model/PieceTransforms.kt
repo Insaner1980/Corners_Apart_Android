@@ -3,8 +3,6 @@ package com.finnvek.cornersapart.model
 import java.util.concurrent.ConcurrentHashMap
 
 object PieceTransforms {
-    const val MAX_ORIENTATIONS = 8
-
     private val orientationCache: ConcurrentHashMap<String, List<List<CellOffset>>> = ConcurrentHashMap()
 
     fun rotateCW(cells: List<CellOffset>): List<CellOffset> =

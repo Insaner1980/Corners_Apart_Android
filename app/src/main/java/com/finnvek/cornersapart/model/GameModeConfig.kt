@@ -35,6 +35,8 @@ data class PlayerSlotConfig(
 )
 
 object GameModeConfigs {
+    val defaultMode: GameMode = GameMode.FOUR_PLAYER
+
     fun defaultBoardSizeFor(mode: GameMode): Int =
         when (mode) {
             GameMode.COMPACT_DUEL -> GameConstants.COMPACT_BOARD_SIZE

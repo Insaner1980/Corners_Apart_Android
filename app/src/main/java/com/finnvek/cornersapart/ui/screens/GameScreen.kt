@@ -106,6 +106,7 @@ import kotlin.math.roundToInt
 
 data class GameScreenActions(
     val onModeSelected: (GameMode) -> Unit = {},
+    val onStartChallengeLevel: (Int) -> Unit = {},
     val onCreateNearbyGame: () -> Unit = {},
     val onFindNearbyGame: () -> Unit = {},
     val onConnectToNearbyEndpoint: (String) -> Unit = {},
@@ -158,6 +159,7 @@ private data class GameLayoutContent(
     val onShowSettings: () -> Unit,
     val onShowProfiles: () -> Unit,
     val onShowHelp: () -> Unit,
+    val onShowChallenges: () -> Unit,
 )
 
 /**
@@ -306,6 +308,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
         screenActions =
             GameScreenActions(
                 onModeSelected = viewModel::startGame,
+                onStartChallengeLevel = viewModel::startChallengeLevel,
                 onCreateNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Host) },
                 onFindNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Discover) },
                 onConnectToNearbyEndpoint = viewModel::connectToNearbyEndpoint,
@@ -448,6 +451,14 @@ fun GameScreenContent(
     var showSettings by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
+    var showChallenges by remember { mutableStateOf(false) }
+    if (showChallenges) {
+        ChallengeDialog(
+            challengeStars = state.challengeStars,
+            onStartLevel = screenActions.onStartChallengeLevel,
+            onDismiss = { showChallenges = false },
+        )
+    }
     if (state.hasSavedGame && state.resumeSummary != null) {
         ResumeGameDialog(
             summary = state.resumeSummary,
@@ -491,8 +502,16 @@ fun GameScreenContent(
         GameOverDialog(
             rankedScores = state.rankedScores,
             durationSeconds = state.gameDurationSeconds,
-            onPlayAgain = { screenActions.onModeSelected(state.gameMode) },
+            onPlayAgain = {
+                val challengeLevel = state.activeChallengeLevel
+                if (challengeLevel != null) {
+                    screenActions.onStartChallengeLevel(challengeLevel)
+                } else {
+                    screenActions.onModeSelected(state.gameMode)
+                }
+            },
             onShowStats = screenActions.onShowHistoryStats,
+            challengeResult = state.challengeResult,
         )
     }
     val dragController = remember { BoardDragController() }
@@ -519,6 +538,7 @@ fun GameScreenContent(
                 onShowSettings = { showSettings = true },
                 onShowProfiles = { showProfiles = true },
                 onShowHelp = { showHelp = true },
+                onShowChallenges = { showChallenges = true },
             )
         val layoutModifier =
             Modifier
@@ -666,6 +686,7 @@ private fun GameHeaderActions(content: GameLayoutContent) {
         NearbyActions(
             sessionType = content.state.sessionType,
             nearbyState = content.state.nearbyState,
+            onShowChallenges = content.onShowChallenges,
             onCreateNearbyGame = content.screenActions.onCreateNearbyGame,
             onFindNearbyGame = content.screenActions.onFindNearbyGame,
             onConnectToNearbyEndpoint = content.screenActions.onConnectToNearbyEndpoint,
@@ -767,6 +788,7 @@ private fun GameModePickerDialog(
 private fun NearbyActions(
     sessionType: SessionType,
     nearbyState: NearbyUiState,
+    onShowChallenges: () -> Unit,
     onCreateNearbyGame: () -> Unit,
     onFindNearbyGame: () -> Unit,
     onConnectToNearbyEndpoint: (String) -> Unit,
@@ -780,12 +802,20 @@ private fun NearbyActions(
             nearbyState.discoveredEndpoints.isNotEmpty() ||
             nearbyState.errorMessage != null
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-        CandyButton(
-            text = stringResource(R.string.nearby_game),
-            onClick = { expandedByUser = !expandedByUser },
-            modifier = Modifier.fillMaxWidth(),
-            style = CandyButtonStyle.Neutral,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+            CandyButton(
+                text = stringResource(R.string.challenge_title),
+                onClick = onShowChallenges,
+                modifier = Modifier.weight(1f),
+                style = CandyButtonStyle.Positive,
+            )
+            CandyButton(
+                text = stringResource(R.string.nearby_game),
+                onClick = { expandedByUser = !expandedByUser },
+                modifier = Modifier.weight(1f),
+                style = CandyButtonStyle.Neutral,
+            )
+        }
         AnimatedVisibility(visible = expandedByUser || mustShow) {
             Surface(
                 modifier =
