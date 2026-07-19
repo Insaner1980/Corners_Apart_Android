@@ -33,7 +33,8 @@
 - Pure game rules live under `com.finnvek.cornersapart.engine`; UI/session/opponent code must not duplicate placement, scoring, ranking, bonus, or turn logic
 - `PieceCatalog` is the single source of truth for the 21 pieces and 89 total cells
 - Two-Color Duel keeps turn order as color slots 0-3 while `Player.ownerIndex` maps colors 0/2 to Player 1 and 1/3 to Player 2; rankings aggregate by owner
-- `opponents/` owns local computer turns through `MoveGenerator`, `MoveEvaluator`, and `ComputerOpponentEngine`; decisions use seeded randomness from game state and always return a legal move or pass
+- `opponents/` owns local computer turns through `MoveGenerator` (stratified per-piece sampling), `MoveEvaluator` (incl. corner-liberty mobility, attachment-point denial, endgame piece conservation), and `ComputerOpponentEngine` (6 difficulty levels; MASTER adds a 2-ply lookahead); decisions use seeded randomness from game state and always return a legal move or pass
+- Progression features: `ChallengeLevels` (20 fixed-seed solo levels, 1-3 stars), daily challenge (date-derived seed), `AchievementEvaluator` (7 achievements); all progress persists per-profile (`challengeStars`, `dailyBestScores`, `achievements` fields on `Profile`)
 - `LocalSession` is the current session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations
 - `GameProtocol` is the kotlinx.serialization JSON message boundary for Nearby sessions
 - `HostGameCoordinator` owns host-authoritative Nearby validation and broadcasts accepted moves with full authoritative state
