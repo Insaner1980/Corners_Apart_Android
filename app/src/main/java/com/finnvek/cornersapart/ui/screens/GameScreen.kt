@@ -620,6 +620,9 @@ private fun DragGhostOverlay(
 ) {
     val dragCells = dragController.dragCells ?: return
     val finger = dragController.fingerInRoot ?: return
+    // Laudan päällä laudan oma esikatselu näyttää palan — kelluva
+    // haamupala vain peittäisi sen.
+    if (dragController.previewAnchor != null) return
     val previewSizePx = with(LocalDensity.current) { CornersApartSpacing.PiecePreviewSize.toPx() }
     val appear = remember { Animatable(DRAG_GHOST_START_SCALE) }
     LaunchedEffect(Unit) {

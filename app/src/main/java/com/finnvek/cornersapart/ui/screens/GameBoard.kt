@@ -30,8 +30,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -327,6 +327,12 @@ private fun DrawScope.drawOccupiedCells(
     }
 }
 
+/**
+ * Piirtää sijoituksen esikatselun: himmentää muun laudan, piirtää palan rivien
+ * ja sarakkeiden tähtäysviivat laudan reunoihin, palan oikeina candy-laattoina
+ * (laillinen = pelaajan väri, laiton = punainen) ja paksun vaalean ääriviivan
+ * palan ulkoreunoille, jotta pala erottuu pienistäkin ruuduista.
+ */
 private fun DrawScope.drawPlacementPreview(
     state: GameUiState,
     previewCells: List<CellPosition>,
@@ -334,38 +340,73 @@ private fun DrawScope.drawPlacementPreview(
     cellSize: Float,
     pitch: Float,
 ) {
-    val colors = CornersApartPlayerPalette.colorsFor(state.currentPlayer.colorIndex)
-    val fillColor =
+    val visibleCells = previewCells.filter { position -> state.board.contains(position) }
+    if (visibleCells.isEmpty()) return
+    drawRect(color = CornersApartColors.TextShadow.copy(alpha = CornersApartAlpha.PreviewDim))
+    drawAlignmentGuides(visibleCells, cellSize, pitch)
+    val colors =
         if (isValid) {
-            colors.ghost
+            CornersApartPlayerPalette.colorsFor(state.currentPlayer.colorIndex)
         } else {
-            CornersApartColors.ButtonWarnFace.copy(alpha = CornersApartAlpha.InvalidGhost)
+            CornersApartPlayerPalette.invalidPreview
         }
-    val outlineColor =
-        if (isValid) {
-            colors.highlight.copy(alpha = CornersApartAlpha.GhostOutline)
-        } else {
-            CornersApartColors.ButtonWarnFace.copy(alpha = CornersApartAlpha.GhostOutline)
+    visibleCells.forEach { position ->
+        drawCandyCell(
+            topLeft = Offset(position.col * pitch, position.row * pitch),
+            cellSize = cellSize,
+            colors = colors,
+            alpha = CornersApartAlpha.PreviewCell,
+        )
+    }
+    drawPreviewPerimeter(visibleCells, cellSize, pitch)
+}
+
+/** Vaaleat tähtäysviivat: palan rivi- ja sarakekaistat koko laudan yli. */
+private fun DrawScope.drawAlignmentGuides(
+    cells: List<CellPosition>,
+    cellSize: Float,
+    pitch: Float,
+) {
+    val bandColor = CornersApartColors.TextOnDarkPrimary.copy(alpha = CornersApartAlpha.GuideBand)
+    val lineColor = CornersApartColors.TextOnDarkPrimary.copy(alpha = CornersApartAlpha.GuideLine)
+    val lineWidth = cellSize * GUIDE_LINE_WIDTH_FRACTION
+    val top = cells.minOf { cell -> cell.row } * pitch
+    val bottom = cells.maxOf { cell -> cell.row } * pitch + cellSize
+    val left = cells.minOf { cell -> cell.col } * pitch
+    val right = cells.maxOf { cell -> cell.col } * pitch + cellSize
+    drawRect(color = bandColor, topLeft = Offset(0f, top), size = Size(size.width, bottom - top))
+    drawRect(color = bandColor, topLeft = Offset(left, 0f), size = Size(right - left, size.height))
+    drawLine(lineColor, Offset(0f, top), Offset(size.width, top), lineWidth)
+    drawLine(lineColor, Offset(0f, bottom), Offset(size.width, bottom), lineWidth)
+    drawLine(lineColor, Offset(left, 0f), Offset(left, size.height), lineWidth)
+    drawLine(lineColor, Offset(right, 0f), Offset(right, size.height), lineWidth)
+}
+
+/** Paksu vaalea ääriviiva palan ulkoreunoille — vain reunoihin, joilla ei ole naapurisolua. */
+private fun DrawScope.drawPreviewPerimeter(
+    cells: List<CellPosition>,
+    cellSize: Float,
+    pitch: Float,
+) {
+    val cellSet = cells.toSet()
+    val color = CornersApartColors.TextOnDarkPrimary.copy(alpha = CornersApartAlpha.PreviewOutline)
+    val stroke = cellSize * PERIMETER_STROKE_FRACTION
+    cells.forEach { cell ->
+        val x = cell.col * pitch
+        val y = cell.row * pitch
+        if (CellPosition(cell.row - 1, cell.col) !in cellSet) {
+            drawLine(color, Offset(x, y), Offset(x + cellSize, y), stroke, StrokeCap.Round)
         }
-    val corner = CornerRadius(cellSize * PREVIEW_CORNER_FRACTION)
-    previewCells
-        .filter { position -> state.board.contains(position) }
-        .forEach { position ->
-            val topLeft = Offset(position.col * pitch, position.row * pitch)
-            drawRoundRect(
-                color = fillColor,
-                topLeft = topLeft,
-                size = Size(cellSize, cellSize),
-                cornerRadius = corner,
-            )
-            drawRoundRect(
-                color = outlineColor,
-                topLeft = topLeft,
-                size = Size(cellSize, cellSize),
-                cornerRadius = corner,
-                style = Stroke(width = cellSize * PREVIEW_OUTLINE_STROKE_FRACTION),
-            )
+        if (CellPosition(cell.row + 1, cell.col) !in cellSet) {
+            drawLine(color, Offset(x, y + cellSize), Offset(x + cellSize, y + cellSize), stroke, StrokeCap.Round)
         }
+        if (CellPosition(cell.row, cell.col - 1) !in cellSet) {
+            drawLine(color, Offset(x, y), Offset(x, y + cellSize), stroke, StrokeCap.Round)
+        }
+        if (CellPosition(cell.row, cell.col + 1) !in cellSet) {
+            drawLine(color, Offset(x + cellSize, y), Offset(x + cellSize, y + cellSize), stroke, StrokeCap.Round)
+        }
+    }
 }
 
 /** Montako solua esikatselu kelluu sormen yläpuolella. */
@@ -380,5 +421,5 @@ private const val BONUS_INNER_DIAMOND_FRACTION = 0.55f
 private const val START_MARKER_RADIUS_FRACTION = 0.18f
 private const val START_MARKER_GLOW_RADIUS_FRACTION = 0.40f
 private const val EMPTY_CELL_CORNER_FRACTION = 0.12f
-private const val PREVIEW_CORNER_FRACTION = 0.18f
-private const val PREVIEW_OUTLINE_STROKE_FRACTION = 0.06f
+private const val GUIDE_LINE_WIDTH_FRACTION = 0.05f
+private const val PERIMETER_STROKE_FRACTION = 0.12f

@@ -7,22 +7,18 @@ object CornersApartColors {
     val PlayerPink = Color(0xFFF0509E)
     val PlayerPinkDark = Color(0xFFB62E72)
     val PlayerPinkHighlight = Color(0xFFFF8AC2)
-    val PlayerPinkGhost = Color(0x4DF0509E)
 
     val PlayerMango = Color(0xFFFFA726)
     val PlayerMangoDark = Color(0xFFC67908)
     val PlayerMangoHighlight = Color(0xFFFFC46B)
-    val PlayerMangoGhost = Color(0x4DFFA726)
 
     val PlayerCyan = Color(0xFF29C8E0)
     val PlayerCyanDark = Color(0xFF17849B)
     val PlayerCyanHighlight = Color(0xFF7BE3F2)
-    val PlayerCyanGhost = Color(0x4D29C8E0)
 
     val PlayerLime = Color(0xFF9BD934)
     val PlayerLimeDark = Color(0xFF6FA51F)
     val PlayerLimeHighlight = Color(0xFFC4EE7D)
-    val PlayerLimeGhost = Color(0x4D9BD934)
 
     val BonusAccent = Color(0xFFD8A928)
 
@@ -49,6 +45,7 @@ object CornersApartColors {
     val ButtonPositiveBevel = Color(0xFF15804F)
     val ButtonWarnFace = Color(0xFFE8513D)
     val ButtonWarnBevel = Color(0xFFA83224)
+    val InvalidPreviewHighlight = Color(0xFFFF9A85)
     val ButtonNeutralFace = Color(0xFF454078)
     val ButtonNeutralBevel = Color(0xFF2B2760)
 }
@@ -89,7 +86,10 @@ object CornersApartAlpha {
     const val CellGloss = 0.18f
     const val TextShadow = 0.35f
     const val BonusGlow = 0.30f
-    const val GhostOutline = 0.60f
-    const val InvalidGhost = 0.45f
     const val DisabledCandy = 0.40f
+    const val PreviewCell = 0.88f
+    const val PreviewOutline = 0.90f
+    const val PreviewDim = 0.30f
+    const val GuideBand = 0.08f
+    const val GuideLine = 0.30f
 }
