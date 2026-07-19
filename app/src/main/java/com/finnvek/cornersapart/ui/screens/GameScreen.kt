@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -1146,9 +1147,29 @@ private fun PiecePanel(
     dragController: BoardDragController,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-        Text(
-            text = stringResource(R.string.piece_panel_title),
-            style = MaterialTheme.typography.headlineMedium,
+        val usedCount = pieces.count { item -> item.isUsed }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.piece_panel_title),
+                style = MaterialTheme.typography.headlineMedium,
+            )
+            Text(
+                text = "$usedCount / ${pieces.size}",
+                style = MaterialTheme.typography.titleMedium,
+                color =
+                    if (usedCount == pieces.size) {
+                        CornersApartColors.PlayerLime
+                    } else {
+                        CornersApartColors.TextOnDarkSecondary
+                    },
+            )
+        }
+        PieceProgressBar(
+            fraction = if (pieces.isEmpty()) 0f else usedCount.toFloat() / pieces.size,
         )
         Row(
             modifier =
@@ -1166,6 +1187,41 @@ private fun PiecePanel(
                     dragController = dragController,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PieceProgressBar(
+    fraction: Float,
+    modifier: Modifier = Modifier,
+) {
+    val animatedFraction by animateFloatAsState(targetValue = fraction, label = "pieceProgress")
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(CornersApartSpacing.PieceMeterHeight)
+                .background(CornersApartColors.PanelSurfaceRaised, CircleShape),
+    ) {
+        if (animatedFraction > 0f) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(animatedFraction)
+                        .height(CornersApartSpacing.PieceMeterHeight)
+                        .background(
+                            brush =
+                                Brush.horizontalGradient(
+                                    colors =
+                                        listOf(
+                                            CornersApartColors.PlayerLimeHighlight,
+                                            CornersApartColors.PlayerLime,
+                                        ),
+                                ),
+                            shape = CircleShape,
+                        ),
+            )
         }
     }
 }

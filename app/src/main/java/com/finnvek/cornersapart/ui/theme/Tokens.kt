@@ -69,6 +69,7 @@ object CornersApartSpacing {
     val ColorSwatchSize = 44.dp
     val ColorSwatchRingWidth = 3.dp
     val ConfettiHeight = 96.dp
+    val PieceMeterHeight = 6.dp
     val BoardPanelRadius = 20.dp
     val BoardPanelPadding = 8.dp
     val BoardPanelBorderWidth = 1.dp
