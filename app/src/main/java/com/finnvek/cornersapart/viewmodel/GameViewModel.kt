@@ -13,8 +13,11 @@ import com.finnvek.cornersapart.model.ChallengeLevels
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameModeConfigs
+import com.finnvek.cornersapart.model.DailyStreakCalculator
 import com.finnvek.cornersapart.model.GameSettings
 import com.finnvek.cornersapart.model.GameState
+import com.finnvek.cornersapart.model.HallOfFameCalculator
+import com.finnvek.cornersapart.model.HallOfFameEntry
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.LocalAvatarStyle
 import com.finnvek.cornersapart.model.Move
@@ -84,6 +87,8 @@ class GameViewModel
         private var lastChallengeResult: ChallengeResult? = null
         private var activeRivalId: String? = null
         private var lastRivalResult: RivalMatchResult? = null
+        private var lastGameAllTimeRank: Int? = null
+        private var hallOfFameCache: Pair<List<Profile>, Map<GameMode?, List<HallOfFameEntry>>>? = null
         private var lastGameWasBestScore: Boolean = false
         private var lastGameNewAchievements: List<String> = emptyList()
         private var activeDailyDate: String? = null
@@ -428,6 +433,7 @@ class GameViewModel
             lastRivalResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
+            lastGameAllTimeRank = null
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
@@ -463,6 +469,7 @@ class GameViewModel
             lastRivalResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
+            lastGameAllTimeRank = null
             refreshUiState()
         }
 
@@ -492,6 +499,7 @@ class GameViewModel
             lastRivalResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
+            lastGameAllTimeRank = null
             refreshUiState()
         }
 
@@ -523,6 +531,7 @@ class GameViewModel
             lastRivalResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
+            lastGameAllTimeRank = null
             refreshUiState()
         }
 
@@ -540,6 +549,7 @@ class GameViewModel
 
         private fun prepareForNearbySession() {
             resetLocalSessionActions()
+            lastGameAllTimeRank = null
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
@@ -583,6 +593,12 @@ class GameViewModel
             lastGameWasBestScore =
                 profile.history.isNotEmpty() &&
                     entry.totalScore > profile.history.maxOf { previous -> previous.totalScore }
+            lastGameAllTimeRank =
+                HallOfFameCalculator.allTimeRank(
+                    profiles = profiles,
+                    mode = entry.gameMode,
+                    score = entry.totalScore,
+                )
             profileRepository.appendHistory(profile.id, entry)
             recordChallengeResult(state, profile.id)
             recordRivalMatchResult(state, profile)
@@ -717,6 +733,14 @@ class GameViewModel
                 rivals = rivalsUiState(),
                 activeRivalId = activeRivalId,
                 rivalResult = lastRivalResult,
+                dailyStreak =
+                    DailyStreakCalculator.currentStreak(
+                        playedDates = activeProfile()?.dailyBestScores?.keys.orEmpty(),
+                        todayIsoDate = timeProvider.todayIsoDate(),
+                    ),
+                bestDailyStreak = activeProfile()?.bestDailyStreak ?: 0,
+                allTimeRank = lastGameAllTimeRank,
+                hallOfFameByMode = hallOfFameUiState(),
             )
         }
 
@@ -826,6 +850,20 @@ class GameViewModel
             profiles
                 .map { profile -> profile.toUiState() }
                 .toSnapshotList()
+
+        private fun hallOfFameUiState(): Map<GameMode?, List<HallOfFameEntry>> {
+            val cached = hallOfFameCache
+            if (cached != null && cached.first === profiles) return cached.second
+            val computed =
+                buildMap<GameMode?, List<HallOfFameEntry>> {
+                    put(null, HallOfFameCalculator.topEntries(profiles))
+                    GameMode.entries.forEach { mode ->
+                        put(mode, HallOfFameCalculator.topEntries(profiles, mode))
+                    }
+                }
+            hallOfFameCache = profiles to computed
+            return computed
+        }
 
         private fun rivalsUiState(): List<RivalUiState> {
             val profile = activeProfile()

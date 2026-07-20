@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.data
 
+import com.finnvek.cornersapart.model.DailyStreakCalculator
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.Profile
@@ -127,6 +128,11 @@ class ProfileRepository(
                                             .sortedByDescending { entry -> entry.key }
                                             .take(MAX_DAILY_BEST_ENTRIES)
                                             .associate { entry -> entry.key to entry.value },
+                                    bestDailyStreak =
+                                        maxOf(
+                                            profile.bestDailyStreak,
+                                            DailyStreakCalculator.currentStreak(updated.keys, date),
+                                        ),
                                 )
                             } else {
                                 profile

@@ -513,6 +513,8 @@ fun GameScreenContent(
             onStartDaily = screenActions.onStartDailyChallenge,
             onDismiss = { showChallenges = false },
             dailyBestScore = state.dailyBestScore,
+            dailyStreak = state.dailyStreak,
+            bestDailyStreak = state.bestDailyStreak,
         )
     }
     if (state.hasSavedGame && state.resumeSummary != null) {
@@ -527,6 +529,8 @@ fun GameScreenContent(
             history = state.history,
             onDismiss = dialogState.onDismissHistoryStats,
             unlockedAchievements = state.unlockedAchievements,
+            hallOfFameByMode = state.hallOfFameByMode,
+            activeProfileName = state.activeProfileName,
         )
     }
     if (showSettings) {
@@ -574,6 +578,9 @@ fun GameScreenContent(
             newAchievements = state.newAchievements,
             dailyBestScore = if (state.isDailyChallenge) state.dailyBestScore else null,
             rivalResult = state.rivalResult,
+            allTimeRank = state.allTimeRank,
+            allTimeRankModeLabel = stringResource(state.gameMode.labelRes()),
+            dailyStreak = state.dailyStreak,
         )
     }
     val dragController = remember { BoardDragController() }

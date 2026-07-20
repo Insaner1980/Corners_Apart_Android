@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
@@ -18,6 +19,7 @@ import com.finnvek.cornersapart.ui.components.CandyButton
 import com.finnvek.cornersapart.ui.components.CandyButtonStyle
 import com.finnvek.cornersapart.ui.components.CandyChip
 import com.finnvek.cornersapart.ui.components.CandyDialog
+import com.finnvek.cornersapart.ui.components.StreakBadge
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
@@ -36,6 +38,8 @@ fun ChallengeDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     dailyBestScore: Int? = null,
+    dailyStreak: Int = 0,
+    bestDailyStreak: Int = 0,
 ) {
     CandyDialog(
         title = stringResource(R.string.challenge_title),
@@ -63,6 +67,11 @@ fun ChallengeDialog(
             },
             modifier = Modifier.fillMaxWidth(),
             style = CandyButtonStyle.Primary,
+        )
+        StreakBadge(
+            currentStreak = dailyStreak,
+            bestStreak = bestDailyStreak,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
         )
         val totalStars = challengeStars.values.sum()
         Text(

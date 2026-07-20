@@ -5,6 +5,7 @@ import com.finnvek.cornersapart.model.BonusTile
 import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameModeConfigs
+import com.finnvek.cornersapart.model.HallOfFameEntry
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.LocalAvatarStyle
 import com.finnvek.cornersapart.model.PieceDef
@@ -48,6 +49,10 @@ data class GameUiState(
     val rivals: List<RivalUiState> = emptyList(),
     val activeRivalId: String? = null,
     val rivalResult: RivalMatchResult? = null,
+    val dailyStreak: Int = 0,
+    val bestDailyStreak: Int = 0,
+    val allTimeRank: Int? = null,
+    val hallOfFameByMode: Map<GameMode?, List<HallOfFameEntry>> = emptyMap(),
 ) {
     val currentPlayer: PlayerUiState
         get() = players[currentPlayerIndex]

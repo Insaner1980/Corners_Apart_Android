@@ -48,6 +48,13 @@ object CornersApartColors {
     val InvalidPreviewHighlight = Color(0xFFFF9A85)
     val ButtonNeutralFace = Color(0xFF454078)
     val ButtonNeutralBevel = Color(0xFF2B2760)
+
+    val MedalSilver = Color(0xFFCBD0EE)
+    val MedalSilverDark = Color(0xFF878DBA)
+    val MedalBronze = Color(0xFFD98F55)
+    val MedalBronzeDark = Color(0xFF9C6134)
+    val StreakFlameFace = Color(0xFFFF8A3C)
+    val StreakFlameDeep = Color(0xFFE8513D)
 }
 
 object CornersApartSpacing {
@@ -82,6 +89,15 @@ object CornersApartSpacing {
     val RivalAvatarSize = 56.dp
     val RivalPipSize = 8.dp
     val RivalIntroAvatarSize = 112.dp
+
+    val PodiumHeightFirst = 88.dp
+    val PodiumHeightSecond = 64.dp
+    val PodiumHeightThird = 48.dp
+    val PodiumMedalSize = 40.dp
+    val PodiumRadius = 12.dp
+    val HallOfFameRankWidth = 32.dp
+    val HallOfFameSwatchSize = 12.dp
+    val StreakBadgeRadius = 20.dp
 }
 
 @Suppress("ktlint:standard:property-naming")

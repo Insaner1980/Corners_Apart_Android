@@ -16,6 +16,14 @@
     <string name="game_over_challenge_cleared">Level %1$d cleared! %2$s</string>
     <string name="game_over_challenge_failed">Level %1$d — win the game to clear it!</string>
     <string name="game_over_new_best_score">New best score!</string>
+    <string name="hall_of_fame_tab">Top 20</string>
+    <string name="hall_of_fame_empty">No scores yet — finish a game to claim a spot!</string>
+    <string name="hall_of_fame_filter_all">All modes</string>
+    <string name="hall_of_fame_points">%1$d p</string>
+    <string name="hall_of_fame_row_content_description">Rank %1$d, %2$s, %3$d points, %4$s</string>
+    <string name="game_over_all_time_rank">All-time %1$s rank: #%2$d</string>
+    <string name="streak_days_label">%1$d-day streak</string>
+    <string name="streak_best_label">Best: %1$d</string>
     <string name="rivals_title">Rivals</string>
     <string name="rivals_subtitle">Beat each rival to unlock the next</string>
     <string name="rivals_defeated_count">%1$d / %2$d defeated</string>

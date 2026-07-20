@@ -20,6 +20,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.model.Achievement
+import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.HallOfFameEntry
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.HistoryStats
 import com.finnvek.cornersapart.model.HistoryStatsCalculator
@@ -37,6 +39,8 @@ fun HistoryStatsDialog(
     modifier: Modifier = Modifier,
     stats: HistoryStats = HistoryStatsCalculator.calculate(history),
     unlockedAchievements: Set<String> = emptySet(),
+    hallOfFameByMode: Map<GameMode?, List<HallOfFameEntry>> = emptyMap(),
+    activeProfileName: String = "",
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     CandyDialog(
@@ -65,12 +69,23 @@ fun HistoryStatsDialog(
                     onClick = { selectedTabIndex = 1 },
                     text = { Text(text = stringResource(R.string.stats_tab)) },
                 )
+                Tab(
+                    selected = selectedTabIndex == 2,
+                    onClick = { selectedTabIndex = 2 },
+                    text = { Text(text = stringResource(R.string.hall_of_fame_tab)) },
+                )
             }
-            if (selectedTabIndex == 0) {
-                HistoryTab(history)
-            } else {
-                StatsTab(stats)
-                AchievementsSection(unlockedAchievements)
+            when (selectedTabIndex) {
+                0 -> HistoryTab(history)
+                1 -> {
+                    StatsTab(stats)
+                    AchievementsSection(unlockedAchievements)
+                }
+                else ->
+                    HallOfFameTab(
+                        hallOfFameByMode = hallOfFameByMode,
+                        activeProfileName = activeProfileName,
+                    )
             }
         }
     }

@@ -47,6 +47,7 @@ import com.finnvek.cornersapart.ui.components.CandyChip
 import com.finnvek.cornersapart.ui.components.CandyDialog
 import com.finnvek.cornersapart.ui.components.CandySwitch
 import com.finnvek.cornersapart.ui.components.ConfettiBurst
+import com.finnvek.cornersapart.ui.components.StreakBadge
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
@@ -513,6 +514,9 @@ fun GameOverDialog(
     newAchievements: List<String> = emptyList(),
     dailyBestScore: Int? = null,
     rivalResult: RivalMatchResult? = null,
+    allTimeRank: Int? = null,
+    allTimeRankModeLabel: String = "",
+    dailyStreak: Int = 0,
 ) {
     val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val winner = rankedScores.firstOrNull()
@@ -600,12 +604,25 @@ fun GameOverDialog(
                 color = CornersApartColors.PlayerLime,
             )
         }
+        if (allTimeRank != null) {
+            Text(
+                text = stringResource(R.string.game_over_all_time_rank, allTimeRankModeLabel, allTimeRank),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                color = CornersApartColors.BonusAccentBright,
+            )
+        }
         if (dailyBestScore != null) {
             Text(
                 text = stringResource(R.string.game_over_daily_result, dailyBestScore),
                 modifier = Modifier.align(Alignment.CenterHorizontally),
                 style = MaterialTheme.typography.titleMedium.withCandyShadow(),
                 color = CornersApartColors.BonusAccentBright,
+            )
+            StreakBadge(
+                currentStreak = dailyStreak,
+                bestStreak = dailyStreak,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             )
         }
         newAchievements.mapNotNull(Achievement::fromId).forEach { achievement ->
