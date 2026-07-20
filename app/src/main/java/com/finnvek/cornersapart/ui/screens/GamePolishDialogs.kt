@@ -54,6 +54,7 @@ import com.finnvek.cornersapart.ui.theme.withCandyShadow
 import com.finnvek.cornersapart.viewmodel.ChallengeResult
 import com.finnvek.cornersapart.viewmodel.ProfileUiState
 import com.finnvek.cornersapart.viewmodel.ResumeGameSummary
+import com.finnvek.cornersapart.viewmodel.RivalMatchResult
 
 data class GameSettingsDialogState(
     val soundEnabled: Boolean,
@@ -511,6 +512,7 @@ fun GameOverDialog(
     isNewBestScore: Boolean = false,
     newAchievements: List<String> = emptyList(),
     dailyBestScore: Int? = null,
+    rivalResult: RivalMatchResult? = null,
 ) {
     val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val winner = rankedScores.firstOrNull()
@@ -547,6 +549,32 @@ fun GameOverDialog(
                 style = MaterialTheme.typography.headlineMedium.withCandyShadow(),
                 color = CornersApartColors.BonusAccentBright,
             )
+        }
+        if (rivalResult != null) {
+            Text(
+                text =
+                    if (rivalResult.won) {
+                        stringResource(R.string.game_over_rival_won, rivalResult.rivalName)
+                    } else {
+                        stringResource(R.string.game_over_rival_lost, rivalResult.rivalName)
+                    },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.headlineMedium.withCandyShadow(),
+                color =
+                    if (rivalResult.won) {
+                        CornersApartColors.PlayerLime
+                    } else {
+                        CornersApartColors.TextOnDarkSecondary
+                    },
+            )
+            rivalResult.unlockedRivalName?.let { unlockedName ->
+                Text(
+                    text = stringResource(R.string.game_over_rival_unlocked, unlockedName),
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                    color = CornersApartColors.BonusAccentBright,
+                )
+            }
         }
         if (winner != null) {
             Box(

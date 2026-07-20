@@ -110,6 +110,7 @@ data class GameScreenActions(
     val onModeSelected: (GameMode) -> Unit = {},
     val onStartChallengeLevel: (Int) -> Unit = {},
     val onStartDailyChallenge: () -> Unit = {},
+    val onStartRivalMatch: (String) -> Unit = {},
     val onCreateNearbyGame: () -> Unit = {},
     val onFindNearbyGame: () -> Unit = {},
     val onConnectToNearbyEndpoint: (String) -> Unit = {},
@@ -166,6 +167,7 @@ private data class GameLayoutContent(
     val onShowProfiles: () -> Unit,
     val onShowHelp: () -> Unit,
     val onShowChallenges: () -> Unit,
+    val onShowRivals: () -> Unit,
 )
 
 /**
@@ -329,6 +331,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                 onModeSelected = viewModel::startGame,
                 onStartChallengeLevel = viewModel::startChallengeLevel,
                 onStartDailyChallenge = viewModel::startDailyChallenge,
+                onStartRivalMatch = viewModel::startRivalMatch,
                 onCreateNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Host) },
                 onFindNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Discover) },
                 onConnectToNearbyEndpoint = viewModel::connectToNearbyEndpoint,
@@ -495,6 +498,14 @@ fun GameScreenContent(
     var showHelp by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
     var showChallenges by remember { mutableStateOf(false) }
+    var showRivals by remember { mutableStateOf(false) }
+    if (showRivals) {
+        RivalsDialog(
+            rivals = state.rivals,
+            onChallengeRival = screenActions.onStartRivalMatch,
+            onDismiss = { showRivals = false },
+        )
+    }
     if (showChallenges) {
         ChallengeDialog(
             challengeStars = state.challengeStars,
@@ -550,10 +561,11 @@ fun GameScreenContent(
             durationSeconds = state.gameDurationSeconds,
             onPlayAgain = {
                 val challengeLevel = state.activeChallengeLevel
-                if (challengeLevel != null) {
-                    screenActions.onStartChallengeLevel(challengeLevel)
-                } else {
-                    screenActions.onModeSelected(state.gameMode)
+                val rivalId = state.activeRivalId
+                when {
+                    challengeLevel != null -> screenActions.onStartChallengeLevel(challengeLevel)
+                    rivalId != null -> screenActions.onStartRivalMatch(rivalId)
+                    else -> screenActions.onModeSelected(state.gameMode)
                 }
             },
             onShowStats = screenActions.onShowHistoryStats,
@@ -561,6 +573,7 @@ fun GameScreenContent(
             isNewBestScore = state.isNewBestScore,
             newAchievements = state.newAchievements,
             dailyBestScore = if (state.isDailyChallenge) state.dailyBestScore else null,
+            rivalResult = state.rivalResult,
         )
     }
     val dragController = remember { BoardDragController() }
@@ -589,6 +602,7 @@ fun GameScreenContent(
                 onShowProfiles = { showProfiles = true },
                 onShowHelp = { showHelp = true },
                 onShowChallenges = { showChallenges = true },
+                onShowRivals = { showRivals = true },
             )
         val layoutModifier =
             Modifier
@@ -610,8 +624,36 @@ fun GameScreenContent(
             dragController = dragController,
             colorIndex = state.currentPlayer.colorIndex,
         )
+        RivalIntroOverlay(state = state)
     }
 }
+
+/** Näyttää VS-aloitusanimaation, kun Rivals-ottelu alkaa tyhjältä laudalta. */
+@Composable
+private fun RivalIntroOverlay(state: GameUiState) {
+    val rival = state.rivals.firstOrNull { candidate -> candidate.id == state.activeRivalId } ?: return
+    val isMatchStart = !state.isGameOver && state.players.sumOf { player -> player.piecesPlaced } == 0
+    var introVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(rival.id, isMatchStart) {
+        if (isMatchStart) {
+            introVisible = true
+            delay(RIVAL_INTRO_DURATION_MS)
+            introVisible = false
+        } else {
+            introVisible = false
+        }
+    }
+    if (introVisible) {
+        RivalMatchIntro(
+            rival = rival,
+            playerName = state.activeProfileName,
+            playerColorIndex = state.players.firstOrNull()?.colorIndex ?: 0,
+            onSkip = { introVisible = false },
+        )
+    }
+}
+
+private const val RIVAL_INTRO_DURATION_MS = 2000L
 
 @Composable
 private fun DragGhostOverlay(
@@ -742,6 +784,7 @@ private fun GameHeaderActions(content: GameLayoutContent) {
             sessionType = content.state.sessionType,
             nearbyState = content.state.nearbyState,
             onShowChallenges = content.onShowChallenges,
+            onShowRivals = content.onShowRivals,
             onCreateNearbyGame = content.screenActions.onCreateNearbyGame,
             onFindNearbyGame = content.screenActions.onFindNearbyGame,
             onConnectToNearbyEndpoint = content.screenActions.onConnectToNearbyEndpoint,
@@ -844,6 +887,7 @@ private fun NearbyActions(
     sessionType: SessionType,
     nearbyState: NearbyUiState,
     onShowChallenges: () -> Unit,
+    onShowRivals: () -> Unit,
     onCreateNearbyGame: () -> Unit,
     onFindNearbyGame: () -> Unit,
     onConnectToNearbyEndpoint: (String) -> Unit,
@@ -863,6 +907,12 @@ private fun NearbyActions(
                 onClick = onShowChallenges,
                 modifier = Modifier.weight(1f),
                 style = CandyButtonStyle.Positive,
+            )
+            CandyButton(
+                text = stringResource(R.string.rivals_title),
+                onClick = onShowRivals,
+                modifier = Modifier.weight(1f),
+                style = CandyButtonStyle.Primary,
             )
             CandyButton(
                 text = stringResource(R.string.nearby_game),

@@ -76,6 +76,12 @@ object CornersApartSpacing {
     val CandyButtonBevel = 4.dp
     val CandyButtonHeight = 52.dp
     val DialogRadius = 24.dp
+
+    val RivalCardRadius = 16.dp
+    val RivalChallengerBorderWidth = 2.dp
+    val RivalAvatarSize = 56.dp
+    val RivalPipSize = 8.dp
+    val RivalIntroAvatarSize = 112.dp
 }
 
 @Suppress("ktlint:standard:property-naming")

@@ -14,6 +14,7 @@ import com.finnvek.cornersapart.model.toSnapshotCopy
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
 import com.finnvek.cornersapart.opponents.OpponentAction
 import com.finnvek.cornersapart.opponents.OpponentDifficulty
+import com.finnvek.cornersapart.opponents.OpponentStyle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.delay
@@ -31,6 +32,7 @@ class LocalSession(
     private val engine: GameEngine = GameEngine(),
     private val opponentEngine: ComputerOpponentEngine = ComputerOpponentEngine(gameEngine = engine),
     internal val opponentDifficulty: OpponentDifficulty = OpponentDifficulty.MEDIUM,
+    internal val opponentStyleOverride: OpponentStyle? = null,
     initialConfig: GameConfig = defaultConfig(),
     private val randomSeedProvider: () -> Long = { Random.nextLong() },
 ) : GameSession {
@@ -126,6 +128,9 @@ class LocalSession(
                         opponentEngine.chooseAction(
                             nextState,
                             nextState.currentPlayerIndex,
+                            style =
+                                opponentStyleOverride
+                                    ?: ComputerOpponentEngine.defaultStyleFor(nextState.currentPlayerIndex),
                             difficulty = opponentDifficulty,
                         )
                 ) {

@@ -11,6 +11,7 @@ import com.finnvek.cornersapart.model.PieceDef
 import com.finnvek.cornersapart.model.PlayerScore
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
 import com.finnvek.cornersapart.multiplayer.SessionType
+import com.finnvek.cornersapart.opponents.OpponentStyle
 
 data class GameUiState(
     val gameMode: GameMode,
@@ -44,6 +45,9 @@ data class GameUiState(
     val unlockedAchievements: Set<String> = emptySet(),
     val isDailyChallenge: Boolean = false,
     val dailyBestScore: Int? = null,
+    val rivals: List<RivalUiState> = emptyList(),
+    val activeRivalId: String? = null,
+    val rivalResult: RivalMatchResult? = null,
 ) {
     val currentPlayer: PlayerUiState
         get() = players[currentPlayerIndex]
@@ -52,6 +56,28 @@ data class GameUiState(
 data class ChallengeResult(
     val level: Int,
     val stars: Int,
+)
+
+data class RivalUiState(
+    val id: String,
+    val name: String,
+    val tier: Int,
+    val style: OpponentStyle,
+    val colorIndex: Int,
+    val wins: Int,
+    val losses: Int,
+    val unlocked: Boolean,
+    val isNextChallenger: Boolean,
+) {
+    val defeated: Boolean
+        get() = wins > 0
+}
+
+data class RivalMatchResult(
+    val rivalId: String,
+    val rivalName: String,
+    val won: Boolean,
+    val unlockedRivalName: String? = null,
 )
 
 data class PlayerUiState(

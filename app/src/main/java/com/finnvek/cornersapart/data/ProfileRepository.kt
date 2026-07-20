@@ -58,6 +58,32 @@ class ProfileRepository(
         }
     }
 
+    /** Kirjaa Rivals-ottelun tuloksen: voitto- tai tappiolaskuri kasvaa yhdellä. */
+    suspend fun recordRivalResult(
+        profileId: String,
+        rivalId: String,
+        won: Boolean,
+    ) {
+        store.update { data ->
+            val storedProfiles = data.toSnapshotCopy().profiles
+            data
+                .copy(
+                    profiles =
+                        storedProfiles.map { profile ->
+                            if (profile.id == profileId) {
+                                if (won) {
+                                    profile.copy(rivalWins = profile.rivalWins.incremented(rivalId))
+                                } else {
+                                    profile.copy(rivalLosses = profile.rivalLosses.incremented(rivalId))
+                                }
+                            } else {
+                                profile
+                            }
+                        },
+                ).toSnapshotCopy()
+        }
+    }
+
     suspend fun addAchievements(
         profileId: String,
         achievementIds: List<String>,
@@ -171,6 +197,8 @@ class ProfileRepository(
             profile.copy(active = profile.id == resolvedActiveProfileId)
         }.toSnapshotList()
     }
+
+    private fun Map<String, Int>.incremented(key: String): Map<String, Int> = this + (key to (this[key] ?: 0) + 1)
 
     private companion object {
         const val MAX_DAILY_BEST_ENTRIES = 60

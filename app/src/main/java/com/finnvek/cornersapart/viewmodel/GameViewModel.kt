@@ -34,7 +34,9 @@ import com.finnvek.cornersapart.multiplayer.LocalSessionFactory
 import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
 import com.finnvek.cornersapart.multiplayer.SessionType
+import com.finnvek.cornersapart.opponents.OpponentCharacter
 import com.finnvek.cornersapart.opponents.OpponentDifficultyMapper
+import com.finnvek.cornersapart.opponents.OpponentRoster
 import com.finnvek.cornersapart.runtime.TimeProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -80,6 +82,8 @@ class GameViewModel
         private var resumeDecisionMade: Boolean = false
         private var activeChallengeLevel: Int? = null
         private var lastChallengeResult: ChallengeResult? = null
+        private var activeRivalId: String? = null
+        private var lastRivalResult: RivalMatchResult? = null
         private var lastGameWasBestScore: Boolean = false
         private var lastGameNewAchievements: List<String> = emptyList()
         private var activeDailyDate: String? = null
@@ -419,7 +423,9 @@ class GameViewModel
         private fun startLocalSession(nextSettings: GameSettings) {
             activeChallengeLevel = null
             activeDailyDate = null
+            activeRivalId = null
             lastChallengeResult = null
+            lastRivalResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
@@ -452,7 +458,9 @@ class GameViewModel
                 )
             activeChallengeLevel = null
             activeDailyDate = date
+            activeRivalId = null
             lastChallengeResult = null
+            lastRivalResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
             refreshUiState()
@@ -479,10 +487,55 @@ class GameViewModel
                 )
             activeChallengeLevel = level.number
             activeDailyDate = null
+            activeRivalId = null
             lastChallengeResult = null
+            lastRivalResult = null
             lastGameWasBestScore = false
             lastGameNewAchievements = emptyList()
             refreshUiState()
+        }
+
+        /** Käynnistää Rivals-ottelun: 1v1 kompaktilla laudalla nimettyä vastustajaa vastaan. */
+        fun startRivalMatch(rivalId: String) {
+            val rival = OpponentRoster.forId(rivalId) ?: return
+            if (!OpponentRoster.isUnlocked(rival.id, activeProfile()?.rivalWins.orEmpty())) return
+            resumeDecisionMade = true
+            leaveNearbySessionForLocalPlay()
+            selectedPieceId = PieceCatalog.SINGLE_CELL_ID
+            selectedOrientationIndex = 0
+            gameStartedAtMillis = timeProvider.nowEpochMillis()
+            recordedGameOverTurn = null
+            resetLocalSessionActions()
+            localSession =
+                sessionFactory.createRivalMatch(
+                    initialConfig =
+                        GameModeConfigs.defaultGameConfig(
+                            mode = GameMode.COMPACT_DUEL,
+                            randomSeed = timeProvider.nowEpochMillis(),
+                        ),
+                    character = rival,
+                    rivalColorIndex = rivalDisplayColorIndex(rival),
+                )
+            activeChallengeLevel = null
+            activeDailyDate = null
+            activeRivalId = rival.id
+            lastChallengeResult = null
+            lastRivalResult = null
+            lastGameWasBestScore = false
+            lastGameNewAchievements = emptyList()
+            refreshUiState()
+        }
+
+        /**
+         * Valitsee vastustajan pelipaikan värin niin, ettei se osu ihmispaikan
+         * väriin 0 eikä profiilin näyttöväriin (0 ↔ profiiliväri -vaihto).
+         */
+        private fun rivalDisplayColorIndex(rival: OpponentCharacter): Int {
+            val profileColor = activeProfile()?.colorIndex ?: DEFAULT_PROFILE_OWNER_INDEX
+            val colorCount = GameConstants.PLAYER_COLORS.size
+            return (0 until colorCount)
+                .map { offset -> (rival.colorIndex + offset) % colorCount }
+                .first { color -> color != DEFAULT_PROFILE_OWNER_INDEX && color != profileColor }
         }
 
         private fun prepareForNearbySession() {
@@ -532,6 +585,7 @@ class GameViewModel
                     entry.totalScore > profile.history.maxOf { previous -> previous.totalScore }
             profileRepository.appendHistory(profile.id, entry)
             recordChallengeResult(state, profile.id)
+            recordRivalMatchResult(state, profile)
             recordAchievements(profile, entry)
             activeDailyDate?.let { date ->
                 profileRepository.recordDailyBest(profile.id, date, entry.totalScore)
@@ -569,6 +623,24 @@ class GameViewModel
             if (stars > 0) {
                 profileRepository.recordChallengeStars(profileId, level.number, stars)
             }
+        }
+
+        private suspend fun recordRivalMatchResult(
+            state: GameState,
+            profile: Profile,
+        ) {
+            val rival = activeRivalId?.let(OpponentRoster::forId) ?: return
+            val won =
+                state.rankedScoresForUiAndHistory().firstOrNull()?.ownerIndex == DEFAULT_PROFILE_OWNER_INDEX
+            val firstWin = won && (profile.rivalWins[rival.id] ?: 0) == 0
+            lastRivalResult =
+                RivalMatchResult(
+                    rivalId = rival.id,
+                    rivalName = rival.name,
+                    won = won,
+                    unlockedRivalName = if (firstWin) OpponentRoster.unlockedByFirstWinOf(rival.id)?.name else null,
+                )
+            profileRepository.recordRivalResult(profile.id, rival.id, won)
         }
 
         private fun GameState.toHistoryEntry(): HistoryEntry {
@@ -642,6 +714,9 @@ class GameViewModel
                 unlockedAchievements = activeProfile()?.achievements.orEmpty().toSet(),
                 isDailyChallenge = activeDailyDate != null,
                 dailyBestScore = activeProfile()?.dailyBestScores?.get(timeProvider.todayIsoDate()),
+                rivals = rivalsUiState(),
+                activeRivalId = activeRivalId,
+                rivalResult = lastRivalResult,
             )
         }
 
@@ -751,6 +826,27 @@ class GameViewModel
             profiles
                 .map { profile -> profile.toUiState() }
                 .toSnapshotList()
+
+        private fun rivalsUiState(): List<RivalUiState> {
+            val profile = activeProfile()
+            val wins = profile?.rivalWins.orEmpty()
+            val losses = profile?.rivalLosses.orEmpty()
+            val nextChallengerId = OpponentRoster.nextChallenger(wins)?.id
+            return OpponentRoster.all
+                .map { rival ->
+                    RivalUiState(
+                        id = rival.id,
+                        name = rival.name,
+                        tier = rival.tier,
+                        style = rival.style,
+                        colorIndex = rival.colorIndex,
+                        wins = wins[rival.id] ?: 0,
+                        losses = losses[rival.id] ?: 0,
+                        unlocked = OpponentRoster.isUnlocked(rival.id, wins),
+                        isNextChallenger = rival.id == nextChallengerId,
+                    )
+                }.toSnapshotList()
+        }
 
         private data class FinishedGameRanking(
             val state: GameState,
