@@ -94,7 +94,7 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 | Item | Version |
 |---|---:|
 | Gradle wrapper | 9.6.1 |
-| Android Gradle Plugin | 9.3.0 |
+| Android Gradle Plugin | 9.3.1 |
 | Kotlin | 2.4.20-Beta1 |
 | KSP | 2.3.10 |
 | Hilt | 2.60.1 |

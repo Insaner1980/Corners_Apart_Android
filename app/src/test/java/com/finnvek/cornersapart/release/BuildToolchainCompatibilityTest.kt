@@ -34,7 +34,7 @@ class BuildToolchainCompatibilityTest {
                 .contains("distributionUrl=https\\://services.gradle.org/distributions/gradle-9.6.1-bin.zip"),
         )
         assertTrue(wrapperProperties.contains("distributionSha256Sum="))
-        assertTrue(versionsCatalog.contains("agp = \"9.3.0\""))
+        assertTrue(versionsCatalog.contains("agp = \"9.3.1\""))
         assertTrue(versionsCatalog.contains("detekt = \"2.0.0-alpha.5\""))
         assertTrue(versionsCatalog.contains("detektComposeRules = \"0.6.2\""))
         assertTrue(versionsCatalog.contains("detekt = { id = \"dev.detekt\", version.ref = \"detekt\" }"))
