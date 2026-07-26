@@ -1,5 +1,9 @@
 version: 2
 updates:
+  - package-ecosystem: "npm"
+    directory: "/.deepsec"
+    schedule:
+      interval: "weekly"
   - package-ecosystem: "gradle"
     directory: "/"
     schedule:

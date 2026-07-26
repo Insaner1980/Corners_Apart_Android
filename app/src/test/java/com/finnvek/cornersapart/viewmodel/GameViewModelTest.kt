@@ -11,6 +11,7 @@ import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.GameModeConfigs
 import com.finnvek.cornersapart.model.GameSettings
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.INVALID_GAME_STATE_INDEX_DOMAINS
@@ -31,19 +32,24 @@ import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.NearbyEndpointDiscoveryCallback
 import com.finnvek.cornersapart.multiplayer.NearbyOperationFailureCallback
 import com.finnvek.cornersapart.multiplayer.NearbyPayloadCallback
+import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
 import com.finnvek.cornersapart.runtime.TimeProvider
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameViewModelTest {
@@ -57,9 +63,9 @@ class GameViewModelTest {
         val state = viewModel.uiState.value
 
         assertEquals(GameMode.FOUR_PLAYER, state.gameMode)
-        assertEquals(GameConstants.PLAYER_COUNT, state.players.size)
+        assertEquals(GameModeConfigs.forMode(GameMode.FOUR_PLAYER).playerSlots.size, state.players.size)
         assertEquals(PieceCatalog.SINGLE_CELL_ID, state.selectedPieceId)
-        assertEquals(GameConstants.PIECE_COUNT, state.pieces.size)
+        assertEquals(PieceCatalog.all.size, state.pieces.size)
         assertEquals(0, state.currentPlayerIndex)
     }
 
@@ -93,7 +99,7 @@ class GameViewModelTest {
         runTest {
             val viewModel = createViewModel()
 
-            viewModel.startSoloGame()
+            viewModel.startGame(GameMode.SOLO)
             viewModel.placeSelectedAt(row = 19, col = 19)
             advanceUntilIdle()
 
@@ -127,10 +133,11 @@ class GameViewModelTest {
         assertEquals(GameMode.THREE_PLAYER, viewModel.uiState.value.gameMode)
         assertEquals(3, viewModel.uiState.value.players.size)
 
-        viewModel.startFourPlayerGame()
+        viewModel.startGame(GameMode.FOUR_PLAYER)
 
         assertEquals(GameMode.FOUR_PLAYER, viewModel.uiState.value.gameMode)
-        assertEquals(GameConstants.PLAYER_COUNT, viewModel.uiState.value.players.size)
+        val expectedPlayerCount = GameModeConfigs.forMode(GameMode.FOUR_PLAYER).playerSlots.size
+        assertEquals(expectedPlayerCount, viewModel.uiState.value.players.size)
     }
 
     @Test
@@ -274,7 +281,8 @@ class GameViewModelTest {
             harness.viewModel.discardSavedGameAndStartNewGame()
             advanceUntilIdle()
 
-            assertEquals(null, harness.gameRepository.savedGame.first())
+            val savedGameData = harness.gameRepository.savedGameData.first()
+            assertEquals(null, savedGameData.gameState)
         }
 
     @Test
@@ -302,7 +310,8 @@ class GameViewModelTest {
 
             assertEquals(GameMode.FOUR_PLAYER, harness.viewModel.uiState.value.gameMode)
             assertEquals(0, harness.viewModel.uiState.value.currentPlayerIndex)
-            assertEquals(null, harness.gameRepository.savedGame.first())
+            val savedGameData = harness.gameRepository.savedGameData.first()
+            assertEquals(null, savedGameData.gameState)
         }
 
     @Test
@@ -356,19 +365,109 @@ class GameViewModelTest {
             val harness = createViewModelHarness()
             val viewModel = harness.viewModel
 
+            assertEquals(SessionType.LOCAL, viewModel.uiState.value.sessionType)
+
             viewModel.startNearbyHosting()
             advanceUntilIdle()
 
+            assertEquals(SessionType.NEARBY, viewModel.uiState.value.sessionType)
             assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.nearbyState.connectionState)
 
             viewModel.startNearbyDiscovery()
             viewModel.connectToNearbyEndpoint("endpoint-1")
             viewModel.acceptPendingNearbyConnection("endpoint-1")
             viewModel.rejectPendingNearbyConnection("endpoint-1")
-            viewModel.disconnectNearby()
+            advanceUntilIdle()
+        }
+
+    @Test
+    fun replacingLocalSessionCancelsInFlightComputerTurnBeforeItCanSave() =
+        runTest {
+            val opponentDispatcher = PausingDispatcher()
+            val harness =
+                createViewModelHarness(
+                    opponentDispatcher = opponentDispatcher,
+                )
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            harness.viewModel.startGame(GameMode.SOLO)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            harness.viewModel.placeSelectedAt(row = 19, col = 19)
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+            harness.viewModel.startGame(GameMode.FOUR_PLAYER)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            drainOpponentTasks(opponentDispatcher)
+
+            assertEquals(GameMode.FOUR_PLAYER, harness.viewModel.uiState.value.gameMode)
+            assertEquals(
+                null,
+                harness.gameRepository.savedGameData
+                    .first()
+                    .gameState,
+            )
+        }
+
+    @Test
+    fun switchingToNearbyDoesNotEmitFailureForCancelledLocalPass() =
+        runTest {
+            val harness = createViewModelHarness()
+            val effects = mutableListOf<GameEffect>()
+            backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                harness.viewModel.effects.collect(effects::add)
+            }
+            advanceUntilIdle()
+            harness.viewModel.startGame(GameMode.SOLO)
             advanceUntilIdle()
 
-            assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.nearbyState.connectionState)
+            harness.viewModel.passCurrentPlayer()
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+            harness.viewModel.startNearbyHosting()
+            advanceUntilIdle()
+
+            assertTrue(effects.isEmpty())
+        }
+
+    @Test
+    fun restoringSavedGameCancelsInFlightComputerTurnBeforeItCanOverwriteSave() =
+        runTest {
+            val opponentDispatcher = PausingDispatcher()
+            val restoredState =
+                GameEngine().newGame(
+                    GameConfig(
+                        mode = GameMode.FOUR_PLAYER,
+                        randomSeed = 23L,
+                        bonusTiles = emptyList(),
+                    ),
+                )
+            val harness =
+                createViewModelHarness(
+                    opponentDispatcher = opponentDispatcher,
+                )
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            harness.viewModel.startGame(GameMode.SOLO)
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            harness.gameRepository.saveGame(
+                state = restoredState,
+                settings = GameSettings(preferredMode = GameMode.FOUR_PLAYER),
+                savedAtEpochMillis = FIXED_NOW_MILLIS,
+            )
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            harness.viewModel.placeSelectedAt(row = 19, col = 19)
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+            harness.viewModel.resumeSavedGame()
+            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+
+            drainOpponentTasks(opponentDispatcher)
+
+            assertEquals(GameMode.FOUR_PLAYER, harness.viewModel.uiState.value.gameMode)
+            assertEquals(
+                restoredState,
+                harness.gameRepository.savedGameData
+                    .first()
+                    .gameState,
+            )
         }
 
     @Test
@@ -498,7 +597,7 @@ class GameViewModelTest {
         runTest {
             val harness = createViewModelHarness()
 
-            repeat(GameConstants.PLAYER_COUNT) {
+            repeat(GameModeConfigs.forMode(GameMode.FOUR_PLAYER).playerSlots.size) {
                 harness.viewModel.passCurrentPlayer()
                 advanceUntilIdle()
             }
@@ -508,7 +607,15 @@ class GameViewModelTest {
             val activeProfile = harness.profileRepository.activeProfile.first()
             assertEquals(1, activeProfile?.history?.size)
             assertEquals(1, activeProfile?.history?.single()?.rank)
-            assertEquals(null, harness.gameRepository.savedGame.first())
+            val displayedRankedScores = harness.viewModel.uiState.value.rankedScores
+            assertEquals(displayedRankedScores, activeProfile?.history?.single()?.scores)
+
+            harness.viewModel.setSoundEnabled(false)
+            advanceUntilIdle()
+
+            assertSame(displayedRankedScores, harness.viewModel.uiState.value.rankedScores)
+            val savedGameData = harness.gameRepository.savedGameData.first()
+            assertEquals(null, savedGameData.gameState)
         }
 
     @Test
@@ -528,7 +635,7 @@ class GameViewModelTest {
                 viewModel.placeSelectedAt(row = row, col = col)
                 advanceUntilIdle()
             }
-            repeat(GameConstants.PLAYER_COUNT) {
+            repeat(GameModeConfigs.forMode(GameMode.TWO_COLOR_DUEL).playerSlots.size) {
                 viewModel.passCurrentPlayer()
                 advanceUntilIdle()
             }
@@ -538,7 +645,7 @@ class GameViewModelTest {
             assertEquals(2, historyEntry.totalScore)
             assertEquals(2, historyEntry.scoreBreakdown.placedCellPoints)
             assertEquals(listOf(0, 1), historyEntry.scores.map { score -> score.ownerIndex })
-            assertEquals(listOf("Player 1", "Player 2"), historyEntry.scores.map { score -> score.name })
+            assertEquals(listOf("Player", "Player 2"), historyEntry.scores.map { score -> score.name })
             assertEquals(listOf(2, 2), historyEntry.scores.map { score -> score.totalScore })
         }
 
@@ -548,6 +655,7 @@ class GameViewModelTest {
         initialSettings: GameSettings = GameSettings(),
         initialSavedGameData: SavedGameData = SavedGameData(),
         facade: ConnectionsClientFacade = NoOpConnectionsClientFacade(),
+        opponentDispatcher: CoroutineDispatcher = mainDispatcherRule.testDispatcher,
     ): GameViewModelHarness {
         val engine = GameEngine()
         val sessionFactory =
@@ -556,7 +664,7 @@ class GameViewModelTest {
                 opponentEngine =
                     ComputerOpponentEngine(
                         gameEngine = engine,
-                        dispatcher = mainDispatcherRule.testDispatcher,
+                        dispatcher = opponentDispatcher,
                     ),
             )
         val gameRepository = GameRepository(InMemoryJsonStateStore(initialSavedGameData))
@@ -600,6 +708,7 @@ class GameViewModelTest {
                 settingsRepository = settingsRepository,
                 timeProvider = timeProvider,
                 nearbyConnectionsCoordinator = nearbyConnectionsCoordinator,
+                gameEngine = GameEngine(),
             )
     }
 
@@ -619,6 +728,13 @@ class GameViewModelTest {
         )
     }
 
+    private fun drainOpponentTasks(opponentDispatcher: PausingDispatcher) {
+        while (opponentDispatcher.runNext()) {
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+        }
+        mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+    }
+
     private object FixedTimeProvider : TimeProvider {
         override fun nowEpochMillis(): Long = FIXED_NOW_MILLIS
 
@@ -627,6 +743,23 @@ class GameViewModelTest {
 
     private companion object {
         const val FIXED_NOW_MILLIS = 1_781_328_000_000L
+    }
+
+    private class PausingDispatcher : CoroutineDispatcher() {
+        private val pending = ArrayDeque<Runnable>()
+
+        override fun dispatch(
+            context: CoroutineContext,
+            block: Runnable,
+        ) {
+            pending.addLast(block)
+        }
+
+        fun runNext(): Boolean {
+            val next = pending.removeFirstOrNull() ?: return false
+            next.run()
+            return true
+        }
     }
 }
 

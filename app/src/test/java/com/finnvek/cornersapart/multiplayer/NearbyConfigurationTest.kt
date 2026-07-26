@@ -2,6 +2,7 @@ package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.projectFiles
 import com.finnvek.cornersapart.projectRoot
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -29,6 +30,11 @@ class NearbyConfigurationTest {
         assertTrue(files.manifest.contains("android.permission.BLUETOOTH\""))
         assertTrue(files.manifest.contains("android.permission.BLUETOOTH_ADMIN"))
         assertTrue(files.manifest.contains("android.permission.ACCESS_COARSE_LOCATION"))
+        assertTrue(
+            files.manifest.contains(
+                "android.permission.ACCESS_COARSE_LOCATION\" android:maxSdkVersion=\"31\"",
+            ),
+        )
         assertTrue(files.manifest.contains("android.permission.ACCESS_FINE_LOCATION"))
         assertTrue(files.manifest.contains("android.permission.BLUETOOTH_ADVERTISE"))
         assertTrue(files.manifest.contains("android.permission.BLUETOOTH_CONNECT"))
@@ -42,6 +48,10 @@ class NearbyConfigurationTest {
         assertTrue(files.strings.contains("<string name=\"find_nearby_game\">Find nearby game</string>"))
 
         assertTrue(gameScreen.contains("ActivityResultContracts.RequestMultiplePermissions"))
+        assertTrue(gameScreen.contains("rememberSaveable"))
+        assertTrue(gameScreen.contains("PendingNearbyAction.Host"))
+        assertTrue(gameScreen.contains("PendingNearbyAction.Discover"))
+        assertFalse(gameScreen.contains("mutableStateOf<(() -> Unit)?>"))
         assertTrue(gameScreen.contains("NearbyPermissions"))
         assertTrue(gameScreen.contains("requiredRuntimePermissions"))
         assertTrue(gameScreen.contains("R.string.nearby_game"))

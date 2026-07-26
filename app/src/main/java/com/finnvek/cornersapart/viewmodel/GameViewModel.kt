@@ -5,18 +5,26 @@ import androidx.lifecycle.viewModelScope
 import com.finnvek.cornersapart.data.GameRepository
 import com.finnvek.cornersapart.data.ProfileRepository
 import com.finnvek.cornersapart.data.SettingsRepository
+import com.finnvek.cornersapart.engine.GameEngine
 import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.Scoring
+import com.finnvek.cornersapart.model.AchievementEvaluator
+import com.finnvek.cornersapart.model.ChallengeLevels
+import com.finnvek.cornersapart.model.DailyStreakCalculator
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.GameModeConfigs
 import com.finnvek.cornersapart.model.GameSettings
 import com.finnvek.cornersapart.model.GameState
+import com.finnvek.cornersapart.model.HallOfFameCalculator
+import com.finnvek.cornersapart.model.HallOfFameEntry
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.LocalAvatarStyle
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.Player
+import com.finnvek.cornersapart.model.PlayerScore
 import com.finnvek.cornersapart.model.Profile
 import com.finnvek.cornersapart.model.SavedGameData
 import com.finnvek.cornersapart.model.hasValidIndexDomains
@@ -29,10 +37,13 @@ import com.finnvek.cornersapart.multiplayer.LocalSessionFactory
 import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
 import com.finnvek.cornersapart.multiplayer.SessionType
+import com.finnvek.cornersapart.opponents.OpponentCharacter
 import com.finnvek.cornersapart.opponents.OpponentDifficultyMapper
+import com.finnvek.cornersapart.opponents.OpponentRoster
 import com.finnvek.cornersapart.runtime.TimeProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -41,10 +52,12 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import com.finnvek.cornersapart.multiplayer.toSnapshotCopy as toNearbySnapshotCopy
 
 @HiltViewModel
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class GameViewModel
     @Inject
     constructor(
@@ -54,6 +67,7 @@ class GameViewModel
         private val settingsRepository: SettingsRepository,
         private val timeProvider: TimeProvider,
         private val nearbyConnectionsCoordinator: NearbyConnectionsCoordinator,
+        private val gameEngine: GameEngine,
     ) : ViewModel() {
         private val _effects = MutableSharedFlow<GameEffect>(extraBufferCapacity = 1)
         private var selectedPieceId: String = PieceCatalog.SINGLE_CELL_ID
@@ -67,9 +81,25 @@ class GameViewModel
         private var nearbySession: GameSession? = null
         private var nearbyGameStateJob: Job? = null
         private var nearbyEventsJob: Job? = null
+        private var localSessionActionJob: Job = newLocalSessionActionJob()
         private var resumeDecisionMade: Boolean = false
+        private var activeChallengeLevel: Int? = null
+        private var lastChallengeResult: ChallengeResult? = null
+        private var activeRivalId: String? = null
+        private var lastRivalResult: RivalMatchResult? = null
+        private var lastGameAllTimeRank: Int? = null
+        private var hallOfFameCache: Pair<List<Profile>, Map<GameMode?, List<HallOfFameEntry>>>? = null
+        private var lastGameWasBestScore: Boolean = false
+        private var lastGameNewAchievements: List<String> = emptyList()
+        private var activeDailyDate: String? = null
+        private val profileDisplayMapper =
+            ProfileDisplayMapper(
+                isLocalSession = { session.sessionType == SessionType.LOCAL },
+                activeProfile = ::activeProfile,
+            )
         private var recordedGameOverTurn: Int? = null
         private var defaultProfileCreationRequested: Boolean = false
+        private var finishedGameRanking: FinishedGameRanking? = null
         private val _uiState: MutableStateFlow<GameUiState> = MutableStateFlow(session.gameState.value.toUiState())
         private val session: GameSession
             get() = nearbySession ?: localSession
@@ -140,14 +170,6 @@ class GameViewModel
             }
         }
 
-        fun startFourPlayerGame() {
-            startGame(GameMode.FOUR_PLAYER)
-        }
-
-        fun startSoloGame() {
-            startGame(GameMode.SOLO)
-        }
-
         fun startGame(mode: GameMode) {
             val nextSettings = settings.copy(preferredMode = mode).normalized()
             settings = nextSettings
@@ -172,6 +194,7 @@ class GameViewModel
                 val savedSettings = savedGameData.settings.normalized()
                 settings = savedSettings
                 leaveNearbySessionForLocalPlay()
+                resetLocalSessionActions()
                 settingsRepository.updateSettings { savedSettings }
                 localSession = createLocalSession(savedSettings.copy(preferredMode = savedState.gameMode))
                 localSession.replaceState(savedState)
@@ -186,10 +209,10 @@ class GameViewModel
 
         fun discardSavedGameAndStartNewGame() {
             viewModelScope.launch {
-                gameRepository.clearSavedGame()
                 resumeDecisionMade = true
                 leaveNearbySessionForLocalPlay()
                 startLocalSession(settings)
+                gameRepository.clearSavedGame()
             }
         }
 
@@ -231,10 +254,6 @@ class GameViewModel
             nearbyConnectionsCoordinator.rejectPendingConnection(endpointId)
         }
 
-        fun disconnectNearby() {
-            nearbyConnectionsCoordinator.disconnect()
-        }
-
         fun setActiveProfile(profileId: String) {
             viewModelScope.launch {
                 profileRepository.setActiveProfile(profileId)
@@ -262,6 +281,13 @@ class GameViewModel
                         active = true,
                     ),
                 )
+            }
+        }
+
+        fun deleteProfile(profileId: String) {
+            viewModelScope.launch {
+                if (profiles.size <= 1) return@launch
+                profileRepository.deleteProfile(profileId)
             }
         }
 
@@ -316,12 +342,33 @@ class GameViewModel
             refreshUiState()
         }
 
+        /** Kertoo esikatselulle, olisiko valitun palan sijoitus annettuun ankkuriin laillinen. */
+        fun isPlacementLegal(
+            row: Int,
+            col: Int,
+        ): Boolean {
+            val state = session.gameState.value
+            return gameEngine
+                .previewPlacement(
+                    state,
+                    Move(
+                        playerIndex = state.currentPlayerIndex,
+                        pieceId = selectedPieceId,
+                        anchorRow = row,
+                        anchorCol = col,
+                        orientationIndex = selectedOrientationIndex,
+                    ),
+                ).isValid
+        }
+
         fun placeSelectedAt(
             row: Int,
             col: Int,
         ) {
-            viewModelScope.launch {
-                val gameplaySession = session
+            // Pelaaminen on päätös jatkaa käynnissä olevaa peliä — estää
+            // resume-dialogin ponnahtamisen oman autosaven takia.
+            resumeDecisionMade = true
+            launchGameplayAction { gameplaySession ->
                 val stateBefore = gameplaySession.gameState.value
                 val currentPlayer = stateBefore.players[stateBefore.currentPlayerIndex]
                 val result =
@@ -348,10 +395,10 @@ class GameViewModel
         }
 
         fun passCurrentPlayer() {
-            viewModelScope.launch {
-                val gameplaySession = session
+            resumeDecisionMade = true
+            launchGameplayAction { gameplaySession ->
                 val stateBefore = gameplaySession.gameState.value
-                if (stateBefore.isGameOver) return@launch
+                if (stateBefore.isGameOver) return@launchGameplayAction
                 val playerIndex = stateBefore.currentPlayerIndex
                 val result = gameplaySession.sendPass(playerIndex)
                 if (result.isSuccess) {
@@ -379,15 +426,130 @@ class GameViewModel
         }
 
         private fun startLocalSession(nextSettings: GameSettings) {
+            activeChallengeLevel = null
+            activeDailyDate = null
+            activeRivalId = null
+            lastChallengeResult = null
+            lastRivalResult = null
+            lastGameWasBestScore = false
+            lastGameNewAchievements = emptyList()
+            lastGameAllTimeRank = null
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
             recordedGameOverTurn = null
+            resetLocalSessionActions()
             localSession = createLocalSession(nextSettings)
             refreshUiState()
         }
 
+        /** Päivän haaste: sama lauta kaikille saman päivän aikana. */
+        fun startDailyChallenge() {
+            val date = timeProvider.todayIsoDate()
+            resumeDecisionMade = true
+            leaveNearbySessionForLocalPlay()
+            selectedPieceId = PieceCatalog.SINGLE_CELL_ID
+            selectedOrientationIndex = 0
+            gameStartedAtMillis = timeProvider.nowEpochMillis()
+            recordedGameOverTurn = null
+            resetLocalSessionActions()
+            localSession =
+                sessionFactory.create(
+                    initialConfig =
+                        GameModeConfigs.defaultGameConfig(
+                            mode = GameMode.SOLO,
+                            randomSeed = date.hashCode().toLong(),
+                        ),
+                    persistedDifficulty = settings.preferredDifficulty,
+                )
+            activeChallengeLevel = null
+            activeDailyDate = date
+            activeRivalId = null
+            lastChallengeResult = null
+            lastRivalResult = null
+            lastGameWasBestScore = false
+            lastGameNewAchievements = emptyList()
+            lastGameAllTimeRank = null
+            refreshUiState()
+        }
+
+        /** Käynnistää solo-haastetason kiinteällä siemenellä ja tason vaikeudella. */
+        fun startChallengeLevel(levelNumber: Int) {
+            val level = ChallengeLevels.forNumber(levelNumber) ?: return
+            resumeDecisionMade = true
+            leaveNearbySessionForLocalPlay()
+            selectedPieceId = PieceCatalog.SINGLE_CELL_ID
+            selectedOrientationIndex = 0
+            gameStartedAtMillis = timeProvider.nowEpochMillis()
+            recordedGameOverTurn = null
+            resetLocalSessionActions()
+            localSession =
+                sessionFactory.create(
+                    initialConfig =
+                        GameModeConfigs.defaultGameConfig(
+                            mode = GameMode.SOLO,
+                            randomSeed = level.randomSeed,
+                        ),
+                    persistedDifficulty = level.difficultyLevel,
+                )
+            activeChallengeLevel = level.number
+            activeDailyDate = null
+            activeRivalId = null
+            lastChallengeResult = null
+            lastRivalResult = null
+            lastGameWasBestScore = false
+            lastGameNewAchievements = emptyList()
+            lastGameAllTimeRank = null
+            refreshUiState()
+        }
+
+        /** Käynnistää Rivals-ottelun: 1v1 kompaktilla laudalla nimettyä vastustajaa vastaan. */
+        fun startRivalMatch(rivalId: String) {
+            val rival = OpponentRoster.forId(rivalId) ?: return
+            if (!OpponentRoster.isUnlocked(rival.id, activeProfile()?.rivalWins.orEmpty())) return
+            resumeDecisionMade = true
+            leaveNearbySessionForLocalPlay()
+            selectedPieceId = PieceCatalog.SINGLE_CELL_ID
+            selectedOrientationIndex = 0
+            gameStartedAtMillis = timeProvider.nowEpochMillis()
+            recordedGameOverTurn = null
+            resetLocalSessionActions()
+            localSession =
+                sessionFactory.createRivalMatch(
+                    initialConfig =
+                        GameModeConfigs.defaultGameConfig(
+                            mode = GameMode.COMPACT_DUEL,
+                            randomSeed = timeProvider.nowEpochMillis(),
+                        ),
+                    character = rival,
+                    rivalColorIndex = rivalDisplayColorIndex(rival),
+                )
+            activeChallengeLevel = null
+            activeDailyDate = null
+            activeRivalId = rival.id
+            lastChallengeResult = null
+            lastRivalResult = null
+            lastGameWasBestScore = false
+            lastGameNewAchievements = emptyList()
+            lastGameAllTimeRank = null
+            refreshUiState()
+        }
+
+        /**
+         * Valitsee vastustajan pelipaikan värin niin, ettei se osu ihmispaikan
+         * väriin 0 eikä profiilin näyttöväriin (0 ↔ profiiliväri -vaihto).
+         */
+        private fun rivalDisplayColorIndex(rival: OpponentCharacter): Int {
+            val profileColor = activeProfile()?.colorIndex ?: DEFAULT_PROFILE_OWNER_INDEX
+            val colorCount = GameConstants.PLAYER_COLORS.size
+            return (0 until colorCount)
+                .map { offset -> (rival.colorIndex + offset) % colorCount }
+                .first { color -> color != DEFAULT_PROFILE_OWNER_INDEX && color != profileColor }
+        }
+
         private fun prepareForNearbySession() {
+            resetLocalSessionActions()
+            lastGameAllTimeRank = null
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
             gameStartedAtMillis = timeProvider.nowEpochMillis()
@@ -427,11 +589,78 @@ class GameViewModel
             if (recordedGameOverTurn == state.turnNumber) return
             recordedGameOverTurn = state.turnNumber
             val profile = activeProfile() ?: defaultProfile().also { profileRepository.upsertProfile(it) }
-            profileRepository.appendHistory(profile.id, state.toHistoryEntry())
+            val entry = state.toHistoryEntry()
+            lastGameWasBestScore =
+                profile.history.isNotEmpty() &&
+                entry.totalScore > profile.history.maxOf { previous -> previous.totalScore }
+            lastGameAllTimeRank =
+                HallOfFameCalculator.allTimeRank(
+                    profiles = profiles,
+                    mode = entry.gameMode,
+                    score = entry.totalScore,
+                )
+            profileRepository.appendHistory(profile.id, entry)
+            recordChallengeResult(state, profile.id)
+            recordRivalMatchResult(state, profile)
+            recordAchievements(profile, entry)
+            activeDailyDate?.let { date ->
+                profileRepository.recordDailyBest(profile.id, date, entry.totalScore)
+            }
+        }
+
+        private suspend fun recordAchievements(
+            profile: Profile,
+            entry: HistoryEntry,
+        ) {
+            val starsAfterGame =
+                lastChallengeResult
+                    ?.takeIf { result -> result.stars > (profile.challengeStars[result.level] ?: 0) }
+                    ?.let { result -> profile.challengeStars + (result.level to result.stars) }
+                    ?: profile.challengeStars
+            val newAchievements =
+                AchievementEvaluator
+                    .earnedAfterGame(entry, profile.history, starsAfterGame)
+                    .map { achievement -> achievement.id }
+                    .filterNot { id -> id in profile.achievements }
+            lastGameNewAchievements = newAchievements
+            profileRepository.addAchievements(profile.id, newAchievements)
+        }
+
+        private suspend fun recordChallengeResult(
+            state: GameState,
+            profileId: String,
+        ) {
+            val level = activeChallengeLevel?.let(ChallengeLevels::forNumber) ?: return
+            val ranked = state.rankedScoresForUiAndHistory()
+            val rank = ranked.indexOfFirst { score -> score.ownerIndex == DEFAULT_PROFILE_OWNER_INDEX } + 1
+            val score = ranked.firstOrNull { it.ownerIndex == DEFAULT_PROFILE_OWNER_INDEX }?.totalScore ?: 0
+            val stars = ChallengeLevels.starsFor(level, rank, score)
+            lastChallengeResult = ChallengeResult(level = level.number, stars = stars)
+            if (stars > 0) {
+                profileRepository.recordChallengeStars(profileId, level.number, stars)
+            }
+        }
+
+        private suspend fun recordRivalMatchResult(
+            state: GameState,
+            profile: Profile,
+        ) {
+            val rival = activeRivalId?.let(OpponentRoster::forId) ?: return
+            val won =
+                state.rankedScoresForUiAndHistory().firstOrNull()?.ownerIndex == DEFAULT_PROFILE_OWNER_INDEX
+            val firstWin = won && (profile.rivalWins[rival.id] ?: 0) == 0
+            lastRivalResult =
+                RivalMatchResult(
+                    rivalId = rival.id,
+                    rivalName = rival.name,
+                    won = won,
+                    unlockedRivalName = if (firstWin) OpponentRoster.unlockedByFirstWinOf(rival.id)?.name else null,
+                )
+            profileRepository.recordRivalResult(profile.id, rival.id, won)
         }
 
         private fun GameState.toHistoryEntry(): HistoryEntry {
-            val rankedScores = Scoring.rankPlayers(this)
+            val rankedScores = rankedScoresForUiAndHistory()
             val activeOwnerIndex = DEFAULT_PROFILE_OWNER_INDEX
             val profileScore = rankedScores.firstOrNull { score -> score.ownerIndex == activeOwnerIndex }
             val ownerPlayers = players.filter { player -> player.ownerIndex == activeOwnerIndex }
@@ -489,12 +718,29 @@ class GameViewModel
                 activeProfileName = activeProfile?.name ?: DEFAULT_PROFILE_NAME,
                 hasSavedGame = savedGameData.gameState?.hasValidIndexDomains() == true && !resumeDecisionMade,
                 resumeSummary = savedGameData.toResumeSummary(),
-                rankedScores =
-                    Scoring
-                        .rankPlayers(this)
-                        .toSnapshotList(),
+                rankedScores = rankedScoresForUiAndHistory(),
+                sessionType = session.sessionType,
                 nearbyState = nearbyState.toNearbySnapshotCopy(),
                 profiles = profilesUiState(),
+                activeChallengeLevel = activeChallengeLevel,
+                challengeStars = activeProfile()?.challengeStars.orEmpty(),
+                challengeResult = lastChallengeResult,
+                isNewBestScore = lastGameWasBestScore,
+                newAchievements = lastGameNewAchievements,
+                unlockedAchievements = activeProfile()?.achievements.orEmpty().toSet(),
+                isDailyChallenge = activeDailyDate != null,
+                dailyBestScore = activeProfile()?.dailyBestScores?.get(timeProvider.todayIsoDate()),
+                rivals = rivalsUiState(),
+                activeRivalId = activeRivalId,
+                rivalResult = lastRivalResult,
+                dailyStreak =
+                    DailyStreakCalculator.currentStreak(
+                        playedDates = activeProfile()?.dailyBestScores?.keys.orEmpty(),
+                        todayIsoDate = timeProvider.todayIsoDate(),
+                    ),
+                bestDailyStreak = activeProfile()?.bestDailyStreak ?: 0,
+                allTimeRank = lastGameAllTimeRank,
+                hallOfFameByMode = hallOfFameUiState(),
             )
         }
 
@@ -513,8 +759,8 @@ class GameViewModel
         ): PlayerUiState =
             PlayerUiState(
                 index = index,
-                name = name,
-                colorIndex = colorIndex,
+                name = profileDisplayMapper.displayName(name, ownerIndex, colorIndex),
+                colorIndex = profileDisplayMapper.visualColorIndex(colorIndex),
                 ownerIndex = ownerIndex,
                 startRow = startCorner.row,
                 startCol = startCorner.col,
@@ -553,6 +799,44 @@ class GameViewModel
             )
         }
 
+        private fun launchGameplayAction(action: suspend (GameSession) -> Unit) {
+            val gameplaySession = session
+            val actionContext: CoroutineContext =
+                if (gameplaySession.sessionType == SessionType.LOCAL) {
+                    localSessionActionJob
+                } else {
+                    EmptyCoroutineContext
+                }
+            viewModelScope.launch(actionContext) {
+                action(gameplaySession)
+            }
+        }
+
+        private fun resetLocalSessionActions() {
+            localSessionActionJob.cancel()
+            localSessionActionJob = newLocalSessionActionJob()
+        }
+
+        private fun newLocalSessionActionJob(): Job = SupervisorJob(viewModelScope.coroutineContext[Job])
+
+        private fun List<PlayerScore>.withDisplayNames(): List<PlayerScore> =
+            map { score ->
+                score.copy(
+                    name = profileDisplayMapper.displayName(score.name, score.ownerIndex, score.colorIndex),
+                    colorIndex = profileDisplayMapper.visualColorIndex(score.colorIndex),
+                )
+            }.toSnapshotList()
+
+        private fun GameState.rankedScoresForUiAndHistory(): List<PlayerScore> {
+            if (!isGameOver) return Scoring.rankPlayers(this).withDisplayNames()
+            finishedGameRanking
+                ?.takeIf { ranking -> ranking.state == this }
+                ?.let { ranking -> return ranking.scores }
+            return Scoring.rankPlayers(this).withDisplayNames().also { scores ->
+                finishedGameRanking = FinishedGameRanking(state = this, scores = scores)
+            }
+        }
+
         private fun Profile.toUiState(): ProfileUiState =
             ProfileUiState(
                 id = id,
@@ -566,6 +850,46 @@ class GameViewModel
             profiles
                 .map { profile -> profile.toUiState() }
                 .toSnapshotList()
+
+        private fun hallOfFameUiState(): Map<GameMode?, List<HallOfFameEntry>> {
+            val cached = hallOfFameCache
+            if (cached != null && cached.first === profiles) return cached.second
+            val computed =
+                buildMap<GameMode?, List<HallOfFameEntry>> {
+                    put(null, HallOfFameCalculator.topEntries(profiles))
+                    GameMode.entries.forEach { mode ->
+                        put(mode, HallOfFameCalculator.topEntries(profiles, mode))
+                    }
+                }
+            hallOfFameCache = profiles to computed
+            return computed
+        }
+
+        private fun rivalsUiState(): List<RivalUiState> {
+            val profile = activeProfile()
+            val wins = profile?.rivalWins.orEmpty()
+            val losses = profile?.rivalLosses.orEmpty()
+            val nextChallengerId = OpponentRoster.nextChallenger(wins)?.id
+            return OpponentRoster.all
+                .map { rival ->
+                    RivalUiState(
+                        id = rival.id,
+                        name = rival.name,
+                        tier = rival.tier,
+                        style = rival.style,
+                        colorIndex = rival.colorIndex,
+                        wins = wins[rival.id] ?: 0,
+                        losses = losses[rival.id] ?: 0,
+                        unlocked = OpponentRoster.isUnlocked(rival.id, wins),
+                        isNextChallenger = rival.id == nextChallengerId,
+                    )
+                }.toSnapshotList()
+        }
+
+        private data class FinishedGameRanking(
+            val state: GameState,
+            val scores: List<PlayerScore>,
+        )
 
         private fun com.finnvek.cornersapart.model.PieceDef.toPanelItem(usedPieceIds: Set<String>): PiecePanelItem =
             PiecePanelItem(
@@ -598,7 +922,12 @@ class GameViewModel
             if (delta > 0) {
                 _effects.tryEmit(
                     GameEffect.MoveAccepted(
-                        playerName = playerBefore.name,
+                        playerName =
+                            profileDisplayMapper.displayName(
+                                playerBefore.name,
+                                playerBefore.ownerIndex,
+                                playerBefore.colorIndex,
+                            ),
                         scoreDelta = delta,
                         bonusTileClaimed =
                             playerAfter.scoreBreakdown.bonusTilePoints >
@@ -652,6 +981,5 @@ class GameViewModel
 
 private const val DEFAULT_PROFILE_ID = "local-default"
 private const val DEFAULT_PROFILE_NAME = "Player"
-private const val DEFAULT_PROFILE_OWNER_INDEX = 0
 private const val MILLIS_PER_SECOND = 1_000L
 private const val ACTION_FAILED_MESSAGE = "Action failed."

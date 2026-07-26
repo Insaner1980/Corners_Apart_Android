@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.model
 
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertThrows
@@ -45,6 +46,19 @@ class BoardSnapshotTest {
         assertThrows(UnsupportedOperationException::class.java) {
             @Suppress("UNCHECKED_CAST")
             (snapshot.cells as MutableList<Int>)[0] = 3
+        }
+    }
+
+    @Test
+    fun jsonDeserializationRejectsInvalidBoardShapes() {
+        listOf(
+            "{\"size\":0,\"cells\":[]}",
+            "{\"size\":2,\"cells\":[-1]}",
+            "{\"size\":65536,\"cells\":[]}",
+        ).forEach { payload ->
+            assertThrows(IllegalArgumentException::class.java) {
+                Json.decodeFromString<BoardSnapshot>(payload)
+            }
         }
     }
 }

@@ -24,12 +24,10 @@ class HostGameCoordinator(
             is GameMessage.Pass -> handlePass(endpointId, message.playerIndex)
             is GameMessage.PlayerJoined -> handlePlayerJoined(endpointId, message.player)
             is GameMessage.PlayerLeft -> listOf(HostMessage(MessageTarget.Broadcast, message))
-            GameMessage.Ping -> listOf(HostMessage(MessageTarget.Endpoint(endpointId), GameMessage.Pong))
             is GameMessage.FullSync,
             is GameMessage.GameConfig,
             is GameMessage.MoveAccepted,
             is GameMessage.MoveRejected,
-            GameMessage.Pong,
             -> emptyList()
         }
 

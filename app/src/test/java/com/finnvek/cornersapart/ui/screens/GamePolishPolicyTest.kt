@@ -31,7 +31,8 @@ class GamePolishPolicyTest {
             ),
         )
         assertEquals(GameSoundEvent.GAME_OVER, GameSoundPolicy.eventFor(GameEffect.GameOver, soundEnabled = true))
-        assertNull(
+        assertEquals(
+            GameSoundEvent.REJECT,
             GameSoundPolicy.eventFor(
                 effect = GameEffect.MoveRejected(MoveRejectionReason.CELL_OCCUPIED),
                 soundEnabled = true,

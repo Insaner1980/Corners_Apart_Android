@@ -2,7 +2,6 @@ package com.finnvek.cornersapart.engine
 
 import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.BonusTile
-import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.Move
@@ -10,6 +9,7 @@ import com.finnvek.cornersapart.model.MutableBoard
 import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.Player
+import com.finnvek.cornersapart.model.targetCells
 
 internal object PlacementValidator {
     fun validate(
@@ -17,13 +17,13 @@ internal object PlacementValidator {
         move: Move,
         enforceTurn: Boolean = true,
     ): PlacementValidation {
-        val player = state.players.getOrNull(move.playerIndex) ?: return invalid(MoveRejectionReason.INVALID_PLAYER)
         if (state.isGameOver) return invalid(MoveRejectionReason.GAME_OVER)
         if (enforceTurn &&
             move.playerIndex != state.currentPlayerIndex
         ) {
             return invalid(MoveRejectionReason.NOT_PLAYERS_TURN)
         }
+        val player = state.players.getOrNull(move.playerIndex) ?: return invalid(MoveRejectionReason.INVALID_PLAYER)
         if (player.passed) return invalid(MoveRejectionReason.PLAYER_HAS_PASSED)
         if (move.pieceId in player.usedPieceIds) return invalid(MoveRejectionReason.PIECE_ALREADY_USED)
 
@@ -31,22 +31,16 @@ internal object PlacementValidator {
         val orientation =
             PieceTransforms.getOrientation(piece, move.orientationIndex)
                 ?: return invalid(MoveRejectionReason.UNKNOWN_ORIENTATION)
-        val targetCells = targetCells(move, orientation)
+        val targetCells =
+            targetCells(
+                anchorRow = move.anchorRow,
+                anchorCol = move.anchorCol,
+                offsets = orientation,
+            )
         val board = MutableBoard(state.board)
 
         return validateTargetCells(state, board, player, targetCells)
     }
-
-    fun targetCells(
-        move: Move,
-        orientation: List<CellOffset>,
-    ): List<CellPosition> =
-        orientation.map { offset ->
-            CellPosition(
-                row = move.anchorRow + offset.row,
-                col = move.anchorCol + offset.col,
-            )
-        }
 
     private fun validateTargetCells(
         state: GameState,
@@ -124,9 +118,10 @@ internal object PlacementValidator {
         targetCells: List<CellPosition>,
     ): List<BonusTile> {
         val targets = targetCells.toSet()
-        return state.bonusTiles.filter { bonusTile ->
-            bonusTile.claimedByPlayerIndex == null && bonusTile.position in targets
-        }
+        return state.bonusTiles
+            .filter { bonusTile ->
+                bonusTile.claimedByPlayerIndex == null && bonusTile.position in targets
+            }.distinctBy { bonusTile -> bonusTile.position }
     }
 
     private fun invalid(

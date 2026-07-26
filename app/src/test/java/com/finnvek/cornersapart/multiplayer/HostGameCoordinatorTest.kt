@@ -2,11 +2,11 @@ package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
 import com.finnvek.cornersapart.engine.MoveRejectionReason
-import com.finnvek.cornersapart.engine.ScoreDelta
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
+import com.finnvek.cornersapart.model.ScoreDelta
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

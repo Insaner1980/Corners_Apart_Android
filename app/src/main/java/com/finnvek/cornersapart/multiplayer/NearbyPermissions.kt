@@ -33,11 +33,6 @@ object NearbyPermissions {
             }
         }
 
-    fun hasRequiredPermissions(
-        permissions: Map<String, Boolean>,
-        sdkInt: Int = Build.VERSION.SDK_INT,
-    ): Boolean = requiredRuntimePermissions(sdkInt).all { permission -> permissions[permission] == true }
-
     private fun MutableList<String>.addBluetoothPermissions() {
         add(BLUETOOTH_ADVERTISE)
         add(BLUETOOTH_CONNECT)

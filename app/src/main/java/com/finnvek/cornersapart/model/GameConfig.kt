@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class GameConfig(
-    val mode: GameMode = GameMode.FOUR_PLAYER,
+    val mode: GameMode = GameModeConfigs.defaultMode,
     val ruleset: Ruleset = Ruleset.STANDARD,
     val boardSize: Int = GameModeConfigs.defaultBoardSizeFor(mode),
     val randomSeed: Long = 0L,

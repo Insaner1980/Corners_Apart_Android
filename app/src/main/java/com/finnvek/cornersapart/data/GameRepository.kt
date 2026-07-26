@@ -13,7 +13,6 @@ class GameRepository(
     private val store: JsonStateStore<SavedGameData>,
 ) {
     val savedGameData: Flow<SavedGameData> = store.data.map { data -> data.toSnapshotCopy() }
-    val savedGame: Flow<GameState?> = savedGameData.map { data -> data.gameState }
 
     suspend fun saveGame(
         state: GameState,

@@ -4,11 +4,15 @@ import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.BonusTile
 import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.GameMode
+import com.finnvek.cornersapart.model.GameModeConfigs
+import com.finnvek.cornersapart.model.HallOfFameEntry
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.LocalAvatarStyle
 import com.finnvek.cornersapart.model.PieceDef
 import com.finnvek.cornersapart.model.PlayerScore
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
+import com.finnvek.cornersapart.multiplayer.SessionType
+import com.finnvek.cornersapart.opponents.OpponentStyle
 
 data class GameUiState(
     val gameMode: GameMode,
@@ -25,18 +29,61 @@ data class GameUiState(
     val hapticsEnabled: Boolean = true,
     val gameDurationSeconds: Int = 0,
     val preferredDifficulty: Int = 3,
-    val preferredMode: GameMode = GameMode.FOUR_PLAYER,
+    val preferredMode: GameMode = GameModeConfigs.defaultMode,
     val history: List<HistoryEntry> = emptyList(),
     val activeProfileName: String = "Player",
     val hasSavedGame: Boolean = false,
     val resumeSummary: ResumeGameSummary? = null,
     val rankedScores: List<PlayerScore> = emptyList(),
+    val sessionType: SessionType = SessionType.LOCAL,
     val nearbyState: NearbyUiState = NearbyUiState(),
     val profiles: List<ProfileUiState> = emptyList(),
+    val activeChallengeLevel: Int? = null,
+    val challengeStars: Map<Int, Int> = emptyMap(),
+    val challengeResult: ChallengeResult? = null,
+    val isNewBestScore: Boolean = false,
+    val newAchievements: List<String> = emptyList(),
+    val unlockedAchievements: Set<String> = emptySet(),
+    val isDailyChallenge: Boolean = false,
+    val dailyBestScore: Int? = null,
+    val rivals: List<RivalUiState> = emptyList(),
+    val activeRivalId: String? = null,
+    val rivalResult: RivalMatchResult? = null,
+    val dailyStreak: Int = 0,
+    val bestDailyStreak: Int = 0,
+    val allTimeRank: Int? = null,
+    val hallOfFameByMode: Map<GameMode?, List<HallOfFameEntry>> = emptyMap(),
 ) {
     val currentPlayer: PlayerUiState
         get() = players[currentPlayerIndex]
 }
+
+data class ChallengeResult(
+    val level: Int,
+    val stars: Int,
+)
+
+data class RivalUiState(
+    val id: String,
+    val name: String,
+    val tier: Int,
+    val style: OpponentStyle,
+    val colorIndex: Int,
+    val wins: Int,
+    val losses: Int,
+    val unlocked: Boolean,
+    val isNextChallenger: Boolean,
+) {
+    val defeated: Boolean
+        get() = wins > 0
+}
+
+data class RivalMatchResult(
+    val rivalId: String,
+    val rivalName: String,
+    val won: Boolean,
+    val unlockedRivalName: String? = null,
+)
 
 data class PlayerUiState(
     val index: Int,

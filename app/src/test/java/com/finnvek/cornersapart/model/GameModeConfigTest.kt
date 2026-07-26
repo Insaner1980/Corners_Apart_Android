@@ -7,12 +7,19 @@ import org.junit.Test
 
 class GameModeConfigTest {
     @Test
+    fun defaultModeIsSharedByGameConfigAndSettings() {
+        assertEquals(GameMode.FOUR_PLAYER, GameModeConfigs.defaultMode)
+        assertEquals(GameModeConfigs.defaultMode, GameConfig().mode)
+        assertEquals(GameModeConfigs.defaultMode, GameSettings().preferredMode)
+    }
+
+    @Test
     fun defaultModeConfigsMatchSpecPlayerSlots() {
         assertModeConfig(
             mode = GameMode.SOLO,
             boardSize = GameConstants.STANDARD_BOARD_SIZE,
             bonusTileCount = GameConstants.STANDARD_BONUS_TILE_COUNT,
-            corners = listOf(19 to 19, 0 to 0, 0 to 19, 19 to 0),
+            corners = listOf(CellPosition(19, 19), CellPosition(0, 0), CellPosition(0, 19), CellPosition(19, 0)),
             ownerIndexes = listOf(0, 1, 2, 3),
             computerControlled = listOf(false, true, true, true),
         )
@@ -20,7 +27,7 @@ class GameModeConfigTest {
             mode = GameMode.TWO_COLOR_DUEL,
             boardSize = GameConstants.STANDARD_BOARD_SIZE,
             bonusTileCount = GameConstants.STANDARD_BONUS_TILE_COUNT,
-            corners = GameConstants.STANDARD_CORNERS,
+            corners = standardCorners(),
             ownerIndexes = listOf(0, 1, 0, 1),
             computerControlled = listOf(false, false, false, false),
         )
@@ -28,7 +35,7 @@ class GameModeConfigTest {
             mode = GameMode.COMPACT_DUEL,
             boardSize = GameConstants.COMPACT_BOARD_SIZE,
             bonusTileCount = GameConstants.COMPACT_BONUS_TILE_COUNT,
-            corners = GameConstants.COMPACT_DUEL_CORNERS,
+            corners = listOf(CellPosition(0, 0), CellPosition(13, 13)),
             ownerIndexes = listOf(0, 1),
             computerControlled = listOf(false, false),
         )
@@ -36,7 +43,7 @@ class GameModeConfigTest {
             mode = GameMode.THREE_PLAYER,
             boardSize = GameConstants.STANDARD_BOARD_SIZE,
             bonusTileCount = GameConstants.STANDARD_BONUS_TILE_COUNT,
-            corners = GameConstants.STANDARD_CORNERS.take(3),
+            corners = standardCorners().take(3),
             ownerIndexes = listOf(0, 1, 2),
             computerControlled = listOf(false, false, false),
         )
@@ -44,7 +51,7 @@ class GameModeConfigTest {
             mode = GameMode.FOUR_PLAYER,
             boardSize = GameConstants.STANDARD_BOARD_SIZE,
             bonusTileCount = GameConstants.STANDARD_BONUS_TILE_COUNT,
-            corners = GameConstants.STANDARD_CORNERS,
+            corners = standardCorners(),
             ownerIndexes = listOf(0, 1, 2, 3),
             computerControlled = listOf(false, false, false, false),
         )
@@ -78,7 +85,7 @@ class GameModeConfigTest {
         mode: GameMode,
         boardSize: Int,
         bonusTileCount: Int,
-        corners: List<Pair<Int, Int>>,
+        corners: List<CellPosition>,
         ownerIndexes: List<Int>,
         computerControlled: List<Boolean>,
     ) {
@@ -87,9 +94,7 @@ class GameModeConfigTest {
         assertEquals(boardSize, config.boardSize)
         assertEquals(bonusTileCount, config.bonusTileCount)
         assertEquals(
-            corners.map { corner ->
-                CellPosition(corner.first, corner.second)
-            },
+            corners,
             config.playerSlots.map { slot -> slot.startCorner },
         )
         assertEquals(ownerIndexes, config.playerSlots.map { slot -> slot.ownerIndex })
@@ -97,4 +102,12 @@ class GameModeConfigTest {
         assertEquals(config.playerSlots.indices.toList(), config.playerSlots.map { slot -> slot.index })
         assertEquals(config.playerSlots.indices.toList(), config.playerSlots.map { slot -> slot.colorIndex })
     }
+
+    private fun standardCorners(): List<CellPosition> =
+        listOf(
+            CellPosition(0, 0),
+            CellPosition(0, GameConstants.STANDARD_BOARD_SIZE - 1),
+            CellPosition(GameConstants.STANDARD_BOARD_SIZE - 1, GameConstants.STANDARD_BOARD_SIZE - 1),
+            CellPosition(GameConstants.STANDARD_BOARD_SIZE - 1, 0),
+        )
 }

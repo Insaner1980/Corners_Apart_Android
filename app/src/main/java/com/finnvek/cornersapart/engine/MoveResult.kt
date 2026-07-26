@@ -2,6 +2,7 @@ package com.finnvek.cornersapart.engine
 
 import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.GameState
+import com.finnvek.cornersapart.model.ScoreDelta
 
 sealed interface MoveResult {
     data class Accepted(
@@ -38,4 +39,5 @@ data class PlacementPreview(
     val targetCells: List<CellPosition>,
     val rejectionReason: MoveRejectionReason?,
     val scoreDelta: ScoreDelta,
+    val claimedBonusTileCount: Int,
 )

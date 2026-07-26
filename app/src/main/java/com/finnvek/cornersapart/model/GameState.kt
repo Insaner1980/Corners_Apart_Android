@@ -12,7 +12,7 @@ data class GameState(
     val gameMode: GameMode,
     val randomSeed: Long,
     val bonusTiles: List<BonusTile>,
-    val bonusLayoutId: String? = null,
-    val moveHistory: List<Move> = emptyList(),
-    val isGameOver: Boolean = false,
+    val bonusLayoutId: String?,
+    val moveHistory: List<Move>,
+    val isGameOver: Boolean,
 )

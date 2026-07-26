@@ -5,6 +5,93 @@
 //   ./gradlew :app:stabilityDump
 
 @Composable
+public fun com.finnvek.cornersapart.ui.components.CandyButton(text: kotlin.String, onClick: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, style: com.finnvek.cornersapart.ui.components.CandyButtonStyle, enabled: kotlin.Boolean, leadingIcon: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>?): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - text: STABLE (String is immutable)
+    - onClick: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - style: STABLE (class with no mutable properties)
+    - enabled: STABLE (primitive type)
+    - leadingIcon: STABLE (composable function type)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.components.CandyChip(label: kotlin.String, selected: kotlin.Boolean, onClick: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - label: STABLE (String is immutable)
+    - selected: STABLE (primitive type)
+    - onClick: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.components.CandyDialog(title: kotlin.String, onDismiss: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, buttons: @[Composable] @[ExtensionFunctionType] androidx.compose.runtime.internal.ComposableFunction1<androidx.compose.foundation.layout.RowScope, kotlin.Unit>, content: @[Composable] @[ExtensionFunctionType] androidx.compose.runtime.internal.ComposableFunction1<androidx.compose.foundation.layout.ColumnScope, kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - title: STABLE (String is immutable)
+    - onDismiss: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - buttons: STABLE (composable function type)
+    - content: STABLE (composable function type)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.components.CandyIconButton(contentDescription: kotlin.String?, onClick: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, style: com.finnvek.cornersapart.ui.components.CandyButtonStyle, enabled: kotlin.Boolean, icon: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - contentDescription: STABLE (class with no mutable properties)
+    - onClick: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - style: STABLE (class with no mutable properties)
+    - enabled: STABLE (primitive type)
+    - icon: STABLE (composable function type)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.components.CandyPressable(onClick: kotlin.Function0<kotlin.Unit>, style: com.finnvek.cornersapart.ui.components.CandyButtonStyle, enabled: kotlin.Boolean, modifier: androidx.compose.ui.Modifier, content: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - onClick: STABLE (function type)
+    - style: STABLE (class with no mutable properties)
+    - enabled: STABLE (primitive type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - content: STABLE (composable function type)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.components.CandySwitch(checked: kotlin.Boolean, onCheckedChange: kotlin.Function1<kotlin.Boolean, kotlin.Unit>, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - checked: STABLE (primitive type)
+    - onCheckedChange: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.components.ConfettiBurst(modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.components.CornersApartLaunch(modifier: androidx.compose.ui.Modifier, content: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - content: STABLE (composable function type)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.components.LaunchSplashOverlay(onFinished: kotlin.Function0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - onFinished: STABLE (function type)
+
+@Composable
 public fun com.finnvek.cornersapart.ui.components.PieceShape(cells: kotlin.collections.List<com.finnvek.cornersapart.model.CellOffset>, colorIndex: kotlin.Int, modifier: androidx.compose.ui.Modifier, alpha: kotlin.Float): kotlin.Unit
   skippable: false
   restartable: true
@@ -15,11 +102,69 @@ public fun com.finnvek.cornersapart.ui.components.PieceShape(cells: kotlin.colle
     - alpha: STABLE (primitive type)
 
 @Composable
+public fun com.finnvek.cornersapart.ui.components.RivalAvatar(style: com.finnvek.cornersapart.opponents.OpponentStyle, colorIndex: kotlin.Int, modifier: androidx.compose.ui.Modifier, showCrown: kotlin.Boolean, alpha: kotlin.Float): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - style: STABLE (class with no mutable properties)
+    - colorIndex: STABLE (primitive type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - showCrown: STABLE (primitive type)
+    - alpha: STABLE (primitive type)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.components.SplashPiece(spec: com.finnvek.cornersapart.ui.components.SplashPieceSpec, timelineProgress: kotlin.Float): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - spec: STABLE (class with no mutable properties)
+    - timelineProgress: STABLE (primitive type)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.components.StreakBadge(currentStreak: kotlin.Int, bestStreak: kotlin.Int, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - currentStreak: STABLE (primitive type)
+    - bestStreak: STABLE (primitive type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
 private fun com.finnvek.cornersapart.ui.screens.AccessibilityAnnouncementNode(accessibilityAnnouncement: kotlin.String?): kotlin.Unit
   skippable: true
   restartable: true
   params:
     - accessibilityAnnouncement: STABLE (class with no mutable properties)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.AchievementsSection(unlockedAchievements: kotlin.collections.Set<kotlin.String>): kotlin.Unit
+  skippable: false
+  restartable: true
+  params:
+    - unlockedAchievements: RUNTIME (requires runtime check)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.screens.ChallengeDialog(challengeStars: kotlin.collections.Map<kotlin.Int, kotlin.Int>, onStartLevel: kotlin.Function1<kotlin.Int, kotlin.Unit>, onStartDaily: kotlin.Function0<kotlin.Unit>, onDismiss: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, dailyBestScore: kotlin.Int?, dailyStreak: kotlin.Int, bestDailyStreak: kotlin.Int): kotlin.Unit
+  skippable: false
+  restartable: true
+  params:
+    - challengeStars: RUNTIME (requires runtime check)
+    - onStartLevel: STABLE (function type)
+    - onStartDaily: STABLE (function type)
+    - onDismiss: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - dailyBestScore: STABLE (class with no mutable properties)
+    - dailyStreak: STABLE (primitive type)
+    - bestDailyStreak: STABLE (primitive type)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.ColorSwatch(colorIndex: kotlin.Int, selected: kotlin.Boolean, onClick: kotlin.Function0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - colorIndex: STABLE (primitive type)
+    - selected: STABLE (primitive type)
+    - onClick: STABLE (function type)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.CompactGameLayout(content: com.finnvek.cornersapart.ui.screens.GameLayoutContent, modifier: androidx.compose.ui.Modifier): kotlin.Unit
@@ -47,12 +192,27 @@ private fun com.finnvek.cornersapart.ui.screens.ControlBar(onRotateCounterClockw
     - onPass: STABLE (function type)
 
 @Composable
+private fun com.finnvek.cornersapart.ui.screens.DifficultyPips(tier: kotlin.Int): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - tier: STABLE (primitive type)
+
+@Composable
 private fun com.finnvek.cornersapart.ui.screens.DifficultySelector(selectedDifficulty: kotlin.Int, onDifficultySelected: kotlin.Function1<kotlin.Int, kotlin.Unit>): kotlin.Unit
   skippable: true
   restartable: true
   params:
     - selectedDifficulty: STABLE (primitive type)
     - onDifficultySelected: STABLE (function type)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.DragGhostOverlay(dragController: com.finnvek.cornersapart.ui.screens.BoardDragController, colorIndex: kotlin.Int): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - dragController: STABLE (marked @Stable or @Immutable)
+    - colorIndex: STABLE (primitive type)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.ExpandedGameLayout(content: com.finnvek.cornersapart.ui.screens.GameLayoutContent, modifier: androidx.compose.ui.Modifier): kotlin.Unit
@@ -63,13 +223,16 @@ private fun com.finnvek.cornersapart.ui.screens.ExpandedGameLayout(content: com.
     - modifier: STABLE (marked @Stable or @Immutable)
 
 @Composable
-public fun com.finnvek.cornersapart.ui.screens.GameBoard(state: com.finnvek.cornersapart.viewmodel.GameUiState, onPlaceCell: kotlin.Function2<@[ParameterName(name = \, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+public fun com.finnvek.cornersapart.ui.screens.GameBoard(state: com.finnvek.cornersapart.viewmodel.GameUiState, onPlaceCell: kotlin.Function2<@[ParameterName(name = \, modifier: androidx.compose.ui.Modifier, externalPreviewAnchor: com.finnvek.cornersapart.model.CellPosition?, onCanvasPositioned: kotlin.Function1<androidx.compose.ui.layout.LayoutCoordinates, kotlin.Unit>, isPlacementLegal: kotlin.Function2<@[ParameterName(name = \): kotlin.Unit
   skippable: false
   restartable: true
   params:
     - state: RUNTIME (requires runtime check)
     - onPlaceCell: STABLE (function type)
     - modifier: STABLE (marked @Stable or @Immutable)
+    - externalPreviewAnchor: STABLE (class with no mutable properties)
+    - onCanvasPositioned: STABLE (function type)
+    - isPlacementLegal: STABLE (function type)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.GameHeaderActions(content: com.finnvek.cornersapart.ui.screens.GameLayoutContent): kotlin.Unit
@@ -86,16 +249,16 @@ public fun com.finnvek.cornersapart.ui.screens.GameHelpDialog(onDismiss: kotlin.
     - onDismiss: STABLE (function type)
 
 @Composable
-private fun com.finnvek.cornersapart.ui.screens.GameIconButton(contentDescription: kotlin.String, onClick: kotlin.Function0<kotlin.Unit>, icon: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
+private fun com.finnvek.cornersapart.ui.screens.GameModePickerDialog(currentMode: com.finnvek.cornersapart.model.GameMode, onModeSelected: kotlin.Function1<com.finnvek.cornersapart.model.GameMode, kotlin.Unit>, onDismiss: kotlin.Function0<kotlin.Unit>): kotlin.Unit
   skippable: true
   restartable: true
   params:
-    - contentDescription: STABLE (String is immutable)
-    - onClick: STABLE (function type)
-    - icon: STABLE (composable function type)
+    - currentMode: STABLE (class with no mutable properties)
+    - onModeSelected: STABLE (function type)
+    - onDismiss: STABLE (function type)
 
 @Composable
-public fun com.finnvek.cornersapart.ui.screens.GameOverDialog(rankedScores: kotlin.collections.List<com.finnvek.cornersapart.model.PlayerScore>, durationSeconds: kotlin.Int, onPlayAgain: kotlin.Function0<kotlin.Unit>, onShowStats: kotlin.Function0<kotlin.Unit>): kotlin.Unit
+public fun com.finnvek.cornersapart.ui.screens.GameOverDialog(rankedScores: kotlin.collections.List<com.finnvek.cornersapart.model.PlayerScore>, durationSeconds: kotlin.Int, onPlayAgain: kotlin.Function0<kotlin.Unit>, onShowStats: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, challengeResult: com.finnvek.cornersapart.viewmodel.ChallengeResult?, isNewBestScore: kotlin.Boolean, newAchievements: kotlin.collections.List<kotlin.String>, dailyBestScore: kotlin.Int?, rivalResult: com.finnvek.cornersapart.viewmodel.RivalMatchResult?, allTimeRank: kotlin.Int?, allTimeRankModeLabel: kotlin.String, dailyStreak: kotlin.Int): kotlin.Unit
   skippable: false
   restartable: true
   params:
@@ -103,6 +266,15 @@ public fun com.finnvek.cornersapart.ui.screens.GameOverDialog(rankedScores: kotl
     - durationSeconds: STABLE (primitive type)
     - onPlayAgain: STABLE (function type)
     - onShowStats: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+    - challengeResult: STABLE (class with no mutable properties)
+    - isNewBestScore: STABLE (primitive type)
+    - newAchievements: RUNTIME (requires runtime check)
+    - dailyBestScore: STABLE (class with no mutable properties)
+    - rivalResult: STABLE (class with no mutable properties)
+    - allTimeRank: STABLE (class with no mutable properties)
+    - allTimeRankModeLabel: STABLE (String is immutable)
+    - dailyStreak: STABLE (primitive type)
 
 @Composable
 public fun com.finnvek.cornersapart.ui.screens.GameRoute(viewModel: com.finnvek.cornersapart.viewmodel.GameViewModel): kotlin.Unit
@@ -134,6 +306,24 @@ public fun com.finnvek.cornersapart.ui.screens.GameSettingsDialog(settings: com.
     - onDismiss: STABLE (function type)
 
 @Composable
+private fun com.finnvek.cornersapart.ui.screens.HallOfFameRow(rank: kotlin.Int, item: com.finnvek.cornersapart.model.HallOfFameEntry, highlighted: kotlin.Boolean): kotlin.Unit
+  skippable: false
+  restartable: true
+  params:
+    - rank: STABLE (primitive type)
+    - item: RUNTIME (requires runtime check)
+    - highlighted: STABLE (primitive type)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.screens.HallOfFameTab(hallOfFameByMode: kotlin.collections.Map<com.finnvek.cornersapart.model.GameMode?, kotlin.collections.List<com.finnvek.cornersapart.model.HallOfFameEntry>>, activeProfileName: kotlin.String, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: false
+  restartable: true
+  params:
+    - hallOfFameByMode: RUNTIME (requires runtime check)
+    - activeProfileName: STABLE (String is immutable)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
 private fun com.finnvek.cornersapart.ui.screens.Header(state: com.finnvek.cornersapart.viewmodel.GameUiState, onModeSelected: kotlin.Function1<com.finnvek.cornersapart.model.GameMode, kotlin.Unit>): kotlin.Unit
   skippable: false
   restartable: true
@@ -142,15 +332,15 @@ private fun com.finnvek.cornersapart.ui.screens.Header(state: com.finnvek.corner
     - onModeSelected: STABLE (function type)
 
 @Composable
-private fun com.finnvek.cornersapart.ui.screens.HelpRuleSection(title: kotlin.Int, body: kotlin.Int): kotlin.Unit
+private fun com.finnvek.cornersapart.ui.screens.HelpRuleSection(title: kotlin.Int, body: kotlin.String): kotlin.Unit
   skippable: true
   restartable: true
   params:
     - title: STABLE (primitive type)
-    - body: STABLE (primitive type)
+    - body: STABLE (String is immutable)
 
 @Composable
-public fun com.finnvek.cornersapart.ui.screens.HistoryStatsDialog(history: kotlin.collections.List<com.finnvek.cornersapart.model.HistoryEntry>, onDismiss: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, stats: com.finnvek.cornersapart.model.HistoryStats): kotlin.Unit
+public fun com.finnvek.cornersapart.ui.screens.HistoryStatsDialog(history: kotlin.collections.List<com.finnvek.cornersapart.model.HistoryEntry>, onDismiss: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier, stats: com.finnvek.cornersapart.model.HistoryStats, unlockedAchievements: kotlin.collections.Set<kotlin.String>, hallOfFameByMode: kotlin.collections.Map<com.finnvek.cornersapart.model.GameMode?, kotlin.collections.List<com.finnvek.cornersapart.model.HallOfFameEntry>>, activeProfileName: kotlin.String): kotlin.Unit
   skippable: false
   restartable: true
   params:
@@ -158,6 +348,9 @@ public fun com.finnvek.cornersapart.ui.screens.HistoryStatsDialog(history: kotli
     - onDismiss: STABLE (function type)
     - modifier: STABLE (marked @Stable or @Immutable)
     - stats: RUNTIME (requires runtime check)
+    - unlockedAchievements: RUNTIME (requires runtime check)
+    - hallOfFameByMode: RUNTIME (requires runtime check)
+    - activeProfileName: STABLE (String is immutable)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.HistoryTab(history: kotlin.collections.List<com.finnvek.cornersapart.model.HistoryEntry>): kotlin.Unit
@@ -167,13 +360,13 @@ private fun com.finnvek.cornersapart.ui.screens.HistoryTab(history: kotlin.colle
     - history: RUNTIME (requires runtime check)
 
 @Composable
-private fun com.finnvek.cornersapart.ui.screens.ModeChip(text: kotlin.String, selected: kotlin.Boolean, onClick: kotlin.Function0<kotlin.Unit>): kotlin.Unit
+private fun com.finnvek.cornersapart.ui.screens.IntroContestant(name: kotlin.String, slideOffsetFraction: kotlin.Float, avatar: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
   skippable: true
   restartable: true
   params:
-    - text: STABLE (String is immutable)
-    - selected: STABLE (primitive type)
-    - onClick: STABLE (function type)
+    - name: STABLE (String is immutable)
+    - slideOffsetFraction: STABLE (primitive type)
+    - avatar: STABLE (composable function type)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.ModeSelector(selectedMode: com.finnvek.cornersapart.model.GameMode, onModeSelected: kotlin.Function1<com.finnvek.cornersapart.model.GameMode, kotlin.Unit>): kotlin.Unit
@@ -184,11 +377,14 @@ private fun com.finnvek.cornersapart.ui.screens.ModeSelector(selectedMode: com.f
     - onModeSelected: STABLE (function type)
 
 @Composable
-private fun com.finnvek.cornersapart.ui.screens.NearbyActions(nearbyState: com.finnvek.cornersapart.multiplayer.NearbyUiState, onCreateNearbyGame: kotlin.Function0<kotlin.Unit>, onFindNearbyGame: kotlin.Function0<kotlin.Unit>, onConnectToNearbyEndpoint: kotlin.Function1<kotlin.String, kotlin.Unit>, onAcceptPendingNearbyConnection: kotlin.Function1<kotlin.String, kotlin.Unit>, onRejectPendingNearbyConnection: kotlin.Function1<kotlin.String, kotlin.Unit>): kotlin.Unit
+private fun com.finnvek.cornersapart.ui.screens.NearbyActions(sessionType: com.finnvek.cornersapart.multiplayer.SessionType, nearbyState: com.finnvek.cornersapart.multiplayer.NearbyUiState, onShowChallenges: kotlin.Function0<kotlin.Unit>, onShowRivals: kotlin.Function0<kotlin.Unit>, onCreateNearbyGame: kotlin.Function0<kotlin.Unit>, onFindNearbyGame: kotlin.Function0<kotlin.Unit>, onConnectToNearbyEndpoint: kotlin.Function1<kotlin.String, kotlin.Unit>, onAcceptPendingNearbyConnection: kotlin.Function1<kotlin.String, kotlin.Unit>, onRejectPendingNearbyConnection: kotlin.Function1<kotlin.String, kotlin.Unit>): kotlin.Unit
   skippable: false
   restartable: true
   params:
+    - sessionType: STABLE (class with no mutable properties)
     - nearbyState: RUNTIME (requires runtime check)
+    - onShowChallenges: STABLE (function type)
+    - onShowRivals: STABLE (function type)
     - onCreateNearbyGame: STABLE (function type)
     - onFindNearbyGame: STABLE (function type)
     - onConnectToNearbyEndpoint: STABLE (function type)
@@ -220,22 +416,41 @@ private fun com.finnvek.cornersapart.ui.screens.PassButton(onPass: kotlin.Functi
     - onPass: STABLE (function type)
 
 @Composable
-private fun com.finnvek.cornersapart.ui.screens.PieceCard(item: com.finnvek.cornersapart.viewmodel.PiecePanelItem, colorIndex: kotlin.Int, onSelectPiece: kotlin.Function1<kotlin.String, kotlin.Unit>): kotlin.Unit
+private fun com.finnvek.cornersapart.ui.screens.PieceCard(item: com.finnvek.cornersapart.viewmodel.PiecePanelItem, colorIndex: kotlin.Int, selectedCells: kotlin.collections.List<com.finnvek.cornersapart.model.CellOffset>, onSelectPiece: kotlin.Function1<kotlin.String, kotlin.Unit>, dragController: com.finnvek.cornersapart.ui.screens.BoardDragController): kotlin.Unit
   skippable: false
   restartable: true
   params:
     - item: RUNTIME (requires runtime check)
     - colorIndex: STABLE (primitive type)
+    - selectedCells: RUNTIME (requires runtime check)
     - onSelectPiece: STABLE (function type)
+    - dragController: STABLE (marked @Stable or @Immutable)
 
 @Composable
-private fun com.finnvek.cornersapart.ui.screens.PiecePanel(pieces: kotlin.collections.List<com.finnvek.cornersapart.viewmodel.PiecePanelItem>, colorIndex: kotlin.Int, onSelectPiece: kotlin.Function1<kotlin.String, kotlin.Unit>): kotlin.Unit
+private fun com.finnvek.cornersapart.ui.screens.PiecePanel(pieces: kotlin.collections.List<com.finnvek.cornersapart.viewmodel.PiecePanelItem>, colorIndex: kotlin.Int, selectedCells: kotlin.collections.List<com.finnvek.cornersapart.model.CellOffset>, onSelectPiece: kotlin.Function1<kotlin.String, kotlin.Unit>, dragController: com.finnvek.cornersapart.ui.screens.BoardDragController): kotlin.Unit
   skippable: false
   restartable: true
   params:
     - pieces: RUNTIME (requires runtime check)
     - colorIndex: STABLE (primitive type)
+    - selectedCells: RUNTIME (requires runtime check)
     - onSelectPiece: STABLE (function type)
+    - dragController: STABLE (marked @Stable or @Immutable)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.PieceProgressBar(fraction: kotlin.Float, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - fraction: STABLE (primitive type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.PlayerIntroTile(colorIndex: kotlin.Int): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - colorIndex: STABLE (primitive type)
 
 @Composable
 public fun com.finnvek.cornersapart.ui.screens.PlayerScoreBar(players: kotlin.collections.List<com.finnvek.cornersapart.viewmodel.PlayerUiState>, modifier: androidx.compose.ui.Modifier): kotlin.Unit
@@ -262,12 +477,39 @@ private fun com.finnvek.cornersapart.ui.screens.PlayerScoreCard(player: com.finn
     - modifier: STABLE (marked @Stable or @Immutable)
 
 @Composable
+private fun com.finnvek.cornersapart.ui.screens.Podium(entries: kotlin.collections.List<com.finnvek.cornersapart.model.HallOfFameEntry>, activeProfileName: kotlin.String): kotlin.Unit
+  skippable: false
+  restartable: true
+  params:
+    - entries: RUNTIME (requires runtime check)
+    - activeProfileName: STABLE (String is immutable)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.PodiumColumn(entry: com.finnvek.cornersapart.model.HallOfFameEntry?, rank: kotlin.Int, height: androidx.compose.ui.unit.Dp, medalColors: kotlin.Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color>, activeProfileName: kotlin.String, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: false
+  restartable: true
+  params:
+    - entry: RUNTIME (requires runtime check)
+    - rank: STABLE (primitive type)
+    - height: STABLE (marked @Stable or @Immutable)
+    - medalColors: STABLE (known stable type)
+    - activeProfileName: STABLE (String is immutable)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
 private fun com.finnvek.cornersapart.ui.screens.ProfileAvatarStyleSelector(selectedStyle: com.finnvek.cornersapart.model.LocalAvatarStyle, onStyleSelected: kotlin.Function1<com.finnvek.cornersapart.model.LocalAvatarStyle, kotlin.Unit>): kotlin.Unit
   skippable: true
   restartable: true
   params:
     - selectedStyle: STABLE (class with no mutable properties)
     - onStyleSelected: STABLE (function type)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.ProfileChipRow(chips: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - chips: STABLE (composable function type)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.ProfileColorSelector(selectedColorIndex: kotlin.Int, onColorSelected: kotlin.Function1<kotlin.Int, kotlin.Unit>): kotlin.Unit
@@ -278,7 +520,7 @@ private fun com.finnvek.cornersapart.ui.screens.ProfileColorSelector(selectedCol
     - onColorSelected: STABLE (function type)
 
 @Composable
-public fun com.finnvek.cornersapart.ui.screens.ProfilesDialog(profiles: kotlin.collections.List<com.finnvek.cornersapart.viewmodel.ProfileUiState>, onSetActiveProfile: kotlin.Function1<kotlin.String, kotlin.Unit>, onAddProfile: kotlin.Function3<@[ParameterName(name = \, onUpdateProfile: kotlin.Function4<@[ParameterName(name = \, onDismiss: kotlin.Function0<kotlin.Unit>): kotlin.Unit
+public fun com.finnvek.cornersapart.ui.screens.ProfilesDialog(profiles: kotlin.collections.List<com.finnvek.cornersapart.viewmodel.ProfileUiState>, onSetActiveProfile: kotlin.Function1<kotlin.String, kotlin.Unit>, onAddProfile: kotlin.Function3<@[ParameterName(name = \, onUpdateProfile: kotlin.Function4<@[ParameterName(name = \, onDeleteProfile: kotlin.Function1<kotlin.String, kotlin.Unit>, onDismiss: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier): kotlin.Unit
   skippable: false
   restartable: true
   params:
@@ -286,16 +528,56 @@ public fun com.finnvek.cornersapart.ui.screens.ProfilesDialog(profiles: kotlin.c
     - onSetActiveProfile: STABLE (function type)
     - onAddProfile: STABLE (function type)
     - onUpdateProfile: STABLE (function type)
+    - onDeleteProfile: STABLE (function type)
     - onDismiss: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
 
 @Composable
-public fun com.finnvek.cornersapart.ui.screens.ResumeGameDialog(summary: com.finnvek.cornersapart.viewmodel.ResumeGameSummary, onContinue: kotlin.Function0<kotlin.Unit>, onNewGame: kotlin.Function0<kotlin.Unit>): kotlin.Unit
+public fun com.finnvek.cornersapart.ui.screens.ResumeGameDialog(summary: com.finnvek.cornersapart.viewmodel.ResumeGameSummary, onContinue: kotlin.Function0<kotlin.Unit>, onNewGame: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier): kotlin.Unit
   skippable: true
   restartable: true
   params:
     - summary: STABLE (class with no mutable properties)
     - onContinue: STABLE (function type)
     - onNewGame: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.RivalCard(rival: com.finnvek.cornersapart.viewmodel.RivalUiState, previousRivalName: kotlin.String?, onChallenge: kotlin.Function0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - rival: STABLE (class with no mutable properties)
+    - previousRivalName: STABLE (class with no mutable properties)
+    - onChallenge: STABLE (function type)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.RivalIntroOverlay(state: com.finnvek.cornersapart.viewmodel.GameUiState): kotlin.Unit
+  skippable: false
+  restartable: true
+  params:
+    - state: RUNTIME (requires runtime check)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.screens.RivalMatchIntro(rival: com.finnvek.cornersapart.viewmodel.RivalUiState, playerName: kotlin.String, playerColorIndex: kotlin.Int, onSkip: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - rival: STABLE (class with no mutable properties)
+    - playerName: STABLE (String is immutable)
+    - playerColorIndex: STABLE (primitive type)
+    - onSkip: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
+
+@Composable
+public fun com.finnvek.cornersapart.ui.screens.RivalsDialog(rivals: kotlin.collections.List<com.finnvek.cornersapart.viewmodel.RivalUiState>, onChallengeRival: kotlin.Function1<kotlin.String, kotlin.Unit>, onDismiss: kotlin.Function0<kotlin.Unit>, modifier: androidx.compose.ui.Modifier): kotlin.Unit
+  skippable: false
+  restartable: true
+  params:
+    - rivals: RUNTIME (requires runtime check)
+    - onChallengeRival: STABLE (function type)
+    - onDismiss: STABLE (function type)
+    - modifier: STABLE (marked @Stable or @Immutable)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.ScoreBreakdownLabels(): kotlin.Unit
@@ -309,6 +591,21 @@ private fun com.finnvek.cornersapart.ui.screens.SelectedPiecePreview(state: com.
   restartable: true
   params:
     - state: RUNTIME (requires runtime check)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.SelectorSection(title: kotlin.String, chips: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - title: STABLE (String is immutable)
+    - chips: STABLE (composable function type)
+
+@Composable
+private fun com.finnvek.cornersapart.ui.screens.SelectorTitle(title: kotlin.String): kotlin.Unit
+  skippable: true
+  restartable: true
+  params:
+    - title: STABLE (String is immutable)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.SettingSwitchRow(label: kotlin.String, checked: kotlin.Boolean, onCheckedChange: kotlin.Function1<kotlin.Boolean, kotlin.Unit>): kotlin.Unit
@@ -335,11 +632,13 @@ private fun com.finnvek.cornersapart.ui.screens.StatsTab(stats: com.finnvek.corn
     - stats: RUNTIME (requires runtime check)
 
 @Composable
-private fun com.finnvek.cornersapart.ui.screens.StatusLine(state: com.finnvek.cornersapart.viewmodel.GameUiState): kotlin.Unit
+private fun com.finnvek.cornersapart.ui.screens.StatusLine(state: com.finnvek.cornersapart.viewmodel.GameUiState, notice: kotlin.String?, scoreNotice: kotlin.String?): kotlin.Unit
   skippable: false
   restartable: true
   params:
     - state: RUNTIME (requires runtime check)
+    - notice: STABLE (class with no mutable properties)
+    - scoreNotice: STABLE (class with no mutable properties)
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.UtilityActions(onShowHistoryStats: kotlin.Function0<kotlin.Unit>, onShowSettings: kotlin.Function0<kotlin.Unit>, onShowProfiles: kotlin.Function0<kotlin.Unit>, onShowHelp: kotlin.Function0<kotlin.Unit>): kotlin.Unit
@@ -364,9 +663,8 @@ private fun com.finnvek.cornersapart.ui.screens.toAnnouncementText(): kotlin.Str
   params:
 
 @Composable
-public fun com.finnvek.cornersapart.ui.theme.CornersApartTheme(darkTheme: kotlin.Boolean, content: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
+public fun com.finnvek.cornersapart.ui.theme.CornersApartTheme(content: @[Composable] androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>): kotlin.Unit
   skippable: true
   restartable: true
   params:
-    - darkTheme: STABLE (primitive type)
     - content: STABLE (composable function type)

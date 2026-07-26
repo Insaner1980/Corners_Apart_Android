@@ -10,15 +10,25 @@ object CornerCache {
         state: GameState,
         playerIndex: Int,
         orientation: List<CellOffset>,
+    ): Set<CellPosition> = candidateAnchors(targetCorners(state, playerIndex), orientation)
+
+    internal fun targetCorners(
+        state: GameState,
+        playerIndex: Int,
     ): Set<CellPosition> {
         val player = state.players[playerIndex]
-        val targetCorners =
-            if (player.hasPlacedAnyPiece) {
-                cornerPositions(state.board, playerIndex)
-            } else {
-                setOf(player.startCorner)
-            }
-        return targetCorners
+        return if (player.hasPlacedAnyPiece) {
+            cornerPositions(state.board, playerIndex)
+        } else {
+            setOf(player.startCorner)
+        }
+    }
+
+    internal fun candidateAnchors(
+        targetCorners: Set<CellPosition>,
+        orientation: List<CellOffset>,
+    ): Set<CellPosition> =
+        targetCorners
             .flatMap { corner ->
                 orientation.map { offset ->
                     CellPosition(
@@ -27,7 +37,6 @@ object CornerCache {
                     )
                 }
             }.toSet()
-    }
 
     fun cornerPositions(
         board: BoardSnapshot,

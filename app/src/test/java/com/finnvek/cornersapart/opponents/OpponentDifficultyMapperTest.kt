@@ -11,11 +11,12 @@ class OpponentDifficultyMapperTest {
         assertEquals(OpponentDifficulty.MEDIUM, OpponentDifficultyMapper.fromPersistedLevel(3))
         assertEquals(OpponentDifficulty.HARD, OpponentDifficultyMapper.fromPersistedLevel(4))
         assertEquals(OpponentDifficulty.EXPERT, OpponentDifficultyMapper.fromPersistedLevel(5))
+        assertEquals(OpponentDifficulty.MASTER, OpponentDifficultyMapper.fromPersistedLevel(6))
     }
 
     @Test
     fun unknownPersistedDifficultyLevelsAreClamped() {
         assertEquals(OpponentDifficulty.BEGINNER, OpponentDifficultyMapper.fromPersistedLevel(0))
-        assertEquals(OpponentDifficulty.EXPERT, OpponentDifficultyMapper.fromPersistedLevel(99))
+        assertEquals(OpponentDifficulty.MASTER, OpponentDifficultyMapper.fromPersistedLevel(99))
     }
 }

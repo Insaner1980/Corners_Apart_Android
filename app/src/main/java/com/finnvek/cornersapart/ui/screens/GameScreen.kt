@@ -4,10 +4,17 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,32 +24,40 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -51,31 +66,49 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.finnvek.cornersapart.R
+import com.finnvek.cornersapart.engine.MoveRejectionReason
+import com.finnvek.cornersapart.model.CellOffset
+import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.HistoryEntry
 import com.finnvek.cornersapart.model.LocalAvatarStyle
+import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.multiplayer.ConnectionState
 import com.finnvek.cornersapart.multiplayer.NearbyEndpointUiState
 import com.finnvek.cornersapart.multiplayer.NearbyPendingConnection
 import com.finnvek.cornersapart.multiplayer.NearbyPermissions
 import com.finnvek.cornersapart.multiplayer.NearbyUiState
+import com.finnvek.cornersapart.multiplayer.SessionType
+import com.finnvek.cornersapart.ui.components.CandyButton
+import com.finnvek.cornersapart.ui.components.CandyButtonStyle
+import com.finnvek.cornersapart.ui.components.CandyChip
+import com.finnvek.cornersapart.ui.components.CandyDialog
+import com.finnvek.cornersapart.ui.components.CandyIconButton
 import com.finnvek.cornersapart.ui.components.PieceShape
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
+import com.finnvek.cornersapart.ui.theme.candyBackground
+import com.finnvek.cornersapart.ui.theme.withCandyShadow
 import com.finnvek.cornersapart.viewmodel.GameEffect
 import com.finnvek.cornersapart.viewmodel.GameUiState
 import com.finnvek.cornersapart.viewmodel.GameViewModel
 import com.finnvek.cornersapart.viewmodel.PiecePanelItem
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 data class GameScreenActions(
     val onModeSelected: (GameMode) -> Unit = {},
+    val onStartChallengeLevel: (Int) -> Unit = {},
+    val onStartDailyChallenge: () -> Unit = {},
+    val onStartRivalMatch: (String) -> Unit = {},
     val onCreateNearbyGame: () -> Unit = {},
     val onFindNearbyGame: () -> Unit = {},
     val onConnectToNearbyEndpoint: (String) -> Unit = {},
@@ -93,6 +126,7 @@ data class GamePieceActions(
     val onFlip: () -> Unit = {},
     val onPass: () -> Unit = {},
     val onPlaceCell: (row: Int, col: Int) -> Unit = { _, _ -> },
+    val isPlacementLegal: (row: Int, col: Int) -> Boolean = { _, _ -> true },
 )
 
 data class GameSettingsActions(
@@ -107,10 +141,13 @@ data class GameProfileActions(
     val onAddProfile: (name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit = { _, _, _ -> },
     val onUpdateProfile: (profileId: String, name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit =
         { _, _, _, _ -> },
+    val onDeleteProfile: (String) -> Unit = {},
 )
 
 data class GameDialogState(
     val accessibilityAnnouncement: String? = null,
+    val statusNotice: String? = null,
+    val scoreNotice: String? = null,
     val showHistoryStatsDialog: Boolean = false,
     val history: List<HistoryEntry> = emptyList(),
     val onDismissHistoryStats: () -> Unit = {},
@@ -119,19 +156,102 @@ data class GameDialogState(
 private data class GameLayoutContent(
     val state: GameUiState,
     val accessibilityAnnouncement: String?,
+    val statusNotice: String?,
+    val scoreNotice: String?,
     val screenActions: GameScreenActions,
     val pieceActions: GamePieceActions,
+    val dragController: BoardDragController,
     val onShowSettings: () -> Unit,
     val onShowProfiles: () -> Unit,
     val onShowHelp: () -> Unit,
+    val onShowChallenges: () -> Unit,
+    val onShowRivals: () -> Unit,
 )
+
+/**
+ * Välittää palavalikoimasta alkavan raahauksen sormen sijainnin laudalle:
+ * laskee esikatselusolun ja pudotuksen laudan koordinaateissa.
+ */
+@Stable
+internal class BoardDragController {
+    var rootCoordinates: LayoutCoordinates? = null
+    var boardCoordinates: LayoutCoordinates? = null
+    var boardCellCount: Int = 0
+    var onPlaceCell: (row: Int, col: Int) -> Unit = { _, _ -> }
+    var dragCells: List<CellOffset>? by mutableStateOf(null)
+    var fingerInRoot: Offset? by mutableStateOf(null)
+    var previewAnchor: CellPosition? by mutableStateOf(null)
+
+    fun startDrag(cells: List<CellOffset>) {
+        dragCells = cells
+    }
+
+    fun updateFinger(
+        sourceCoordinates: LayoutCoordinates,
+        positionInSource: Offset,
+    ) {
+        val root = rootCoordinates ?: return
+        fingerInRoot = root.localPositionOf(sourceCoordinates, positionInSource)
+        previewAnchor = boardAnchorOf(sourceCoordinates, positionInSource)
+    }
+
+    fun drop(
+        sourceCoordinates: LayoutCoordinates,
+        positionInSource: Offset,
+    ) {
+        val anchor = boardAnchorOf(sourceCoordinates, positionInSource)
+        clear()
+        if (anchor != null) {
+            onPlaceCell(anchor.row, anchor.col)
+        }
+    }
+
+    fun clear() {
+        dragCells = null
+        fingerInRoot = null
+        previewAnchor = null
+    }
+
+    private fun boardAnchorOf(
+        sourceCoordinates: LayoutCoordinates,
+        positionInSource: Offset,
+    ): CellPosition? {
+        val board = boardCoordinates ?: return null
+        if (boardCellCount <= 0) return null
+        val local = board.localPositionOf(sourceCoordinates, positionInSource)
+        val insideBoard =
+            local.x in 0f..board.size.width.toFloat() &&
+                local.y in 0f..board.size.height.toFloat()
+        if (!insideBoard) return null
+        return liftedBoardAnchor(
+            position = local,
+            boardSize = boardCellCount,
+            boardWidthPx = board.size.width.toFloat(),
+            offsets = dragCells.orEmpty(),
+        )
+    }
+}
+
+private enum class PendingNearbyAction {
+    Host,
+    Discover,
+}
+
+private fun PendingNearbyAction.run(viewModel: GameViewModel) {
+    when (this) {
+        PendingNearbyAction.Host -> viewModel.startNearbyHosting()
+        PendingNearbyAction.Discover -> viewModel.startNearbyDiscovery()
+    }
+}
 
 @Composable
 fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showHistoryStats by remember { mutableStateOf(false) }
     var accessibilityAnnouncement by remember { mutableStateOf<AccessibilityAnnouncement?>(null) }
-    var pendingNearbyAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var announcementId by remember { mutableIntStateOf(0) }
+    var noticeVisible by remember { mutableStateOf(false) }
+    var pendingNearbyAction by rememberSaveable { mutableStateOf<PendingNearbyAction?>(null) }
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     val soundPlayer = rememberGameSoundPlayer()
@@ -143,11 +263,11 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
             val action = pendingNearbyAction
             pendingNearbyAction = null
             if (grantResults.values.all { granted -> granted }) {
-                action?.invoke()
+                action?.run(viewModel)
             }
         }
 
-    fun runWithNearbyPermissions(action: () -> Unit) {
+    fun runWithNearbyPermissions(action: PendingNearbyAction) {
         val missingPermissions =
             NearbyPermissions
                 .requiredRuntimePermissions()
@@ -155,7 +275,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                     ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
                 }
         if (missingPermissions.isEmpty()) {
-            action()
+            action.run(viewModel)
         } else {
             pendingNearbyAction = action
             nearbyPermissionLauncher.launch(missingPermissions.toTypedArray())
@@ -165,10 +285,34 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             accessibilityAnnouncement = effect.toAccessibilityAnnouncement()
+            announcementId += 1
             GameSoundPolicy.eventFor(effect, soundEnabled)?.let(soundPlayer::play)
             if (hapticsEnabled) {
                 hapticFeedback.performHapticFeedback(effect.hapticFeedbackType())
             }
+        }
+    }
+
+    val statusNotice =
+        when (accessibilityAnnouncement) {
+            is AccessibilityAnnouncement.MoveRejected,
+            is AccessibilityAnnouncement.ActionFailed,
+            -> accessibilityAnnouncementText
+            else -> null
+        }
+    val scoreNotice =
+        (accessibilityAnnouncement as? AccessibilityAnnouncement.ScoreGained)?.let { gained ->
+            if (gained.bonusTileClaimed) {
+                "+${gained.scoreDelta} ♦"
+            } else {
+                "+${gained.scoreDelta}"
+            }
+        }
+    LaunchedEffect(announcementId) {
+        if (statusNotice != null || scoreNotice != null) {
+            noticeVisible = true
+            delay(if (scoreNotice != null) SCORE_NOTICE_DURATION_MS else STATUS_NOTICE_DURATION_MS)
+            noticeVisible = false
         }
     }
 
@@ -183,8 +327,11 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
         screenActions =
             GameScreenActions(
                 onModeSelected = viewModel::startGame,
-                onCreateNearbyGame = { runWithNearbyPermissions(viewModel::startNearbyHosting) },
-                onFindNearbyGame = { runWithNearbyPermissions(viewModel::startNearbyDiscovery) },
+                onStartChallengeLevel = viewModel::startChallengeLevel,
+                onStartDailyChallenge = viewModel::startDailyChallenge,
+                onStartRivalMatch = viewModel::startRivalMatch,
+                onCreateNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Host) },
+                onFindNearbyGame = { runWithNearbyPermissions(PendingNearbyAction.Discover) },
                 onConnectToNearbyEndpoint = viewModel::connectToNearbyEndpoint,
                 onAcceptPendingNearbyConnection = viewModel::acceptPendingNearbyConnection,
                 onRejectPendingNearbyConnection = viewModel::rejectPendingNearbyConnection,
@@ -215,6 +362,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                     viewModel.passCurrentPlayer()
                 },
                 onPlaceCell = viewModel::placeSelectedAt,
+                isPlacementLegal = viewModel::isPlacementLegal,
             ),
         settingsActions =
             GameSettingsActions(
@@ -228,15 +376,21 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                 onSetActiveProfile = viewModel::setActiveProfile,
                 onAddProfile = viewModel::addProfile,
                 onUpdateProfile = viewModel::updateProfile,
+                onDeleteProfile = viewModel::deleteProfile,
             ),
         dialogState =
             GameDialogState(
                 accessibilityAnnouncement = accessibilityAnnouncementText,
+                statusNotice = if (noticeVisible) statusNotice else null,
+                scoreNotice = if (noticeVisible) scoreNotice else null,
                 showHistoryStatsDialog = showHistoryStats,
                 onDismissHistoryStats = { showHistoryStats = false },
             ),
     )
 }
+
+private const val STATUS_NOTICE_DURATION_MS = 2500L
+private const val SCORE_NOTICE_DURATION_MS = 1200L
 
 private sealed interface AccessibilityAnnouncement {
     data class ScoreGained(
@@ -245,7 +399,9 @@ private sealed interface AccessibilityAnnouncement {
         val bonusTileClaimed: Boolean,
     ) : AccessibilityAnnouncement
 
-    data object MoveRejected : AccessibilityAnnouncement
+    data class MoveRejected(
+        val reason: MoveRejectionReason,
+    ) : AccessibilityAnnouncement
 
     data class ActionFailed(
         val message: String,
@@ -262,7 +418,7 @@ private fun GameEffect.toAccessibilityAnnouncement(): AccessibilityAnnouncement 
                 scoreDelta = scoreDelta,
                 bonusTileClaimed = bonusTileClaimed,
             )
-        is GameEffect.MoveRejected -> AccessibilityAnnouncement.MoveRejected
+        is GameEffect.MoveRejected -> AccessibilityAnnouncement.MoveRejected(reason)
         is GameEffect.ActionFailed -> AccessibilityAnnouncement.ActionFailed(message)
         GameEffect.GameOver -> AccessibilityAnnouncement.GameOver
     }
@@ -279,6 +435,24 @@ private fun GameEffect.hapticFeedbackType(): HapticFeedbackType =
         is GameEffect.ActionFailed,
         GameEffect.GameOver,
         -> HapticFeedbackType.LongPress
+    }
+
+@StringRes
+private fun MoveRejectionReason.messageRes(): Int =
+    when (this) {
+        MoveRejectionReason.START_CORNER_NOT_COVERED -> R.string.move_rejected_start_corner
+        MoveRejectionReason.SAME_PLAYER_EDGE_TOUCH -> R.string.move_rejected_edge_touch
+        MoveRejectionReason.NO_DIAGONAL_TOUCH -> R.string.move_rejected_no_diagonal
+        MoveRejectionReason.CELL_OCCUPIED -> R.string.move_rejected_occupied
+        MoveRejectionReason.OUT_OF_BOUNDS -> R.string.move_rejected_out_of_bounds
+        MoveRejectionReason.PIECE_ALREADY_USED -> R.string.move_rejected_piece_used
+        MoveRejectionReason.GAME_OVER,
+        MoveRejectionReason.NOT_PLAYERS_TURN,
+        MoveRejectionReason.INVALID_PLAYER,
+        MoveRejectionReason.PLAYER_HAS_PASSED,
+        MoveRejectionReason.UNKNOWN_PIECE,
+        MoveRejectionReason.UNKNOWN_ORIENTATION,
+        -> R.string.accessibility_move_rejected
     }
 
 @Composable
@@ -303,7 +477,7 @@ private fun AccessibilityAnnouncement.toAnnouncementText(): String =
                 stringResource(R.string.accessibility_score_gained, playerName, scoreText)
             }
         }
-        AccessibilityAnnouncement.MoveRejected -> stringResource(R.string.accessibility_move_rejected)
+        is AccessibilityAnnouncement.MoveRejected -> stringResource(reason.messageRes())
         is AccessibilityAnnouncement.ActionFailed -> stringResource(R.string.accessibility_action_failed, message)
         AccessibilityAnnouncement.GameOver -> stringResource(R.string.accessibility_game_over)
     }
@@ -321,6 +495,26 @@ fun GameScreenContent(
     var showSettings by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
+    var showChallenges by remember { mutableStateOf(false) }
+    var showRivals by remember { mutableStateOf(false) }
+    if (showRivals) {
+        RivalsDialog(
+            rivals = state.rivals,
+            onChallengeRival = screenActions.onStartRivalMatch,
+            onDismiss = { showRivals = false },
+        )
+    }
+    if (showChallenges) {
+        ChallengeDialog(
+            challengeStars = state.challengeStars,
+            onStartLevel = screenActions.onStartChallengeLevel,
+            onStartDaily = screenActions.onStartDailyChallenge,
+            onDismiss = { showChallenges = false },
+            dailyBestScore = state.dailyBestScore,
+            dailyStreak = state.dailyStreak,
+            bestDailyStreak = state.bestDailyStreak,
+        )
+    }
     if (state.hasSavedGame && state.resumeSummary != null) {
         ResumeGameDialog(
             summary = state.resumeSummary,
@@ -332,6 +526,9 @@ fun GameScreenContent(
         HistoryStatsDialog(
             history = state.history,
             onDismiss = dialogState.onDismissHistoryStats,
+            unlockedAchievements = state.unlockedAchievements,
+            hallOfFameByMode = state.hallOfFameByMode,
+            activeProfileName = state.activeProfileName,
         )
     }
     if (showSettings) {
@@ -353,6 +550,7 @@ fun GameScreenContent(
             onSetActiveProfile = profileActions.onSetActiveProfile,
             onAddProfile = profileActions.onAddProfile,
             onUpdateProfile = profileActions.onUpdateProfile,
+            onDeleteProfile = profileActions.onDeleteProfile,
             onDismiss = { showProfiles = false },
         )
     }
@@ -363,16 +561,36 @@ fun GameScreenContent(
         GameOverDialog(
             rankedScores = state.rankedScores,
             durationSeconds = state.gameDurationSeconds,
-            onPlayAgain = { screenActions.onModeSelected(state.gameMode) },
+            onPlayAgain = {
+                val challengeLevel = state.activeChallengeLevel
+                val rivalId = state.activeRivalId
+                when {
+                    challengeLevel != null -> screenActions.onStartChallengeLevel(challengeLevel)
+                    rivalId != null -> screenActions.onStartRivalMatch(rivalId)
+                    else -> screenActions.onModeSelected(state.gameMode)
+                }
+            },
             onShowStats = screenActions.onShowHistoryStats,
+            challengeResult = state.challengeResult,
+            isNewBestScore = state.isNewBestScore,
+            newAchievements = state.newAchievements,
+            dailyBestScore = if (state.isDailyChallenge) state.dailyBestScore else null,
+            rivalResult = state.rivalResult,
+            allTimeRank = state.allTimeRank,
+            allTimeRankModeLabel = stringResource(state.gameMode.labelRes()),
+            dailyStreak = state.dailyStreak,
         )
     }
+    val dragController = remember { BoardDragController() }
+    dragController.boardCellCount = state.board.size
+    dragController.onPlaceCell = pieceActions.onPlaceCell
     BoxWithConstraints(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(CornersApartColors.AppBackground)
-                .safeDrawingPadding(),
+                .candyBackground()
+                .safeDrawingPadding()
+                .onGloballyPositioned { dragController.rootCoordinates = it },
     ) {
         val scrollState = rememberScrollState()
         val layoutMode = GameLayoutPolicy.modeForWidthDp(maxWidth.value.toInt())
@@ -380,11 +598,16 @@ fun GameScreenContent(
             GameLayoutContent(
                 state = state,
                 accessibilityAnnouncement = dialogState.accessibilityAnnouncement,
+                statusNotice = dialogState.statusNotice,
+                scoreNotice = dialogState.scoreNotice,
                 screenActions = screenActions,
                 pieceActions = pieceActions,
+                dragController = dragController,
                 onShowSettings = { showSettings = true },
                 onShowProfiles = { showProfiles = true },
                 onShowHelp = { showHelp = true },
+                onShowChallenges = { showChallenges = true },
+                onShowRivals = { showRivals = true },
             )
         val layoutModifier =
             Modifier
@@ -402,8 +625,83 @@ fun GameScreenContent(
                     modifier = layoutModifier,
                 )
         }
+        DragGhostOverlay(
+            dragController = dragController,
+            colorIndex = state.currentPlayer.colorIndex,
+        )
+        RivalIntroOverlay(state = state)
     }
 }
+
+/** Näyttää VS-aloitusanimaation, kun Rivals-ottelu alkaa tyhjältä laudalta. */
+@Composable
+private fun RivalIntroOverlay(state: GameUiState) {
+    val rival = state.rivals.firstOrNull { candidate -> candidate.id == state.activeRivalId } ?: return
+    val isMatchStart = !state.isGameOver && state.players.sumOf { player -> player.piecesPlaced } == 0
+    var introVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(rival.id, isMatchStart) {
+        if (isMatchStart) {
+            introVisible = true
+            delay(RIVAL_INTRO_DURATION_MS)
+            introVisible = false
+        } else {
+            introVisible = false
+        }
+    }
+    if (introVisible) {
+        RivalMatchIntro(
+            rival = rival,
+            playerName = state.activeProfileName,
+            playerColorIndex = state.players.firstOrNull()?.colorIndex ?: 0,
+            onSkip = { introVisible = false },
+        )
+    }
+}
+
+private const val RIVAL_INTRO_DURATION_MS = 2000L
+
+@Composable
+private fun DragGhostOverlay(
+    dragController: BoardDragController,
+    colorIndex: Int,
+) {
+    val dragCells = dragController.dragCells ?: return
+    val finger = dragController.fingerInRoot ?: return
+    // Laudan päällä laudan oma esikatselu näyttää palan — kelluva
+    // haamupala vain peittäisi sen.
+    if (dragController.previewAnchor != null) return
+    val previewSizePx = with(LocalDensity.current) { CornersApartSpacing.PiecePreviewSize.toPx() }
+    val appear = remember { Animatable(DRAG_GHOST_START_SCALE) }
+    LaunchedEffect(Unit) {
+        appear.animateTo(
+            targetValue = DRAG_GHOST_SCALE,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        )
+    }
+    PieceShape(
+        cells = dragCells,
+        colorIndex = colorIndex,
+        modifier =
+            Modifier
+                .offset {
+                    IntOffset(
+                        x = (finger.x - previewSizePx / 2f).roundToInt(),
+                        y = (finger.y - previewSizePx * DRAG_GHOST_LIFT_FACTOR).roundToInt(),
+                    )
+                }.size(CornersApartSpacing.PiecePreviewSize)
+                .graphicsLayer {
+                    scaleX = appear.value
+                    scaleY = appear.value
+                },
+        alpha = DRAG_GHOST_ALPHA,
+    )
+}
+
+private const val DRAG_GHOST_LIFT_FACTOR = 1.2f
+private const val DRAG_GHOST_ALPHA = 0.9f
+private const val DRAG_GHOST_START_SCALE = 0.7f
+private const val DRAG_GHOST_SCALE = 1.1f
+private const val PIECE_CARD_SELECTED_SCALE = 1.05f
 
 @Composable
 private fun CompactGameLayout(
@@ -415,15 +713,23 @@ private fun CompactGameLayout(
         verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
     ) {
         GameHeaderActions(content)
-        GameBoard(state = content.state, onPlaceCell = content.pieceActions.onPlaceCell)
+        GameBoard(
+            state = content.state,
+            onPlaceCell = content.pieceActions.onPlaceCell,
+            externalPreviewAnchor = content.dragController.previewAnchor,
+            onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
+            isPlacementLegal = content.pieceActions.isPlacementLegal,
+        )
         AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
-        StatusLine(content.state)
+        StatusLine(state = content.state, notice = content.statusNotice, scoreNotice = content.scoreNotice)
         ControlBar(content.pieceActions)
         SelectedPiecePreview(content.state)
         PiecePanel(
             pieces = content.state.pieces,
             colorIndex = content.state.currentPlayer.colorIndex,
+            selectedCells = content.state.selectedCells,
             onSelectPiece = content.pieceActions.onSelectPiece,
+            dragController = content.dragController,
         )
     }
 }
@@ -443,7 +749,7 @@ private fun ExpandedGameLayout(
         ) {
             GameHeaderActions(content)
             AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
-            StatusLine(content.state)
+            StatusLine(state = content.state, notice = content.statusNotice, scoreNotice = content.scoreNotice)
             ControlBar(content.pieceActions)
             SelectedPiecePreview(content.state)
         }
@@ -451,11 +757,19 @@ private fun ExpandedGameLayout(
             modifier = Modifier.weight(1.2f),
             verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
         ) {
-            GameBoard(state = content.state, onPlaceCell = content.pieceActions.onPlaceCell)
+            GameBoard(
+                state = content.state,
+                onPlaceCell = content.pieceActions.onPlaceCell,
+                externalPreviewAnchor = content.dragController.previewAnchor,
+                onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
+                isPlacementLegal = content.pieceActions.isPlacementLegal,
+            )
             PiecePanel(
                 pieces = content.state.pieces,
                 colorIndex = content.state.currentPlayer.colorIndex,
+                selectedCells = content.state.selectedCells,
                 onSelectPiece = content.pieceActions.onSelectPiece,
+                dragController = content.dragController,
             )
         }
     }
@@ -465,19 +779,22 @@ private fun ExpandedGameLayout(
 private fun GameHeaderActions(content: GameLayoutContent) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
         Header(state = content.state, onModeSelected = content.screenActions.onModeSelected)
-        NearbyActions(
-            nearbyState = content.state.nearbyState,
-            onCreateNearbyGame = content.screenActions.onCreateNearbyGame,
-            onFindNearbyGame = content.screenActions.onFindNearbyGame,
-            onConnectToNearbyEndpoint = content.screenActions.onConnectToNearbyEndpoint,
-            onAcceptPendingNearbyConnection = content.screenActions.onAcceptPendingNearbyConnection,
-            onRejectPendingNearbyConnection = content.screenActions.onRejectPendingNearbyConnection,
-        )
         UtilityActions(
             onShowHistoryStats = content.screenActions.onShowHistoryStats,
             onShowSettings = content.onShowSettings,
             onShowProfiles = content.onShowProfiles,
             onShowHelp = content.onShowHelp,
+        )
+        NearbyActions(
+            sessionType = content.state.sessionType,
+            nearbyState = content.state.nearbyState,
+            onShowChallenges = content.onShowChallenges,
+            onShowRivals = content.onShowRivals,
+            onCreateNearbyGame = content.screenActions.onCreateNearbyGame,
+            onFindNearbyGame = content.screenActions.onFindNearbyGame,
+            onConnectToNearbyEndpoint = content.screenActions.onConnectToNearbyEndpoint,
+            onAcceptPendingNearbyConnection = content.screenActions.onAcceptPendingNearbyConnection,
+            onRejectPendingNearbyConnection = content.screenActions.onRejectPendingNearbyConnection,
         )
         PlayerScoreBar(players = content.state.players)
     }
@@ -498,85 +815,170 @@ private fun Header(
     state: GameUiState,
     onModeSelected: (GameMode) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.displayLarge,
-            color = CornersApartColors.TextPrimary,
+    var showModePicker by rememberSaveable { mutableStateOf(false) }
+    if (showModePicker) {
+        GameModePickerDialog(
+            currentMode = state.gameMode,
+            onModeSelected = { mode ->
+                showModePicker = false
+                onModeSelected(mode)
+            },
+            onDismiss = { showModePicker = false },
         )
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
-        ) {
-            GameModeUiOptions.modes.forEach { mode ->
-                ModeChip(
-                    text = stringResource(mode.labelRes()),
-                    selected = state.gameMode == mode,
-                    onClick = { onModeSelected(mode) },
-                )
-            }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.displayMedium.withCandyShadow(),
+                color = CornersApartColors.TextOnDarkPrimary,
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(
+                            width = CornersApartSpacing.TitleAccentBarWidth,
+                            height = CornersApartSpacing.TitleAccentBarHeight,
+                        ).background(
+                            brush =
+                                Brush.horizontalGradient(
+                                    colors =
+                                        listOf(
+                                            CornersApartColors.PlayerPink,
+                                            CornersApartColors.PlayerMango,
+                                            CornersApartColors.PlayerLime,
+                                            CornersApartColors.PlayerCyan,
+                                        ),
+                                ),
+                            shape = CircleShape,
+                        ),
+            )
+        }
+        CandyChip(
+            label = stringResource(state.gameMode.labelRes()),
+            selected = true,
+            onClick = { showModePicker = true },
+        )
+    }
+}
+
+@Composable
+private fun GameModePickerDialog(
+    currentMode: GameMode,
+    onModeSelected: (GameMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    CandyDialog(
+        title = stringResource(R.string.game_mode_picker_title),
+        onDismiss = onDismiss,
+    ) {
+        GameModeUiOptions.modes.forEach { mode ->
+            CandyChip(
+                label = stringResource(mode.labelRes()),
+                selected = currentMode == mode,
+                onClick = { onModeSelected(mode) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
 
 @Composable
 private fun NearbyActions(
+    sessionType: SessionType,
     nearbyState: NearbyUiState,
+    onShowChallenges: () -> Unit,
+    onShowRivals: () -> Unit,
     onCreateNearbyGame: () -> Unit,
     onFindNearbyGame: () -> Unit,
     onConnectToNearbyEndpoint: (String) -> Unit,
     onAcceptPendingNearbyConnection: (String) -> Unit,
     onRejectPendingNearbyConnection: (String) -> Unit,
 ) {
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .semantics { liveRegion = LiveRegionMode.Polite },
-        shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        Column(
-            modifier = Modifier.padding(CornersApartSpacing.CompactGap),
-            verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
-        ) {
-            Text(
+    var expandedByUser by rememberSaveable { mutableStateOf(false) }
+    val mustShow =
+        sessionType == SessionType.NEARBY ||
+            nearbyState.pendingConnection != null ||
+            nearbyState.discoveredEndpoints.isNotEmpty() ||
+            nearbyState.errorMessage != null
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+            CandyButton(
+                text = stringResource(R.string.challenge_title),
+                onClick = onShowChallenges,
+                modifier = Modifier.weight(1f),
+                style = CandyButtonStyle.Positive,
+            )
+            CandyButton(
+                text = stringResource(R.string.rivals_title),
+                onClick = onShowRivals,
+                modifier = Modifier.weight(1f),
+                style = CandyButtonStyle.Primary,
+            )
+            CandyButton(
                 text = stringResource(R.string.nearby_game),
-                style = MaterialTheme.typography.headlineMedium,
+                onClick = { expandedByUser = !expandedByUser },
+                modifier = Modifier.weight(1f),
+                style = CandyButtonStyle.Neutral,
             )
-            Text(
-                text = stringResource(nearbyState.connectionState.labelRes()),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            nearbyState.errorMessage?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-                Button(onClick = onCreateNearbyGame) {
-                    Text(text = stringResource(R.string.create_nearby_game))
+        }
+        AnimatedVisibility(visible = expandedByUser || mustShow) {
+            Surface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(
+                    modifier = Modifier.padding(CornersApartSpacing.SectionGap),
+                    verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
+                ) {
+                    if (sessionType == SessionType.NEARBY) {
+                        Text(
+                            text = stringResource(nearbyState.connectionState.labelRes()),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    nearbyState.errorMessage?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+                        CandyButton(
+                            text = stringResource(R.string.create_nearby_game),
+                            onClick = onCreateNearbyGame,
+                            modifier = Modifier.weight(1f),
+                            style = CandyButtonStyle.Primary,
+                        )
+                        CandyButton(
+                            text = stringResource(R.string.find_nearby_game),
+                            onClick = onFindNearbyGame,
+                            modifier = Modifier.weight(1f),
+                            style = CandyButtonStyle.Positive,
+                        )
+                    }
+                    nearbyState.pendingConnection?.let { pendingConnection ->
+                        NearbyPendingConnectionActions(
+                            pendingConnection = pendingConnection,
+                            onAccept = onAcceptPendingNearbyConnection,
+                            onReject = onRejectPendingNearbyConnection,
+                        )
+                    }
+                    NearbyEndpointList(
+                        endpoints = nearbyState.discoveredEndpoints,
+                        onConnect = onConnectToNearbyEndpoint,
+                    )
                 }
-                Button(onClick = onFindNearbyGame) {
-                    Text(text = stringResource(R.string.find_nearby_game))
-                }
             }
-            nearbyState.pendingConnection?.let { pendingConnection ->
-                NearbyPendingConnectionActions(
-                    pendingConnection = pendingConnection,
-                    onAccept = onAcceptPendingNearbyConnection,
-                    onReject = onRejectPendingNearbyConnection,
-                )
-            }
-            NearbyEndpointList(
-                endpoints = nearbyState.discoveredEndpoints,
-                onConnect = onConnectToNearbyEndpoint,
-            )
         }
     }
 }
@@ -591,12 +993,16 @@ private fun NearbyPendingConnectionActions(
         Text(text = stringResource(R.string.nearby_pending_connection, pendingConnection.endpointName))
         Text(text = stringResource(R.string.nearby_authentication_code, pendingConnection.authenticationToken))
         Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-            Button(onClick = { onAccept(pendingConnection.endpointId) }) {
-                Text(text = stringResource(R.string.nearby_accept_connection))
-            }
-            Button(onClick = { onReject(pendingConnection.endpointId) }) {
-                Text(text = stringResource(R.string.nearby_reject_connection))
-            }
+            CandyButton(
+                text = stringResource(R.string.nearby_accept_connection),
+                onClick = { onAccept(pendingConnection.endpointId) },
+                style = CandyButtonStyle.Positive,
+            )
+            CandyButton(
+                text = stringResource(R.string.nearby_reject_connection),
+                onClick = { onReject(pendingConnection.endpointId) },
+                style = CandyButtonStyle.Warn,
+            )
         }
     }
 }
@@ -610,9 +1016,11 @@ private fun NearbyEndpointList(
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
         Text(text = stringResource(R.string.nearby_discovered_endpoints))
         endpoints.forEach { endpoint ->
-            Button(onClick = { onConnect(endpoint.endpointId) }) {
-                Text(text = stringResource(R.string.nearby_connect_endpoint, endpoint.endpointName))
-            }
+            CandyButton(
+                text = stringResource(R.string.nearby_connect_endpoint, endpoint.endpointName),
+                onClick = { onConnect(endpoint.endpointId) },
+                style = CandyButtonStyle.Positive,
+            )
         }
     }
 }
@@ -641,33 +1049,29 @@ private fun UtilityActions(
         horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Button(
+        CandyIconButton(
+            contentDescription = stringResource(R.string.history_stats_title),
             onClick = onShowHistoryStats,
-            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
             Icon(painter = painterResource(R.drawable.ic_history_24), contentDescription = null)
-            Text(text = stringResource(R.string.history_stats_title))
         }
-        Button(
+        CandyIconButton(
+            contentDescription = stringResource(R.string.profiles_title),
             onClick = onShowProfiles,
-            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
             Icon(painter = painterResource(R.drawable.ic_person_24), contentDescription = null)
-            Text(text = stringResource(R.string.profiles_title))
         }
-        Button(
+        CandyIconButton(
+            contentDescription = stringResource(R.string.settings_title),
             onClick = onShowSettings,
-            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
             Icon(painter = painterResource(R.drawable.ic_settings_24), contentDescription = null)
-            Text(text = stringResource(R.string.settings_title))
         }
-        Button(
+        CandyIconButton(
+            contentDescription = stringResource(R.string.help_title),
             onClick = onShowHelp,
-            modifier = Modifier.heightIn(min = CornersApartSpacing.TouchTargetMin),
         ) {
             Icon(painter = painterResource(R.drawable.ic_help_24), contentDescription = null)
-            Text(text = stringResource(R.string.help_title))
         }
     }
 }
@@ -687,20 +1091,11 @@ private fun AccessibilityAnnouncementNode(accessibilityAnnouncement: String?) {
 }
 
 @Composable
-private fun ModeChip(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
+private fun StatusLine(
+    state: GameUiState,
+    notice: String?,
+    scoreNotice: String?,
 ) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(text) },
-    )
-}
-
-@Composable
-private fun StatusLine(state: GameUiState) {
     val text =
         if (state.isGameOver) {
             stringResource(R.string.game_status_game_over)
@@ -709,14 +1104,40 @@ private fun StatusLine(state: GameUiState) {
         }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.small,
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Text(
-            text = text,
+        Column(
             modifier = Modifier.padding(CornersApartSpacing.CompactGap),
-            style = MaterialTheme.typography.bodyLarge,
-        )
+            verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+                AnimatedContent(targetState = text, label = "turnText") { turnText ->
+                    Text(
+                        text = turnText,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                var lastScoreNotice by remember { mutableStateOf("") }
+                if (scoreNotice != null) lastScoreNotice = scoreNotice
+                AnimatedVisibility(visible = scoreNotice != null) {
+                    Text(
+                        text = lastScoreNotice,
+                        style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                        color = CornersApartColors.PlayerLime,
+                    )
+                }
+            }
+            var lastNotice by remember { mutableStateOf("") }
+            if (notice != null) lastNotice = notice
+            AnimatedVisibility(visible = notice != null) {
+                Text(
+                    text = lastNotice,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CornersApartColors.ButtonWarnFace,
+                )
+            }
+        }
     }
 }
 
@@ -732,19 +1153,19 @@ private fun ControlBar(
         horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        GameIconButton(
+        CandyIconButton(
             contentDescription = stringResource(R.string.control_rotate_counterclockwise),
             onClick = onRotateCounterClockwise,
         ) {
             Icon(painter = painterResource(R.drawable.ic_rotate_left_24), contentDescription = null)
         }
-        GameIconButton(
+        CandyIconButton(
             contentDescription = stringResource(R.string.control_rotate_clockwise),
             onClick = onRotateClockwise,
         ) {
             Icon(painter = painterResource(R.drawable.ic_rotate_right_24), contentDescription = null)
         }
-        GameIconButton(
+        CandyIconButton(
             contentDescription = stringResource(R.string.control_flip),
             onClick = onFlip,
         ) {
@@ -755,38 +1176,20 @@ private fun ControlBar(
 }
 
 @Composable
-private fun GameIconButton(
-    contentDescription: String,
-    onClick: () -> Unit,
-    icon: @Composable () -> Unit,
-) {
-    IconButton(
-        onClick = onClick,
-        modifier =
-            Modifier
-                .sizeIn(
-                    minWidth = CornersApartSpacing.TouchTargetMin,
-                    minHeight = CornersApartSpacing.TouchTargetMin,
-                ).semantics { this.contentDescription = contentDescription },
-    ) {
-        icon()
-    }
-}
-
-@Composable
 private fun RowScope.PassButton(onPass: () -> Unit) {
     val description = stringResource(R.string.control_pass)
-    Button(
+    CandyButton(
+        text = description,
         onClick = onPass,
         modifier =
             Modifier
                 .weight(1f)
-                .heightIn(min = CornersApartSpacing.TouchTargetMin)
                 .semantics { contentDescription = description },
-    ) {
-        Icon(painter = painterResource(R.drawable.ic_skip_next_24), contentDescription = null)
-        Text(text = description)
-    }
+        style = CandyButtonStyle.Warn,
+        leadingIcon = {
+            Icon(painter = painterResource(R.drawable.ic_skip_next_24), contentDescription = null)
+        },
+    )
 }
 
 @Composable
@@ -827,12 +1230,34 @@ private fun SelectedPiecePreview(state: GameUiState) {
 private fun PiecePanel(
     pieces: List<PiecePanelItem>,
     colorIndex: Int,
+    selectedCells: List<CellOffset>,
     onSelectPiece: (String) -> Unit,
+    dragController: BoardDragController,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-        Text(
-            text = stringResource(R.string.piece_panel_title),
-            style = MaterialTheme.typography.headlineMedium,
+        val usedCount = pieces.count { item -> item.isUsed }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.piece_panel_title),
+                style = MaterialTheme.typography.headlineMedium,
+            )
+            Text(
+                text = "$usedCount / ${pieces.size}",
+                style = MaterialTheme.typography.titleMedium,
+                color =
+                    if (usedCount == pieces.size) {
+                        CornersApartColors.PlayerLime
+                    } else {
+                        CornersApartColors.TextOnDarkSecondary
+                    },
+            )
+        }
+        PieceProgressBar(
+            fraction = if (pieces.isEmpty()) 0f else usedCount.toFloat() / pieces.size,
         )
         Row(
             modifier =
@@ -845,9 +1270,46 @@ private fun PiecePanel(
                 PieceCard(
                     item = item,
                     colorIndex = colorIndex,
+                    selectedCells = selectedCells,
                     onSelectPiece = onSelectPiece,
+                    dragController = dragController,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PieceProgressBar(
+    fraction: Float,
+    modifier: Modifier = Modifier,
+) {
+    val animatedFraction by animateFloatAsState(targetValue = fraction, label = "pieceProgress")
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(CornersApartSpacing.PieceMeterHeight)
+                .background(CornersApartColors.PanelSurfaceRaised, CircleShape),
+    ) {
+        if (animatedFraction > 0f) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(animatedFraction)
+                        .height(CornersApartSpacing.PieceMeterHeight)
+                        .background(
+                            brush =
+                                Brush.horizontalGradient(
+                                    colors =
+                                        listOf(
+                                            CornersApartColors.PlayerLimeHighlight,
+                                            CornersApartColors.PlayerLime,
+                                        ),
+                                ),
+                            shape = CircleShape,
+                        ),
+            )
         }
     }
 }
@@ -856,7 +1318,9 @@ private fun PiecePanel(
 private fun PieceCard(
     item: PiecePanelItem,
     colorIndex: Int,
+    selectedCells: List<CellOffset>,
     onSelectPiece: (String) -> Unit,
+    dragController: BoardDragController,
 ) {
     val colors = CornersApartPlayerPalette.colorsFor(colorIndex)
     val description =
@@ -865,15 +1329,62 @@ private fun PieceCard(
         } else {
             stringResource(R.string.piece_content_description, item.piece.displayName)
         }
+    var cardCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val dragCells =
+        if (item.isSelected && selectedCells.isNotEmpty()) {
+            PieceTransforms.normalize(selectedCells)
+        } else {
+            PieceTransforms.normalize(item.piece.cells)
+        }
+    val selectionScale by
+        animateFloatAsState(
+            targetValue = if (item.isSelected) PIECE_CARD_SELECTED_SCALE else 1f,
+            label = "pieceCardScale",
+        )
     Surface(
         modifier =
             Modifier
                 .size(CornersApartSpacing.PieceCardSize)
-                .alpha(if (item.isUsed) CornersApartAlpha.UsedPiece else 1f)
+                .graphicsLayer {
+                    scaleX = selectionScale
+                    scaleY = selectionScale
+                }.alpha(if (item.isUsed) CornersApartAlpha.UsedPiece else 1f)
                 .semantics { contentDescription = description }
-                .clickable(enabled = !item.isUsed) { onSelectPiece(item.piece.id) },
+                .clickable(enabled = !item.isUsed) { onSelectPiece(item.piece.id) }
+                .onGloballyPositioned { coordinates -> cardCoordinates = coordinates }
+                .pointerInput(item.piece.id, item.isUsed, dragCells) {
+                    if (item.isUsed) return@pointerInput
+                    var position = Offset.Zero
+                    detectDragGestures(
+                        onDragStart = { startPosition ->
+                            position = startPosition
+                            onSelectPiece(item.piece.id)
+                            dragController.startDrag(dragCells)
+                            cardCoordinates?.let { dragController.updateFinger(it, position) }
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            position = change.position
+                            cardCoordinates?.let { dragController.updateFinger(it, position) }
+                        },
+                        onDragEnd = {
+                            val coordinates = cardCoordinates
+                            if (coordinates != null) {
+                                dragController.drop(coordinates, position)
+                            } else {
+                                dragController.clear()
+                            }
+                        },
+                        onDragCancel = { dragController.clear() },
+                    )
+                },
         shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surface,
+        color =
+            if (item.isSelected) {
+                CornersApartColors.PanelSurfaceRaised
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
         border =
             if (item.isSelected) {
                 BorderStroke(CornersApartSpacing.ActivePlayerBorderWidth, colors.base)

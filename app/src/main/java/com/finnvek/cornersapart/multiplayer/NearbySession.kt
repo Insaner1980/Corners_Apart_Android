@@ -35,6 +35,7 @@ internal class NearbySession private constructor(
     private val _connectionState = MutableStateFlow(ConnectionState.CONNECTED)
     private val _events = MutableSharedFlow<GameSessionEvent>(extraBufferCapacity = 1)
     private val mutationMutex = Mutex()
+    private var reconnectExpired = false
 
     override val sessionType: SessionType = SessionType.NEARBY
     override val players: StateFlow<List<SessionPlayer>> = _players.asStateFlow()
@@ -71,6 +72,7 @@ internal class NearbySession private constructor(
                 check(role == NearbyRole.HOST) { "Only the Nearby host can start a new game." }
                 val state = engine.newGame(config)
                 coordinator = HostGameCoordinator(engine = engine, initialState = state)
+                reconnectExpired = false
                 publish(state)
             }
         }
@@ -82,6 +84,7 @@ internal class NearbySession private constructor(
                 if (role == NearbyRole.HOST) {
                     if (!state.hasValidIndexDomains()) return@withLock
                     coordinator?.replaceState(state)
+                    reconnectExpired = false
                     publish(state)
                 }
             }
@@ -98,6 +101,28 @@ internal class NearbySession private constructor(
             } else {
                 applyClientMessage(message)
             }
+        }
+
+    internal suspend fun expireReconnect(ownerIndex: Int): Boolean =
+        mutationMutex.withLock {
+            val expiredPlayerIndexes =
+                _gameState.value.players
+                    .asSequence()
+                    .filter { player -> player.ownerIndex == ownerIndex }
+                    .map { player -> player.index }
+                    .filter { playerIndex -> playerIndex in _lobbyState.value.reconnectingPlayerIndexes }
+                    .toSet()
+            if (expiredPlayerIndexes.isEmpty()) return@withLock false
+
+            _lobbyState.value =
+                _lobbyState.value
+                    .copy(
+                        reconnectingPlayerIndexes =
+                            _lobbyState.value.reconnectingPlayerIndexes - expiredPlayerIndexes,
+                    ).toSnapshotCopy()
+            reconnectExpired = true
+            _connectionState.value = ConnectionState.FAILED
+            true
         }
 
     private suspend fun handleHostMessage(
@@ -189,10 +214,10 @@ internal class NearbySession private constructor(
 
     private fun refreshConnectionState() {
         _connectionState.value =
-            if (_lobbyState.value.reconnectingPlayerIndexes.isEmpty()) {
-                ConnectionState.CONNECTED
-            } else {
-                ConnectionState.RECONNECTING
+            when {
+                reconnectExpired -> ConnectionState.FAILED
+                _lobbyState.value.reconnectingPlayerIndexes.isEmpty() -> ConnectionState.CONNECTED
+                else -> ConnectionState.RECONNECTING
             }
     }
 
@@ -215,7 +240,7 @@ internal class NearbySession private constructor(
         fun host(
             engine: GameEngine = GameEngine(),
             transport: NearbyTransport,
-            initialConfig: GameConfig = LocalSession.defaultFourPlayerConfig(),
+            initialConfig: GameConfig = LocalSession.defaultConfig(),
         ): NearbySession {
             val state = engine.newGame(initialConfig)
             return NearbySession(

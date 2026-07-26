@@ -372,15 +372,16 @@ class BuildDependencyHygieneTest {
                 importPrefixes = listOf("androidx.compose.material.icons"),
             )
 
+        // Compose Animation on nykyään käytössä (candy-animaatiot), joten sen
+        // seam ei enää kuulu live-valvontaan — vain tunnistintestiin alla.
         private val unusedRuntimeDependencySeams =
             listOf(
                 navigationComposeSeam,
                 hiltNavigationComposeSeam,
                 datastorePreferencesSeam,
-                composeAnimationSeam,
             )
         private val allForbiddenUnusedDependencySeams =
-            unusedRuntimeDependencySeams + materialIconsExtendedSeam
+            unusedRuntimeDependencySeams + materialIconsExtendedSeam + composeAnimationSeam
 
         private val explicitVersionPattern = Regex("""\bversion(?:\.ref)?\s*=""")
         private val composeCoordinateWithVersionPattern =

@@ -1,0 +1,90 @@
+{
+  "source": "C:\\Users\\emmah\\Downloads\\ChatGPT Image Jul 22, 2026, 08_28_23 AM.png",
+  "source_sha256": "14cdde4e12926e6e6361c60f2c2b051820214ae95dfe5e0945cbfeb9774a4a92",
+  "source_size": [
+    1254,
+    1254
+  ],
+  "pieces": {
+    "cyan": {
+      "tight_file": "splash_piece_cyan.png",
+      "canvas_file": "splash_piece_cyan_canvas.png",
+      "android_file": null,
+      "android_purple_edge_pixels": null,
+      "tight_size": [
+        455,
+        477
+      ],
+      "canvas_bbox": [
+        176,
+        149,
+        619,
+        614
+      ],
+      "visible_pixels": 162834,
+      "semi_transparent_pixels": 3553,
+      "purple_edge_pixels": 0,
+      "nonzero_rgb_in_transparent_pixels": 0
+    },
+    "orange": {
+      "tight_file": "splash_piece_orange.png",
+      "canvas_file": "splash_piece_orange_canvas.png",
+      "android_file": null,
+      "android_purple_edge_pixels": null,
+      "tight_size": [
+        450,
+        477
+      ],
+      "canvas_bbox": [
+        633,
+        149,
+        1071,
+        614
+      ],
+      "visible_pixels": 160752,
+      "semi_transparent_pixels": 3526,
+      "purple_edge_pixels": 0,
+      "nonzero_rgb_in_transparent_pixels": 0
+    },
+    "pink": {
+      "tight_file": "splash_piece_pink.png",
+      "canvas_file": "splash_piece_pink_canvas.png",
+      "android_file": null,
+      "android_purple_edge_pixels": null,
+      "tight_size": [
+        454,
+        467
+      ],
+      "canvas_bbox": [
+        176,
+        631,
+        618,
+        1086
+      ],
+      "visible_pixels": 159146,
+      "semi_transparent_pixels": 3505,
+      "purple_edge_pixels": 0,
+      "nonzero_rgb_in_transparent_pixels": 0
+    },
+    "green": {
+      "tight_file": "splash_piece_green.png",
+      "canvas_file": "splash_piece_green_canvas.png",
+      "android_file": null,
+      "android_purple_edge_pixels": null,
+      "tight_size": [
+        450,
+        467
+      ],
+      "canvas_bbox": [
+        633,
+        631,
+        1071,
+        1086
+      ],
+      "visible_pixels": 157359,
+      "semi_transparent_pixels": 3486,
+      "purple_edge_pixels": 0,
+      "nonzero_rgb_in_transparent_pixels": 0
+    }
+  }
+}

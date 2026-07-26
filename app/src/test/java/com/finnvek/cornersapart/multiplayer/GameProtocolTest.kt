@@ -50,8 +50,6 @@ class GameProtocolTest {
                     ),
                 ),
                 GameMessage.PlayerLeft(playerIndex = 0),
-                GameMessage.Ping,
-                GameMessage.Pong,
             )
 
         messages.forEach { message ->
@@ -70,6 +68,17 @@ class GameProtocolTest {
         val second = GameMessage.FullSync(GameEngine().newGame(config))
 
         assertEquals(GameProtocol.encode(first), GameProtocol.encode(second))
+    }
+
+    @Test
+    fun decodeRejectsFullSyncWithMissingGameStateField() {
+        val config = GameConfig(mode = GameMode.FOUR_PLAYER, randomSeed = 31L, bonusTiles = emptyList())
+        val encoded = GameProtocol.encode(GameMessage.FullSync(GameEngine().newGame(config)))
+        val incompletePayload = encoded.replaceFirst(",\"isGameOver\":false", "")
+
+        val result = runCatching { GameProtocol.decode(incompletePayload) }
+
+        assertTrue(result.isFailure)
     }
 
     @Test

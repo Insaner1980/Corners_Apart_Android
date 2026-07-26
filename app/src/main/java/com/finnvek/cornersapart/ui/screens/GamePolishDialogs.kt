@@ -1,24 +1,25 @@
 package com.finnvek.cornersapart.ui.screens
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -27,16 +28,34 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.finnvek.cornersapart.R
+import com.finnvek.cornersapart.model.Achievement
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.LocalAvatarStyle
+import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.model.PlayerScore
+import com.finnvek.cornersapart.ui.components.CandyButton
+import com.finnvek.cornersapart.ui.components.CandyButtonStyle
+import com.finnvek.cornersapart.ui.components.CandyChip
+import com.finnvek.cornersapart.ui.components.CandyDialog
+import com.finnvek.cornersapart.ui.components.CandySwitch
+import com.finnvek.cornersapart.ui.components.ConfettiBurst
+import com.finnvek.cornersapart.ui.components.StreakBadge
+import com.finnvek.cornersapart.ui.theme.CornersApartColors
+import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
+import com.finnvek.cornersapart.ui.theme.withCandyShadow
+import com.finnvek.cornersapart.viewmodel.ChallengeResult
 import com.finnvek.cornersapart.viewmodel.ProfileUiState
 import com.finnvek.cornersapart.viewmodel.ResumeGameSummary
+import com.finnvek.cornersapart.viewmodel.RivalMatchResult
 
 data class GameSettingsDialogState(
     val soundEnabled: Boolean,
@@ -50,32 +69,33 @@ fun ResumeGameDialog(
     summary: ResumeGameSummary,
     onContinue: () -> Unit,
     onNewGame: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    AlertDialog(
-        onDismissRequest = {},
-        title = { Text(text = stringResource(R.string.resume_game_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-                Text(text = stringResource(R.string.resume_game_saved_at, summary.savedAtEpochMillis))
-                Text(text = stringResource(R.string.resume_game_mode, stringResource(summary.gameMode.labelRes())))
-                Text(
-                    text = stringResource(R.string.resume_game_leader, summary.leadingPlayerName, summary.leadingScore),
-                )
-                Text(text = stringResource(R.string.resume_game_bonus_tiles, summary.claimedBonusTiles))
-                Text(text = stringResource(R.string.resume_game_difficulty, summary.difficulty))
-            }
+    CandyDialog(
+        title = stringResource(R.string.resume_game_title),
+        onDismiss = {},
+        modifier = modifier,
+        buttons = {
+            CandyButton(
+                text = stringResource(R.string.resume_game_new_game),
+                onClick = onNewGame,
+                style = CandyButtonStyle.Neutral,
+            )
+            CandyButton(
+                text = stringResource(R.string.resume_game_continue),
+                onClick = onContinue,
+                style = CandyButtonStyle.Positive,
+            )
         },
-        confirmButton = {
-            Button(onClick = onContinue) {
-                Text(text = stringResource(R.string.resume_game_continue))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onNewGame) {
-                Text(text = stringResource(R.string.resume_game_new_game))
-            }
-        },
-    )
+    ) {
+        Text(text = stringResource(R.string.resume_game_saved_at, summary.savedAtEpochMillis))
+        Text(text = stringResource(R.string.resume_game_mode, stringResource(summary.gameMode.labelRes())))
+        Text(
+            text = stringResource(R.string.resume_game_leader, summary.leadingPlayerName, summary.leadingScore),
+        )
+        Text(text = stringResource(R.string.resume_game_bonus_tiles, summary.claimedBonusTiles))
+        Text(text = stringResource(R.string.resume_game_difficulty, summary.difficulty))
+    }
 }
 
 @Composable
@@ -84,37 +104,36 @@ fun GameSettingsDialog(
     actions: GameSettingsActions,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.settings_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-                DifficultySelector(
-                    selectedDifficulty = settings.preferredDifficulty,
-                    onDifficultySelected = actions.onPreferredDifficultyChange,
-                )
-                ModeSelector(
-                    selectedMode = settings.preferredMode,
-                    onModeSelected = actions.onPreferredModeChange,
-                )
-                SettingSwitchRow(
-                    label = stringResource(R.string.settings_sound),
-                    checked = settings.soundEnabled,
-                    onCheckedChange = actions.onSoundEnabledChange,
-                )
-                SettingSwitchRow(
-                    label = stringResource(R.string.settings_haptics),
-                    checked = settings.hapticsEnabled,
-                    onCheckedChange = actions.onHapticsEnabledChange,
-                )
-            }
+    CandyDialog(
+        title = stringResource(R.string.settings_title),
+        onDismiss = onDismiss,
+        buttons = {
+            CandyButton(
+                text = stringResource(R.string.dialog_close),
+                onClick = onDismiss,
+                style = CandyButtonStyle.Primary,
+            )
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.dialog_close))
-            }
-        },
-    )
+    ) {
+        DifficultySelector(
+            selectedDifficulty = settings.preferredDifficulty,
+            onDifficultySelected = actions.onPreferredDifficultyChange,
+        )
+        ModeSelector(
+            selectedMode = settings.preferredMode,
+            onModeSelected = actions.onPreferredModeChange,
+        )
+        SettingSwitchRow(
+            label = stringResource(R.string.settings_sound),
+            checked = settings.soundEnabled,
+            onCheckedChange = actions.onSoundEnabledChange,
+        )
+        SettingSwitchRow(
+            label = stringResource(R.string.settings_haptics),
+            checked = settings.hapticsEnabled,
+            onCheckedChange = actions.onHapticsEnabledChange,
+        )
+    }
 }
 
 @Composable
@@ -122,19 +141,13 @@ private fun DifficultySelector(
     selectedDifficulty: Int,
     onDifficultySelected: (Int) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
-        Text(text = stringResource(R.string.settings_difficulty), style = MaterialTheme.typography.titleSmall)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
-        ) {
-            for (level in 1..GameConstants.DIFFICULTY_LEVELS) {
-                FilterChip(
-                    selected = selectedDifficulty == level,
-                    onClick = { onDifficultySelected(level) },
-                    label = { Text(text = stringResource(R.string.settings_difficulty_level, level)) },
-                )
-            }
+    SelectorSection(title = stringResource(R.string.settings_difficulty)) {
+        for (level in 1..GameConstants.DIFFICULTY_LEVELS) {
+            CandyChip(
+                label = stringResource(R.string.settings_difficulty_level, level),
+                selected = selectedDifficulty == level,
+                onClick = { onDifficultySelected(level) },
+            )
         }
     }
 }
@@ -145,18 +158,53 @@ private fun ModeSelector(
     onModeSelected: (GameMode) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
-        Text(text = stringResource(R.string.settings_preferred_mode), style = MaterialTheme.typography.titleSmall)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        SelectorTitle(stringResource(R.string.settings_preferred_mode))
+        GameModeUiOptions.modes.forEach { mode ->
+            CandyChip(
+                label = stringResource(mode.labelRes()),
+                selected = selectedMode == mode,
+                onClick = { onModeSelected(mode) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectorTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = CornersApartColors.TextOnDarkSecondary,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProfileChipRow(chips: @Composable () -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+        verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+    ) {
+        chips()
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SelectorSection(
+    title: String,
+    chips: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
+        SelectorTitle(title)
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+            verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
         ) {
-            GameModeUiOptions.modes.forEach { mode ->
-                FilterChip(
-                    selected = selectedMode == mode,
-                    onClick = { onModeSelected(mode) },
-                    label = { Text(text = stringResource(mode.labelRes())) },
-                )
-            }
+            chips()
         }
     }
 }
@@ -167,7 +215,9 @@ fun ProfilesDialog(
     onSetActiveProfile: (String) -> Unit,
     onAddProfile: (name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit,
     onUpdateProfile: (profileId: String, name: String, colorIndex: Int, avatarStyle: LocalAvatarStyle) -> Unit,
+    onDeleteProfile: (String) -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val activeProfile = profiles.firstOrNull { profile -> profile.active } ?: profiles.firstOrNull()
     var selectedProfileId by remember(profiles) { mutableStateOf(activeProfile?.id) }
@@ -176,54 +226,47 @@ fun ProfilesDialog(
     var draftAvatarStyle by remember(
         profiles,
     ) { mutableStateOf(activeProfile?.avatarStyle ?: LocalAvatarStyle.INITIALS) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.profiles_title)) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap),
-            ) {
-                profiles.forEach { profile ->
-                    FilterChip(
-                        selected = selectedProfileId == profile.id,
-                        onClick = {
-                            selectedProfileId = profile.id
-                            draftName = profile.name
-                            draftColorIndex = profile.colorIndex
-                            draftAvatarStyle = profile.avatarStyle
-                            onSetActiveProfile(profile.id)
-                        },
-                        label = {
-                            Text(
-                                text =
-                                    if (profile.active) {
-                                        stringResource(R.string.profile_active_label, profile.name)
-                                    } else {
-                                        profile.name
-                                    },
-                            )
-                        },
-                    )
-                }
-                OutlinedTextField(
-                    value = draftName,
-                    onValueChange = { draftName = it },
-                    label = { Text(text = stringResource(R.string.profile_name_label)) },
-                    singleLine = true,
+    var confirmDeleteId by remember { mutableStateOf<String?>(null) }
+    confirmDeleteId?.let { deleteId ->
+        val deleteName = profiles.firstOrNull { profile -> profile.id == deleteId }?.name.orEmpty()
+        CandyDialog(
+            title = stringResource(R.string.profile_delete_confirm_title),
+            onDismiss = { confirmDeleteId = null },
+            buttons = {
+                CandyButton(
+                    text = stringResource(R.string.dialog_cancel),
+                    onClick = { confirmDeleteId = null },
+                    style = CandyButtonStyle.Neutral,
                 )
-                ProfileColorSelector(
-                    selectedColorIndex = draftColorIndex,
-                    onColorSelected = { draftColorIndex = it },
+                CandyButton(
+                    text = stringResource(R.string.profile_delete),
+                    onClick = {
+                        confirmDeleteId = null
+                        onDeleteProfile(deleteId)
+                    },
+                    style = CandyButtonStyle.Warn,
                 )
-                ProfileAvatarStyleSelector(
-                    selectedStyle = draftAvatarStyle,
-                    onStyleSelected = { draftAvatarStyle = it },
-                )
-            }
-        },
-        confirmButton = {
-            Button(
+            },
+        ) {
+            Text(
+                text = stringResource(R.string.profile_delete_confirm_body, deleteName),
+                style = MaterialTheme.typography.bodyLarge,
+                color = CornersApartColors.TextOnDarkSecondary,
+            )
+        }
+    }
+    CandyDialog(
+        title = stringResource(R.string.profiles_title),
+        onDismiss = onDismiss,
+        modifier = modifier,
+        buttons = {
+            CandyButton(
+                text = stringResource(R.string.dialog_close),
+                onClick = onDismiss,
+                style = CandyButtonStyle.Neutral,
+            )
+            CandyButton(
+                text = stringResource(R.string.profile_save),
                 onClick = {
                     val selectedId = selectedProfileId
                     if (selectedId == null) {
@@ -231,17 +274,74 @@ fun ProfilesDialog(
                     } else {
                         onUpdateProfile(selectedId, draftName, draftColorIndex, draftAvatarStyle)
                     }
+                    onDismiss()
                 },
-            ) {
-                Text(text = stringResource(R.string.profile_save))
-            }
+                style = CandyButtonStyle.Positive,
+            )
         },
-        dismissButton = {
-            TextButton(onClick = { onAddProfile(draftName, draftColorIndex, draftAvatarStyle) }) {
-                Text(text = stringResource(R.string.profile_add))
+    ) {
+        ProfileChipRow {
+            profiles.forEach { profile ->
+                CandyChip(
+                    label =
+                        if (profile.active) {
+                            stringResource(R.string.profile_active_label, profile.name)
+                        } else {
+                            profile.name
+                        },
+                    selected = selectedProfileId == profile.id,
+                    onClick = {
+                        selectedProfileId = profile.id
+                        draftName = profile.name
+                        draftColorIndex = profile.colorIndex
+                        draftAvatarStyle = profile.avatarStyle
+                        onSetActiveProfile(profile.id)
+                    },
+                )
             }
-        },
-    )
+            if (selectedProfileId == null) {
+                CandyChip(
+                    label = stringResource(R.string.profile_new_chip),
+                    selected = true,
+                    onClick = {},
+                )
+            }
+        }
+        OutlinedTextField(
+            value = draftName,
+            onValueChange = { draftName = it },
+            label = { Text(text = stringResource(R.string.profile_name_label)) },
+            singleLine = true,
+        )
+        ProfileColorSelector(
+            selectedColorIndex = draftColorIndex,
+            onColorSelected = { draftColorIndex = it },
+        )
+        ProfileAvatarStyleSelector(
+            selectedStyle = draftAvatarStyle,
+            onStyleSelected = { draftAvatarStyle = it },
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
+            CandyButton(
+                text = stringResource(R.string.profile_add),
+                onClick = {
+                    selectedProfileId = null
+                    draftName = ""
+                    draftColorIndex = 0
+                    draftAvatarStyle = LocalAvatarStyle.INITIALS
+                },
+                style = CandyButtonStyle.Primary,
+            )
+            val deletableId = selectedProfileId
+            if (deletableId != null && profiles.size > 1) {
+                CandyButton(
+                    text = stringResource(R.string.profile_delete),
+                    onClick = { confirmDeleteId = deletableId },
+                    style = CandyButtonStyle.Warn,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -250,16 +350,13 @@ private fun ProfileColorSelector(
     onColorSelected: (Int) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
-        Text(text = stringResource(R.string.profile_color_label), style = MaterialTheme.typography.titleSmall)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
-        ) {
+        SelectorTitle(stringResource(R.string.profile_color_label))
+        Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
             GameConstants.PLAYER_COLORS.indices.forEach { colorIndex ->
-                FilterChip(
+                ColorSwatch(
+                    colorIndex = colorIndex,
                     selected = selectedColorIndex == colorIndex,
                     onClick = { onColorSelected(colorIndex) },
-                    label = { Text(text = stringResource(R.string.profile_color_option, colorIndex + 1)) },
                 )
             }
         }
@@ -267,23 +364,51 @@ private fun ProfileColorSelector(
 }
 
 @Composable
+private fun ColorSwatch(
+    colorIndex: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = CornersApartPlayerPalette.colorsFor(colorIndex)
+    val description = stringResource(R.string.profile_color_option, colorIndex + 1)
+    Box(
+        modifier =
+            Modifier
+                .size(CornersApartSpacing.ColorSwatchSize)
+                .semantics { contentDescription = description }
+                .then(
+                    if (selected) {
+                        Modifier.border(
+                            width = CornersApartSpacing.ColorSwatchRingWidth,
+                            color = CornersApartColors.TextOnDarkPrimary,
+                            shape = CircleShape,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ).padding(CornersApartSpacing.TinyGap)
+                .background(
+                    brush =
+                        Brush.verticalGradient(
+                            colors = listOf(colors.highlight, colors.base),
+                        ),
+                    shape = CircleShape,
+                ).selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+    )
+}
+
+@Composable
 private fun ProfileAvatarStyleSelector(
     selectedStyle: LocalAvatarStyle,
     onStyleSelected: (LocalAvatarStyle) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
-        Text(text = stringResource(R.string.profile_avatar_label), style = MaterialTheme.typography.titleSmall)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
-        ) {
-            LocalAvatarStyle.entries.forEach { style ->
-                FilterChip(
-                    selected = selectedStyle == style,
-                    onClick = { onStyleSelected(style) },
-                    label = { Text(text = stringResource(style.labelRes())) },
-                )
-            }
+    SelectorSection(title = stringResource(R.string.profile_avatar_label)) {
+        LocalAvatarStyle.entries.forEach { style ->
+            CandyChip(
+                label = stringResource(style.labelRes()),
+                selected = selectedStyle == style,
+                onClick = { onStyleSelected(style) },
+            )
         }
     }
 }
@@ -307,7 +432,7 @@ private fun SettingSwitchRow(
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
         )
-        Switch(
+        CandySwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
         )
@@ -316,36 +441,58 @@ private fun SettingSwitchRow(
 
 @Composable
 fun GameHelpDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.help_title)) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
-            ) {
-                HelpRuleSection(R.string.help_goal_title, R.string.help_goal_body)
-                HelpRuleSection(R.string.help_start_title, R.string.help_start_body)
-                HelpRuleSection(R.string.help_contact_title, R.string.help_contact_body)
-                HelpRuleSection(R.string.help_scoring_title, R.string.help_scoring_body)
-                HelpRuleSection(R.string.help_bonus_title, R.string.help_bonus_body)
-                HelpRuleSection(R.string.help_passing_title, R.string.help_passing_body)
-                HelpRuleSection(R.string.help_controls_title, R.string.help_controls_body)
-                HelpRuleSection(R.string.help_nearby_title, R.string.help_nearby_body)
-            }
+    val placedCellPoints =
+        pluralStringResource(
+            R.plurals.points_count,
+            GameConstants.PLACED_CELL_POINTS,
+            GameConstants.PLACED_CELL_POINTS,
+        )
+    val bonusTilePoints =
+        pluralStringResource(
+            R.plurals.points_count,
+            GameConstants.BONUS_TILE_POINTS,
+            GameConstants.BONUS_TILE_POINTS,
+        )
+    CandyDialog(
+        title = stringResource(R.string.help_title),
+        onDismiss = onDismiss,
+        buttons = {
+            CandyButton(
+                text = stringResource(R.string.dialog_close),
+                onClick = onDismiss,
+                style = CandyButtonStyle.Primary,
+            )
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.dialog_close))
-            }
-        },
-    )
+    ) {
+        HelpRuleSection(
+            R.string.help_goal_title,
+            stringResource(R.string.help_goal_body, placedCellPoints),
+        )
+        HelpRuleSection(R.string.help_start_title, stringResource(R.string.help_start_body))
+        HelpRuleSection(R.string.help_contact_title, stringResource(R.string.help_contact_body))
+        HelpRuleSection(
+            R.string.help_scoring_title,
+            pluralStringResource(
+                R.plurals.help_scoring_body,
+                PieceCatalog.all.size,
+                placedCellPoints,
+                PieceCatalog.all.size,
+            ),
+        )
+        HelpRuleSection(
+            R.string.help_bonus_title,
+            stringResource(R.string.help_bonus_body, bonusTilePoints),
+        )
+        HelpRuleSection(R.string.help_passing_title, stringResource(R.string.help_passing_body))
+        HelpRuleSection(R.string.help_controls_title, stringResource(R.string.help_controls_body))
+        HelpRuleSection(R.string.help_nearby_title, stringResource(R.string.help_nearby_body))
+    }
 }
 
 @Composable
 private fun HelpRuleSection(
     @StringRes title: Int,
-    @StringRes body: Int,
+    body: String,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
         Text(
@@ -353,8 +500,9 @@ private fun HelpRuleSection(
             style = MaterialTheme.typography.titleMedium,
         )
         Text(
-            text = stringResource(body),
-            style = MaterialTheme.typography.bodyMedium,
+            text = body,
+            style = MaterialTheme.typography.bodyLarge,
+            color = CornersApartColors.TextOnDarkSecondary,
         )
     }
 }
@@ -365,47 +513,143 @@ fun GameOverDialog(
     durationSeconds: Int,
     onPlayAgain: () -> Unit,
     onShowStats: () -> Unit,
+    modifier: Modifier = Modifier,
+    challengeResult: ChallengeResult? = null,
+    isNewBestScore: Boolean = false,
+    newAchievements: List<String> = emptyList(),
+    dailyBestScore: Int? = null,
+    rivalResult: RivalMatchResult? = null,
+    allTimeRank: Int? = null,
+    allTimeRankModeLabel: String = "",
+    dailyStreak: Int = 0,
 ) {
     val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val winner = rankedScores.firstOrNull()
-    AlertDialog(
-        onDismissRequest = {},
-        title = { Text(text = stringResource(R.string.game_over_title)) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.SectionGap),
-            ) {
-                if (winner != null) {
-                    Text(
-                        text = stringResource(R.string.game_over_winner, winner.name),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
+    CandyDialog(
+        title = stringResource(R.string.game_over_title),
+        onDismiss = {},
+        modifier = modifier,
+        buttons = {
+            CandyButton(
+                text = stringResource(R.string.stats_tab),
+                onClick = onShowStats,
+                style = CandyButtonStyle.Neutral,
+            )
+            CandyButton(
+                text = stringResource(R.string.game_over_play_again),
+                onClick = onPlayAgain,
+                style = CandyButtonStyle.Positive,
+            )
+        },
+    ) {
+        if (challengeResult != null) {
+            Text(
+                text =
+                    if (challengeResult.stars > 0) {
+                        stringResource(
+                            R.string.game_over_challenge_cleared,
+                            challengeResult.level,
+                            starsLabel(challengeResult.stars),
+                        )
+                    } else {
+                        stringResource(R.string.game_over_challenge_failed, challengeResult.level)
+                    },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.headlineMedium.withCandyShadow(),
+                color = CornersApartColors.BonusAccentBright,
+            )
+        }
+        if (rivalResult != null) {
+            Text(
+                text =
+                    if (rivalResult.won) {
+                        stringResource(R.string.game_over_rival_won, rivalResult.rivalName)
+                    } else {
+                        stringResource(R.string.game_over_rival_lost, rivalResult.rivalName)
+                    },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.headlineMedium.withCandyShadow(),
+                color =
+                    if (rivalResult.won) {
+                        CornersApartColors.PlayerLime
+                    } else {
+                        CornersApartColors.TextOnDarkSecondary
+                    },
+            )
+            rivalResult.unlockedRivalName?.let { unlockedName ->
                 Text(
-                    text = stringResource(R.string.game_over_duration, duration),
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = stringResource(R.string.game_over_rival_unlocked, unlockedName),
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                    color = CornersApartColors.BonusAccentBright,
                 )
-                ScoreBreakdownLabels()
-                rankedScores.forEachIndexed { index, player ->
-                    PlayerScoreBreakdown(
-                        rank = index + 1,
-                        player = player,
-                    )
-                }
             }
-        },
-        confirmButton = {
-            Button(onClick = onPlayAgain) {
-                Text(text = stringResource(R.string.game_over_play_again))
+        }
+        if (winner != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = CornersApartSpacing.ConfettiHeight),
+            ) {
+                ConfettiBurst(modifier = Modifier.matchParentSize())
+                Text(
+                    text = stringResource(R.string.game_over_winner, winner.name),
+                    modifier = Modifier.align(Alignment.Center),
+                    style = MaterialTheme.typography.displayMedium.withCandyShadow(),
+                    color = CornersApartColors.TextOnDarkPrimary,
+                )
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onShowStats) {
-                Text(text = stringResource(R.string.stats_tab))
-            }
-        },
-    )
+        }
+        if (isNewBestScore) {
+            Text(
+                text = stringResource(R.string.game_over_new_best_score),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                color = CornersApartColors.PlayerLime,
+            )
+        }
+        if (allTimeRank != null) {
+            Text(
+                text = stringResource(R.string.game_over_all_time_rank, allTimeRankModeLabel, allTimeRank),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                color = CornersApartColors.BonusAccentBright,
+            )
+        }
+        if (dailyBestScore != null) {
+            Text(
+                text = stringResource(R.string.game_over_daily_result, dailyBestScore),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.titleMedium.withCandyShadow(),
+                color = CornersApartColors.BonusAccentBright,
+            )
+            StreakBadge(
+                currentStreak = dailyStreak,
+                bestStreak = dailyStreak,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
+        newAchievements.mapNotNull(Achievement::fromId).forEach { achievement ->
+            Text(
+                text = stringResource(R.string.achievement_unlocked, stringResource(achievement.labelRes())),
+                style = MaterialTheme.typography.bodyLarge,
+                color = CornersApartColors.BonusAccentBright,
+            )
+        }
+        Text(
+            text = stringResource(R.string.game_over_duration, duration),
+            style = MaterialTheme.typography.bodyLarge,
+            color = CornersApartColors.TextOnDarkSecondary,
+        )
+        ScoreBreakdownLabels()
+        rankedScores.forEachIndexed { index, player ->
+            PlayerScoreBreakdown(
+                rank = index + 1,
+                player = player,
+            )
+        }
+    }
 }
 
 @Composable
@@ -424,31 +668,47 @@ private fun PlayerScoreBreakdown(
     player: PlayerScore,
 ) {
     val score = pluralStringResource(R.plurals.points_count, player.totalScore, player.totalScore)
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = CornersApartSpacing.TinyGap),
-        verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.small,
+        color = CornersApartColors.PanelSurface,
     ) {
-        HorizontalDivider()
-        Text(
-            text = stringResource(R.string.game_over_ranked_player, rank, player.name, score),
-            style = MaterialTheme.typography.titleSmall,
-        )
-        Text(
-            text =
-                stringResource(
-                    R.string.game_over_ranked_score_breakdown,
-                    player.scoreBreakdown.placedCellPoints,
-                    player.scoreBreakdown.bonusTilePoints,
-                    player.scoreBreakdown.completionBonus,
-                    player.claimedBonusTiles,
-                ),
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Column(
+            modifier = Modifier.padding(CornersApartSpacing.CompactGap),
+            verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap),
+        ) {
+            Text(
+                text = stringResource(R.string.game_over_ranked_player, rank, player.name, score),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            HorizontalDivider(color = CornersApartColors.PanelSurfaceRaised)
+            Text(
+                text =
+                    stringResource(
+                        R.string.game_over_ranked_score_breakdown,
+                        player.scoreBreakdown.placedCellPoints,
+                        player.scoreBreakdown.bonusTilePoints,
+                        player.scoreBreakdown.completionBonus,
+                        player.claimedBonusTiles,
+                    ),
+                style = MaterialTheme.typography.bodyLarge,
+                color = CornersApartColors.TextOnDarkSecondary,
+            )
+        }
     }
 }
+
+@StringRes
+fun Achievement.labelRes(): Int =
+    when (this) {
+        Achievement.FIRST_WIN -> R.string.achievement_first_win
+        Achievement.BONUS_HUNTER -> R.string.achievement_bonus_hunter
+        Achievement.ALL_PIECES -> R.string.achievement_all_pieces
+        Achievement.EXPERT_WIN -> R.string.achievement_expert_win
+        Achievement.WIN_STREAK_3 -> R.string.achievement_win_streak_3
+        Achievement.PERFECT_LEVEL -> R.string.achievement_perfect_level
+        Achievement.CHALLENGE_CHAMP -> R.string.achievement_challenge_champ
+    }
 
 private fun LocalAvatarStyle.labelRes(): Int =
     when (this) {

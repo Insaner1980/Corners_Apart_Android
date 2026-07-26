@@ -8,8 +8,11 @@ import com.finnvek.cornersapart.model.INVALID_GAME_STATE_INDEX_DOMAINS
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.hasValidIndexDomains
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+@Suppress("TooManyFunctions")
 class NearbyConnectionsCoordinator(
     private val facade: ConnectionsClientFacade,
     private val gameEngine: GameEngine,
@@ -28,8 +32,7 @@ class NearbyConnectionsCoordinator(
     private val connectedEndpointIds = linkedSetOf<String>()
     private val approvedEndpointIds = linkedSetOf<String>()
     private val endpointOwnerIndexes = linkedMapOf<String, Int>()
-    private val payloadCallback = CoordinatorPayloadCallback()
-    private val operationFailureCallback = CoordinatorOperationFailureCallback()
+    private val reconnectTimeoutJobs = mutableMapOf<Int, Job>()
     private var hostEndpointId: String? = null
     private var sessionRole: NearbyRole? = null
     private var callbackGeneration: Int = 0
@@ -52,28 +55,34 @@ class NearbyConnectionsCoordinator(
                 advanceCallbackGenerationLocked()
                 sessionRole = NearbyRole.HOST
                 _currentSession.value = session
-                publishNearbyStateLocked(
-                    _nearbyState.value.copy(connectionState = ConnectionState.CONNECTED, errorMessage = null),
-                )
+                publishNearbyStateLocked(NearbyUiState(connectionState = ConnectionState.CONNECTED))
                 callbackGeneration
             }
+        stopNearbyActivity()
         facade.startAdvertising(
             localEndpointName,
             SERVICE_ID,
             CoordinatorConnectionLifecycleCallback(generation),
-            operationFailureCallback,
+            CoordinatorOperationFailureCallback(generation),
         )
     }
 
     fun startDiscovery() {
-        synchronized(stateLock) {
-            resetEndpointStateLocked()
-            advanceCallbackGenerationLocked()
-            publishNearbyStateLocked(
-                _nearbyState.value.copy(connectionState = ConnectionState.DISCONNECTED, errorMessage = null),
-            )
-        }
-        facade.startDiscovery(SERVICE_ID, CoordinatorEndpointDiscoveryCallback(), operationFailureCallback)
+        val generation =
+            synchronized(stateLock) {
+                resetEndpointStateLocked()
+                advanceCallbackGenerationLocked()
+                sessionRole = NearbyRole.CLIENT
+                _currentSession.value = null
+                publishNearbyStateLocked(NearbyUiState(connectionState = ConnectionState.DISCONNECTED))
+                callbackGeneration
+            }
+        stopNearbyActivity()
+        facade.startDiscovery(
+            SERVICE_ID,
+            CoordinatorEndpointDiscoveryCallback(generation),
+            CoordinatorOperationFailureCallback(generation),
+        )
     }
 
     fun connectToEndpoint(endpointId: String) {
@@ -81,6 +90,7 @@ class NearbyConnectionsCoordinator(
         val generation =
             synchronized(stateLock) {
                 resetEndpointStateLocked()
+                clearPendingConnectionLocked()
                 advanceCallbackGenerationLocked()
                 hostEndpointId = endpointId
                 callbackGeneration
@@ -89,36 +99,51 @@ class NearbyConnectionsCoordinator(
             localEndpointName,
             endpointId,
             CoordinatorConnectionLifecycleCallback(generation),
-            operationFailureCallback,
+            CoordinatorOperationFailureCallback(generation),
         )
     }
 
     fun acceptPendingConnection(endpointId: String) {
-        val shouldAccept =
+        val decision =
             synchronized(stateLock) {
                 val pendingEndpointId = _nearbyState.value.pendingConnection?.endpointId
                 if (pendingEndpointId == endpointId) {
-                    approvedEndpointIds += endpointId
-                    true
+                    val shouldAccept =
+                        sessionRole != NearbyRole.HOST || assignEndpointOwnerLocked(endpointId) != null
+                    if (shouldAccept) {
+                        approvedEndpointIds += endpointId
+                    } else {
+                        clearPendingConnectionLocked(endpointId)
+                    }
+                    shouldAccept to callbackGeneration
                 } else {
-                    false
+                    null
                 }
             }
-        if (!shouldAccept) return
-        facade.acceptConnection(endpointId, payloadCallback, operationFailureCallback)
+        if (decision == null) return
+        val (shouldAccept, generation) = decision
+        if (shouldAccept) {
+            facade.acceptConnection(
+                endpointId,
+                CoordinatorPayloadCallback(generation),
+                CoordinatorOperationFailureCallback(generation, endpointId),
+            )
+        } else {
+            facade.rejectConnection(endpointId, CoordinatorOperationFailureCallback(generation))
+        }
     }
 
     fun rejectPendingConnection(endpointId: String) {
-        synchronized(stateLock) {
-            approvedEndpointIds -= endpointId
-        }
-        facade.rejectConnection(endpointId, operationFailureCallback)
+        val generation =
+            synchronized(stateLock) {
+                clearPendingConnectionLocked(endpointId)
+                callbackGeneration
+            }
+        facade.rejectConnection(endpointId, CoordinatorOperationFailureCallback(generation))
     }
 
     fun disconnect() {
-        facade.stopAdvertising()
-        facade.stopDiscovery()
-        facade.stopAllEndpoints()
+        stopNearbyActivity()
         synchronized(stateLock) {
             resetEndpointStateLocked()
             advanceCallbackGenerationLocked()
@@ -132,17 +157,25 @@ class NearbyConnectionsCoordinator(
         message: GameMessage,
     ) {
         val bytes = GameProtocol.encode(message).encodeToByteArray()
-        val targetEndpointIds =
+        val (targetEndpointIds, generation) =
             synchronized(stateLock) {
-                when (target) {
-                    MessageTarget.Broadcast -> connectedEndpointIds.toList()
-                    MessageTarget.Host -> hostEndpointId?.let(::listOf).orEmpty()
-                    is MessageTarget.Endpoint -> listOf(target.endpointId)
-                }
+                val endpointIds =
+                    when (target) {
+                        MessageTarget.Broadcast -> connectedEndpointIds.toList()
+                        MessageTarget.Host -> hostEndpointId?.let(::listOf).orEmpty()
+                        is MessageTarget.Endpoint -> listOf(target.endpointId)
+                    }
+                endpointIds to callbackGeneration
             }
         targetEndpointIds.forEach { endpointId ->
-            facade.sendPayload(endpointId, bytes, operationFailureCallback)
+            facade.sendPayload(endpointId, bytes, CoordinatorOperationFailureCallback(generation))
         }
+    }
+
+    private fun stopNearbyActivity() {
+        facade.stopAdvertising()
+        facade.stopDiscovery()
+        facade.stopAllEndpoints()
     }
 
     private suspend fun handleBytesPayload(
@@ -181,10 +214,10 @@ class NearbyConnectionsCoordinator(
                 _nearbyState.value.copy(
                     connectionState = session.connectionState.value,
                     errorMessage =
-                        if (error == null || error is MoveRejectedException) {
-                            _nearbyState.value.errorMessage
-                        } else {
-                            error.message
+                        when (error) {
+                            null -> null
+                            is MoveRejectedException -> _nearbyState.value.errorMessage
+                            else -> error.message
                         },
                 ),
             )
@@ -217,11 +250,27 @@ class NearbyConnectionsCoordinator(
     }
 
     private fun resetEndpointStateLocked() {
+        reconnectTimeoutJobs.values.forEach(Job::cancel)
+        reconnectTimeoutJobs.clear()
         connectedEndpointIds.clear()
         approvedEndpointIds.clear()
         endpointOwnerIndexes.clear()
         hostEndpointId = null
         sessionRole = null
+    }
+
+    private fun clearPendingConnectionLocked(endpointId: String? = null) {
+        if (endpointId == null) {
+            approvedEndpointIds.clear()
+        } else {
+            approvedEndpointIds -= endpointId
+            if (endpointId !in connectedEndpointIds) {
+                endpointOwnerIndexes.remove(endpointId)
+            }
+        }
+        val pendingConnection = _nearbyState.value.pendingConnection ?: return
+        if (endpointId != null && pendingConnection.endpointId != endpointId) return
+        publishNearbyStateLocked(_nearbyState.value.copy(pendingConnection = null))
     }
 
     private fun advanceCallbackGenerationLocked() {
@@ -252,16 +301,12 @@ class NearbyConnectionsCoordinator(
         return when (message) {
             is GameMessage.PlaceMove -> endpointOwnsPlayerLocked(endpointId, message.move.playerIndex)
             is GameMessage.Pass -> endpointOwnsPlayerLocked(endpointId, message.playerIndex)
-            is GameMessage.PlayerJoined ->
-                endpointOwnerIndexes[endpointId] == message.player.ownerIndex &&
-                    endpointOwnsPlayerLocked(endpointId, message.player.index)
+            is GameMessage.PlayerJoined -> false
             is GameMessage.PlayerLeft -> false
-            GameMessage.Ping -> true
             is GameMessage.FullSync,
             is GameMessage.GameConfig,
             is GameMessage.MoveAccepted,
             is GameMessage.MoveRejected,
-            GameMessage.Pong,
             -> false
         }
     }
@@ -303,9 +348,9 @@ class NearbyConnectionsCoordinator(
         )
     }
 
-    private fun assignEndpointOwnerLocked(endpointId: String) {
-        if (endpointId in endpointOwnerIndexes) return
-        val state = _currentSession.value?.gameState?.value ?: return
+    private fun assignEndpointOwnerLocked(endpointId: String): Int? {
+        endpointOwnerIndexes[endpointId]?.let { ownerIndex -> return ownerIndex }
+        val state = _currentSession.value?.gameState?.value ?: return null
         val assignedOwners = endpointOwnerIndexes.values.toSet() + LOCAL_OWNER_INDEX
         val nextOwner =
             state.players
@@ -314,45 +359,102 @@ class NearbyConnectionsCoordinator(
                 .map { player -> player.ownerIndex }
                 .distinct()
                 .firstOrNull { ownerIndex -> ownerIndex !in assignedOwners }
-                ?: return
+                ?: return null
         endpointOwnerIndexes[endpointId] = nextOwner
+        return nextOwner
     }
 
     private suspend fun markDisconnectedEndpoint(
         endpointId: String,
         generation: Int,
-    ): Boolean {
-        val (isActiveEndpoint, playerLeftMessages) =
+    ): DisconnectedEndpoint? {
+        val disconnectedEndpoint =
             synchronized(stateLock) {
                 if (!isCurrentCallbackGenerationLocked(generation)) {
-                    return@synchronized false to emptyList<Pair<NearbySession, GameMessage>>()
+                    return@synchronized null
                 }
                 val isActiveEndpoint =
                     endpointId in connectedEndpointIds ||
                         endpointId in endpointOwnerIndexes ||
                         endpointId == hostEndpointId
                 if (!isActiveEndpoint) {
-                    return@synchronized false to emptyList<Pair<NearbySession, GameMessage>>()
+                    return@synchronized null
+                }
+                if (sessionRole == NearbyRole.CLIENT && endpointId == hostEndpointId) {
+                    resetEndpointStateLocked()
+                    advanceCallbackGenerationLocked()
+                    _currentSession.value = null
+                    publishNearbyStateLocked(NearbyUiState(connectionState = ConnectionState.DISCONNECTED))
+                    return@synchronized DisconnectedEndpoint(
+                        session = null,
+                        ownerIndex = null,
+                        playerLeftMessages = emptyList(),
+                        clientHostDisconnected = true,
+                    )
                 }
                 val ownerIndex = endpointOwnerIndexes.remove(endpointId)
                 connectedEndpointIds -= endpointId
-                approvedEndpointIds -= endpointId
                 if (endpointId == hostEndpointId) hostEndpointId = null
                 val session = _currentSession.value
-                val messages =
+                val reconnectingSession =
+                    session.takeIf { sessionRole == NearbyRole.HOST && ownerIndex != null }
+                val playerLeftMessages =
                     if (sessionRole == NearbyRole.HOST && ownerIndex != null && session != null) {
                         session.gameState.value.players
                             .filter { player -> player.ownerIndex == ownerIndex }
-                            .map { player -> session to GameMessage.PlayerLeft(playerIndex = player.index) }
+                            .map { player -> GameMessage.PlayerLeft(playerIndex = player.index) }
                     } else {
                         emptyList()
                     }
-                isActiveEndpoint to messages
+                DisconnectedEndpoint(
+                    session = reconnectingSession,
+                    ownerIndex = ownerIndex.takeIf { reconnectingSession != null },
+                    playerLeftMessages = playerLeftMessages,
+                    clientHostDisconnected = false,
+                )
+            } ?: return null
+        disconnectedEndpoint.session?.let { session ->
+            disconnectedEndpoint.playerLeftMessages.forEach { message ->
+                session.applyRemoteMessage(endpointId, message)
             }
-        playerLeftMessages.forEach { (session, message) ->
-            session.applyRemoteMessage(endpointId, message)
         }
-        return isActiveEndpoint
+        return disconnectedEndpoint
+    }
+
+    private fun scheduleReconnectTimeout(
+        session: NearbySession,
+        ownerIndex: Int,
+        generation: Int,
+    ) {
+        synchronized(stateLock) {
+            reconnectTimeoutJobs.remove(ownerIndex)?.cancel()
+            reconnectTimeoutJobs[ownerIndex] =
+                callbackScope.launch {
+                    delay(RECONNECT_TIMEOUT_MS)
+                    callbackMutex.withLock {
+                        val shouldExpire =
+                            synchronized(stateLock) {
+                                isCurrentCallbackGenerationLocked(generation) &&
+                                    _currentSession.value === session &&
+                                    ownerIndex !in endpointOwnerIndexes.values
+                            }
+                        if (!shouldExpire) return@withLock
+
+                        val expired = session.expireReconnect(ownerIndex)
+                        synchronized(stateLock) {
+                            reconnectTimeoutJobs.remove(ownerIndex)
+                            if (expired && isCurrentCallbackGenerationLocked(generation)) {
+                                publishNearbyStateLocked(
+                                    _nearbyState.value.copy(
+                                        connectionState = ConnectionState.FAILED,
+                                        errorMessage = RECONNECT_TIMEOUT_ERROR,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     private inner class CoordinatorConnectionLifecycleCallback(
@@ -382,40 +484,55 @@ class NearbyConnectionsCoordinator(
             endpointId: String,
             result: NearbyConnectionResult,
         ) {
-            synchronized(stateLock) {
-                if (!isCurrentCallbackGenerationLocked(generation)) return
-                if (result == NearbyConnectionResult.Accepted && endpointId in approvedEndpointIds) {
-                    connectedEndpointIds += endpointId
-                    if (sessionRole == NearbyRole.HOST) {
-                        assignEndpointOwnerLocked(endpointId)
+            val joinedPlayers =
+                synchronized(stateLock) {
+                    if (!isCurrentCallbackGenerationLocked(generation)) return
+                    if (result == NearbyConnectionResult.Accepted && endpointId in approvedEndpointIds) {
+                        connectedEndpointIds += endpointId
+                        val ownerIndex =
+                            if (sessionRole == NearbyRole.HOST) assignEndpointOwnerLocked(endpointId) else null
+                        if (ownerIndex != null) reconnectTimeoutJobs.remove(ownerIndex)?.cancel()
+                        publishNearbyStateLocked(
+                            _nearbyState.value.copy(
+                                connectionState = ConnectionState.CONNECTED,
+                                pendingConnection = null,
+                                errorMessage = null,
+                            ),
+                        )
+                        val session = _currentSession.value
+                        if (session != null && ownerIndex != null) {
+                            val reconnectingPlayerIndexes = session.lobbyState.value.reconnectingPlayerIndexes
+                            session to
+                                session.players.value.filter { player ->
+                                    player.ownerIndex == ownerIndex && player.index in reconnectingPlayerIndexes
+                                }
+                        } else {
+                            null
+                        }
+                    } else {
+                        clearPendingConnectionLocked(endpointId)
+                        if (sessionRole != NearbyRole.HOST) {
+                            publishNearbyStateLocked(
+                                _nearbyState.value.copy(
+                                    connectionState = ConnectionState.FAILED,
+                                    errorMessage = result.connectionFailureMessage(endpointId),
+                                ),
+                            )
+                        }
+                        null
                     }
-                    publishNearbyStateLocked(
-                        _nearbyState.value.copy(
-                            connectionState = ConnectionState.CONNECTED,
-                            pendingConnection = null,
-                            errorMessage = null,
-                        ),
-                    )
-                } else {
-                    publishNearbyStateLocked(
-                        _nearbyState.value.copy(
-                            connectionState = ConnectionState.FAILED,
-                            errorMessage = result.connectionFailureMessage(endpointId),
-                        ),
-                    )
                 }
-            }
-        }
-
-        override fun onDisconnected(endpointId: String) {
-            callbackScope.launch {
-                callbackMutex.withLock {
-                    val handledDisconnect = markDisconnectedEndpoint(endpointId, generation)
-                    if (handledDisconnect) {
+            joinedPlayers?.let { (session, players) ->
+                callbackScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    callbackMutex.withLock {
+                        sendMessage(MessageTarget.Endpoint(endpointId), GameMessage.FullSync(session.gameState.value))
+                        players.forEach { player ->
+                            session.applyRemoteMessage(endpointId, GameMessage.PlayerJoined(player))
+                        }
                         synchronized(stateLock) {
                             if (isCurrentCallbackGenerationLocked(generation)) {
                                 publishNearbyStateLocked(
-                                    _nearbyState.value.copy(connectionState = ConnectionState.RECONNECTING),
+                                    _nearbyState.value.copy(connectionState = session.connectionState.value),
                                 )
                             }
                         }
@@ -423,14 +540,45 @@ class NearbyConnectionsCoordinator(
                 }
             }
         }
+
+        override fun onDisconnected(endpointId: String) {
+            synchronized(stateLock) {
+                if (!isCurrentCallbackGenerationLocked(generation)) return
+                clearPendingConnectionLocked(endpointId)
+            }
+            callbackScope.launch {
+                callbackMutex.withLock {
+                    val disconnectedEndpoint = markDisconnectedEndpoint(endpointId, generation)
+                    if (disconnectedEndpoint != null) {
+                        if (!disconnectedEndpoint.clientHostDisconnected) {
+                            synchronized(stateLock) {
+                                if (isCurrentCallbackGenerationLocked(generation)) {
+                                    publishNearbyStateLocked(
+                                        _nearbyState.value.copy(connectionState = ConnectionState.RECONNECTING),
+                                    )
+                                }
+                            }
+                        }
+                        val session = disconnectedEndpoint.session
+                        val ownerIndex = disconnectedEndpoint.ownerIndex
+                        if (session != null && ownerIndex != null) {
+                            scheduleReconnectTimeout(session, ownerIndex, generation)
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    private inner class CoordinatorEndpointDiscoveryCallback : NearbyEndpointDiscoveryCallback {
+    private inner class CoordinatorEndpointDiscoveryCallback(
+        private val generation: Int,
+    ) : NearbyEndpointDiscoveryCallback {
         override fun onEndpointFound(
             endpointId: String,
             endpointName: String,
         ) {
             synchronized(stateLock) {
+                if (!isCurrentCallbackGenerationLocked(generation)) return
                 val existing =
                     _nearbyState.value.discoveredEndpoints.filterNot { endpoint ->
                         endpoint.endpointId ==
@@ -446,6 +594,7 @@ class NearbyConnectionsCoordinator(
 
         override fun onEndpointLost(endpointId: String) {
             synchronized(stateLock) {
+                if (!isCurrentCallbackGenerationLocked(generation)) return
                 publishNearbyStateLocked(
                     _nearbyState.value.copy(
                         discoveredEndpoints =
@@ -458,20 +607,29 @@ class NearbyConnectionsCoordinator(
         }
     }
 
-    private inner class CoordinatorPayloadCallback : NearbyPayloadCallback {
+    private inner class CoordinatorPayloadCallback(
+        private val generation: Int,
+    ) : NearbyPayloadCallback {
         override fun onBytesPayload(
             endpointId: String,
             bytes: ByteArray,
         ) {
-            callbackScope.launch {
+            callbackScope.launch(start = CoroutineStart.UNDISPATCHED) {
                 callbackMutex.withLock {
-                    handleBytesPayload(endpointId, bytes)
+                    val isCurrentGeneration =
+                        synchronized(stateLock) {
+                            isCurrentCallbackGenerationLocked(generation)
+                        }
+                    if (isCurrentGeneration) {
+                        handleBytesPayload(endpointId, bytes)
+                    }
                 }
             }
         }
 
         override fun onPayloadFailure(endpointId: String) {
             synchronized(stateLock) {
+                if (!isCurrentCallbackGenerationLocked(generation)) return
                 publishNearbyStateLocked(
                     _nearbyState.value.copy(
                         connectionState = ConnectionState.FAILED,
@@ -482,12 +640,19 @@ class NearbyConnectionsCoordinator(
         }
     }
 
-    private inner class CoordinatorOperationFailureCallback : NearbyOperationFailureCallback {
+    private inner class CoordinatorOperationFailureCallback(
+        private val generation: Int,
+        private val endpointId: String? = null,
+    ) : NearbyOperationFailureCallback {
         override fun onOperationFailure(
             operation: NearbyOperation,
             failure: NearbyOperationFailure,
         ) {
             synchronized(stateLock) {
+                if (!isCurrentCallbackGenerationLocked(generation)) return
+                if (operation == NearbyOperation.ACCEPT_CONNECTION && endpointId != null) {
+                    clearPendingConnectionLocked(endpointId)
+                }
                 publishNearbyStateLocked(
                     _nearbyState.value.copy(
                         connectionState = ConnectionState.FAILED,
@@ -523,6 +688,15 @@ class NearbyConnectionsCoordinator(
 
     companion object {
         const val SERVICE_ID = "com.finnvek.cornersapart"
+        const val RECONNECT_TIMEOUT_MS = 60_000L
+        private const val RECONNECT_TIMEOUT_ERROR = "Player reconnect timed out"
         private const val LOCAL_OWNER_INDEX = 0
     }
+
+    private data class DisconnectedEndpoint(
+        val session: NearbySession?,
+        val ownerIndex: Int?,
+        val playerLeftMessages: List<GameMessage.PlayerLeft>,
+        val clientHostDisconnected: Boolean,
+    )
 }

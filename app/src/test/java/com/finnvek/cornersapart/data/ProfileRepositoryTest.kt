@@ -51,6 +51,43 @@ class ProfileRepositoryTest {
         }
 
     @Test
+    fun deleteProfileRemovesProfileAndReassignsActive() =
+        runTest {
+            val store = InMemoryJsonStateStore(ProfilesData())
+            val repository = ProfileRepository(store)
+            repository.upsertProfile(
+                Profile(
+                    id = "first",
+                    name = "Emma",
+                    colorIndex = 0,
+                    avatarStyle = LocalAvatarStyle.INITIALS,
+                    avatarSeed = "emma",
+                    active = true,
+                ),
+            )
+            repository.upsertProfile(
+                Profile(
+                    id = "second",
+                    name = "Kai",
+                    colorIndex = 2,
+                    avatarStyle = LocalAvatarStyle.MOSAIC,
+                    avatarSeed = "kai",
+                ),
+            )
+            repository.setActiveProfile("first")
+
+            repository.deleteProfile("first")
+
+            val profiles = repository.profiles.first()
+            assertEquals(listOf("second"), profiles.map { profile -> profile.id })
+            assertTrue(profiles.single().active)
+
+            repository.deleteProfile("second")
+
+            assertEquals(1, repository.profiles.first().size)
+        }
+
+    @Test
     fun appendHistoryKeepsMostRecentMaxHistoryEntries() =
         runTest {
             val store =

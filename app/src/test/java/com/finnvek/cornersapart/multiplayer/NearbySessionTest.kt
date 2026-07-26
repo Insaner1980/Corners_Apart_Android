@@ -2,11 +2,11 @@ package com.finnvek.cornersapart.multiplayer
 
 import com.finnvek.cornersapart.engine.GameEngine
 import com.finnvek.cornersapart.engine.MoveRejectionReason
-import com.finnvek.cornersapart.engine.ScoreDelta
 import com.finnvek.cornersapart.model.GameConfig
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
+import com.finnvek.cornersapart.model.ScoreDelta
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -218,6 +218,60 @@ class NearbySessionTest {
         }
 
     @Test
+    fun hostMoveDoesNotClearExpiredReconnectFailure() =
+        runTest {
+            val session = createHostSessionWithExpiredReconnect()
+
+            val result =
+                session.sendMove(
+                    Move(
+                        playerIndex = 0,
+                        pieceId = PieceCatalog.SINGLE_CELL_ID,
+                        anchorRow = 0,
+                        anchorCol = 0,
+                        orientationIndex = 0,
+                    ),
+                )
+
+            assertTrue(result.isSuccess)
+            assertEquals(ConnectionState.FAILED, session.connectionState.value)
+        }
+
+    @Test
+    fun hostNewGameClearsExpiredReconnectFailure() =
+        runTest {
+            val session = createHostSessionWithExpiredReconnect()
+
+            session.startNewGame(
+                GameConfig(
+                    mode = GameMode.COMPACT_DUEL,
+                    randomSeed = 61L,
+                    bonusTiles = emptyList(),
+                ),
+            )
+
+            assertEquals(ConnectionState.CONNECTED, session.connectionState.value)
+        }
+
+    @Test
+    fun hostStateReplacementClearsExpiredReconnectFailure() =
+        runTest {
+            val session = createHostSessionWithExpiredReconnect()
+            val replacement =
+                engine.newGame(
+                    GameConfig(
+                        mode = GameMode.THREE_PLAYER,
+                        randomSeed = 62L,
+                        bonusTiles = emptyList(),
+                    ),
+                )
+
+            session.replaceState(replacement)
+
+            assertEquals(ConnectionState.CONNECTED, session.connectionState.value)
+        }
+
+    @Test
     fun clientSessionRejectsLaterFullSyncWithInvalidIndexDomains() =
         runTest {
             val transport = RecordingNearbyTransport()
@@ -329,6 +383,23 @@ class NearbySessionTest {
             assertEquals(73L, session.gameState.value.randomSeed)
             assertEquals(0, session.gameState.value.turnNumber)
         }
+
+    private suspend fun createHostSessionWithExpiredReconnect(): NearbySession {
+        val session =
+            NearbySession.host(
+                engine = engine,
+                transport = RecordingNearbyTransport(),
+                initialConfig =
+                    GameConfig(
+                        mode = GameMode.FOUR_PLAYER,
+                        randomSeed = 60L,
+                        bonusTiles = emptyList(),
+                    ),
+            )
+        session.applyRemoteMessage("endpoint-1", GameMessage.PlayerLeft(playerIndex = 1))
+        check(session.expireReconnect(ownerIndex = 1))
+        return session
+    }
 }
 
 private class RecordingNearbyTransport : NearbyTransport {

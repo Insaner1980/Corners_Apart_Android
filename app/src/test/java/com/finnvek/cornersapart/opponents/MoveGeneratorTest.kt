@@ -17,7 +17,7 @@ class MoveGeneratorTest {
 
     @Test
     fun generatedMovesAreLegalForEveryDifficultyLevel() {
-        val state = soloState(seed = 31L)
+        val state = soloState(seed = 31L).copy(currentPlayerIndex = 1)
 
         OpponentDifficulty.entries.forEach { difficulty ->
             val moves =

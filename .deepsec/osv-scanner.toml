@@ -1,3 +1,4 @@
-[[PackageOverrides]]
-ignore = true
-reason = "DeepSec is local security-check tooling; application dependencies are scanned through Gradle and OWASP Dependency-Check."
+[[IgnoredVulns]]
+id = "GHSA-frvp-7c67-39w9"
+ignoreUntil = 2026-10-01
+reason = "Vain paikallisen DeepSec-työkalun transitiivinen MCP-riippuvuus. DeepSec ei käytä haavoittuvaa serve-static-polkuja; poista poikkeus, kun MCP SDK tukee @hono/node-server 2.0.5+:aa."
