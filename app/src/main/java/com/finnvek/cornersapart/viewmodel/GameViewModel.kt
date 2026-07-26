@@ -10,10 +10,10 @@ import com.finnvek.cornersapart.engine.MoveRejectedException
 import com.finnvek.cornersapart.engine.Scoring
 import com.finnvek.cornersapart.model.AchievementEvaluator
 import com.finnvek.cornersapart.model.ChallengeLevels
+import com.finnvek.cornersapart.model.DailyStreakCalculator
 import com.finnvek.cornersapart.model.GameConstants
 import com.finnvek.cornersapart.model.GameMode
 import com.finnvek.cornersapart.model.GameModeConfigs
-import com.finnvek.cornersapart.model.DailyStreakCalculator
 import com.finnvek.cornersapart.model.GameSettings
 import com.finnvek.cornersapart.model.GameState
 import com.finnvek.cornersapart.model.HallOfFameCalculator
@@ -592,7 +592,7 @@ class GameViewModel
             val entry = state.toHistoryEntry()
             lastGameWasBestScore =
                 profile.history.isNotEmpty() &&
-                    entry.totalScore > profile.history.maxOf { previous -> previous.totalScore }
+                entry.totalScore > profile.history.maxOf { previous -> previous.totalScore }
             lastGameAllTimeRank =
                 HallOfFameCalculator.allTimeRank(
                     profiles = profiles,

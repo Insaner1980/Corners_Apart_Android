@@ -19,30 +19,12 @@ class GameEngineScoringTest {
 
     @Test
     fun coveringBonusTileAddsThreeBonusPoints() {
-        val state =
-            engine.newGame(
-                GameConfig(
-                    mode = GameMode.FOUR_PLAYER,
-                    boardSize = GameConstants.STANDARD_BOARD_SIZE,
-                    randomSeed = 11L,
-                    bonusTiles = listOf(BonusTile(row = 1, col = 1)),
-                ),
+        val accepted =
+            placeThreeBendOverBonusTiles(
+                bonusTiles = listOf(BonusTile(row = 1, col = 1)),
+                randomSeed = 11L,
             )
 
-        val result =
-            engine.applyMove(
-                state,
-                Move(
-                    playerIndex = 0,
-                    pieceId = PieceCatalog.THREE_BEND_ID,
-                    anchorRow = 0,
-                    anchorCol = 0,
-                    orientationIndex = 0,
-                ),
-            )
-
-        assertTrue(result is MoveResult.Accepted)
-        val accepted = result as MoveResult.Accepted
         assertEquals(3, accepted.scoreDelta.placedCellPoints)
         assertEquals(GameConstants.BONUS_TILE_POINTS, accepted.scoreDelta.bonusTilePoints)
         assertEquals(
@@ -67,30 +49,12 @@ class GameEngineScoringTest {
     @Test
     fun duplicateBonusTilePositionsAwardPointsOnlyOnce() {
         val duplicateBonusTile = BonusTile(row = 1, col = 1)
-        val state =
-            engine.newGame(
-                GameConfig(
-                    mode = GameMode.FOUR_PLAYER,
-                    boardSize = GameConstants.STANDARD_BOARD_SIZE,
-                    randomSeed = 13L,
-                    bonusTiles = listOf(duplicateBonusTile, duplicateBonusTile),
-                ),
+        val accepted =
+            placeThreeBendOverBonusTiles(
+                bonusTiles = listOf(duplicateBonusTile, duplicateBonusTile),
+                randomSeed = 13L,
             )
 
-        val result =
-            engine.applyMove(
-                state,
-                Move(
-                    playerIndex = 0,
-                    pieceId = PieceCatalog.THREE_BEND_ID,
-                    anchorRow = 0,
-                    anchorCol = 0,
-                    orientationIndex = 0,
-                ),
-            )
-
-        assertTrue(result is MoveResult.Accepted)
-        val accepted = result as MoveResult.Accepted
         assertEquals(GameConstants.BONUS_TILE_POINTS, accepted.scoreDelta.bonusTilePoints)
         assertEquals(
             GameConstants.BONUS_TILE_POINTS,
@@ -243,5 +207,34 @@ class GameEngineScoringTest {
         assertEquals(listOf("Player 1", "Player 2"), rankings.map { score -> score.name })
         assertEquals(listOf(14, 9), rankings.map { score -> score.totalScore })
         assertEquals(listOf(0, 1), rankings.map { score -> score.ownerIndex })
+    }
+
+    private fun placeThreeBendOverBonusTiles(
+        bonusTiles: List<BonusTile>,
+        randomSeed: Long,
+    ): MoveResult.Accepted {
+        val state =
+            engine.newGame(
+                GameConfig(
+                    mode = GameMode.FOUR_PLAYER,
+                    boardSize = GameConstants.STANDARD_BOARD_SIZE,
+                    randomSeed = randomSeed,
+                    bonusTiles = bonusTiles,
+                ),
+            )
+        val result =
+            engine.applyMove(
+                state,
+                Move(
+                    playerIndex = 0,
+                    pieceId = PieceCatalog.THREE_BEND_ID,
+                    anchorRow = 0,
+                    anchorCol = 0,
+                    orientationIndex = 0,
+                ),
+            )
+
+        assertTrue(result is MoveResult.Accepted)
+        return result as MoveResult.Accepted
     }
 }

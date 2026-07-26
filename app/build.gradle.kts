@@ -1,4 +1,5 @@
 import org.gradle.api.configuration.BuildFeatures
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.gradle.testing.jacoco.tasks.JacocoReport
@@ -303,7 +304,17 @@ if (configurationCacheActive) {
     }
 }
 
+val releasePackagedManifest =
+    layout.buildDirectory.file(
+        "intermediates/packaged_manifests/release/processReleaseManifestForPackage/AndroidManifest.xml",
+    )
+
 tasks.withType<Test>().configureEach {
+    dependsOn("processReleaseManifestForPackage")
+    inputs
+        .file(releasePackagedManifest)
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+
     extensions.configure<JacocoTaskExtension> {
         isIncludeNoLocationClasses = true
         excludes = listOf("jdk.internal.*")
@@ -382,6 +393,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.core.ktx)
+    implementation(libs.core.splashscreen)
     implementation(libs.activity.compose)
     implementation(libs.play.services.nearby)
 

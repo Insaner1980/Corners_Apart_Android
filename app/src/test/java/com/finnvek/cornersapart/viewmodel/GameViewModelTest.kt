@@ -22,7 +22,6 @@ import com.finnvek.cornersapart.model.PieceTransforms
 import com.finnvek.cornersapart.model.ProfilesData
 import com.finnvek.cornersapart.model.SavedGameData
 import com.finnvek.cornersapart.multiplayer.ConnectionState
-import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.multiplayer.ConnectionsClientFacade
 import com.finnvek.cornersapart.multiplayer.GameMessage
 import com.finnvek.cornersapart.multiplayer.GameProtocol
@@ -33,6 +32,7 @@ import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.NearbyEndpointDiscoveryCallback
 import com.finnvek.cornersapart.multiplayer.NearbyOperationFailureCallback
 import com.finnvek.cornersapart.multiplayer.NearbyPayloadCallback
+import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
 import com.finnvek.cornersapart.runtime.TimeProvider
 import kotlinx.coroutines.CoroutineDispatcher
@@ -397,10 +397,7 @@ class GameViewModelTest {
             harness.viewModel.startGame(GameMode.FOUR_PLAYER)
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
 
-            while (opponentDispatcher.runNext()) {
-                mainDispatcherRule.testDispatcher.scheduler.runCurrent()
-            }
-            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            drainOpponentTasks(opponentDispatcher)
 
             assertEquals(GameMode.FOUR_PLAYER, harness.viewModel.uiState.value.gameMode)
             assertEquals(
@@ -462,10 +459,7 @@ class GameViewModelTest {
             harness.viewModel.resumeSavedGame()
             mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
 
-            while (opponentDispatcher.runNext()) {
-                mainDispatcherRule.testDispatcher.scheduler.runCurrent()
-            }
-            mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+            drainOpponentTasks(opponentDispatcher)
 
             assertEquals(GameMode.FOUR_PLAYER, harness.viewModel.uiState.value.gameMode)
             assertEquals(
@@ -732,6 +726,13 @@ class GameViewModelTest {
             "host-1",
             GameProtocol.encode(GameMessage.FullSync(initialState)).encodeToByteArray(),
         )
+    }
+
+    private fun drainOpponentTasks(opponentDispatcher: PausingDispatcher) {
+        while (opponentDispatcher.runNext()) {
+            mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+        }
+        mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
     }
 
     private object FixedTimeProvider : TimeProvider {

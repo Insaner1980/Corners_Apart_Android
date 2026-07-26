@@ -37,3 +37,13 @@ test("flags exported components that are not launcher activities", () => {
   assert.equal(matches.length, 1);
   assert.equal(matches[0]?.vulnSlug, "android-exported-component");
 });
+
+test("flags single-quoted exported components", () => {
+  const manifest = `<manifest><application>
+    <receiver android:name='.SyncReceiver' android:exported='true' />
+  </application></manifest>`;
+
+  const matches = androidExportedComponent.match(manifest, "app/src/main/AndroidManifest.xml");
+
+  assert.equal(matches.length, 1);
+});

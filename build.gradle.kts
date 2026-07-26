@@ -1,3 +1,15 @@
+buildscript {
+    configurations.classpath {
+        resolutionStrategy.force(
+            *providers
+                .gradleProperty("buildToolSecurityOverrides")
+                .get()
+                .split(",")
+                .toTypedArray(),
+        )
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.compose) apply false
@@ -9,6 +21,19 @@ plugins {
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.owasp.dependency.check) apply false
     alias(libs.plugins.sonarqube)
+}
+
+val buildToolSecurityOverrides =
+    providers
+        .gradleProperty("buildToolSecurityOverrides")
+        .get()
+        .split(",")
+        .toTypedArray()
+
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.force(*buildToolSecurityOverrides)
+    }
 }
 
 val sonarProjectProperties =

@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -57,6 +58,7 @@ fun RivalsDialog(
             )
         },
     ) {
+        val defeatedCount = rivals.count { rival -> rival.defeated }
         Text(
             text = stringResource(R.string.rivals_subtitle),
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -65,9 +67,10 @@ fun RivalsDialog(
         )
         Text(
             text =
-                stringResource(
-                    R.string.rivals_defeated_count,
-                    rivals.count { rival -> rival.defeated },
+                pluralStringResource(
+                    R.plurals.rivals_defeated_count,
+                    defeatedCount,
+                    defeatedCount,
                     rivals.size,
                 ),
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -106,7 +109,9 @@ private fun RivalCard(
         )
     val cardDescription =
         if (rival.unlocked) {
-            stringResource(R.string.rival_card_content_description, rival.name, rival.tier, rival.wins, rival.losses)
+            val wins = pluralStringResource(R.plurals.rival_wins_count, rival.wins, rival.wins)
+            val losses = pluralStringResource(R.plurals.rival_losses_count, rival.losses, rival.losses)
+            stringResource(R.string.rival_card_content_description, rival.name, rival.tier, wins, losses)
         } else {
             stringResource(R.string.rival_locked_content_description, rival.name)
         }

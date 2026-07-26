@@ -472,7 +472,12 @@ fun GameHelpDialog(onDismiss: () -> Unit) {
         HelpRuleSection(R.string.help_contact_title, stringResource(R.string.help_contact_body))
         HelpRuleSection(
             R.string.help_scoring_title,
-            stringResource(R.string.help_scoring_body, placedCellPoints, PieceCatalog.all.size),
+            pluralStringResource(
+                R.plurals.help_scoring_body,
+                PieceCatalog.all.size,
+                placedCellPoints,
+                PieceCatalog.all.size,
+            ),
         )
         HelpRuleSection(
             R.string.help_bonus_title,

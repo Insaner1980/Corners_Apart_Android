@@ -1,0 +1,6 @@
+overrides:
+  '@hono/node-server': 2.0.11
+
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false

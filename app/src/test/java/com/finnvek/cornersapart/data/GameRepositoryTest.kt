@@ -27,13 +27,13 @@ class GameRepositoryTest {
 
             repository.saveGame(state, settings, savedAtEpochMillis = 1234L)
 
-            assertEquals(state, repository.savedGame.first())
+            assertEquals(state, repository.savedGameData.first().gameState)
             assertEquals(1234L, repository.savedGameData.first().savedAtEpochMillis)
             assertEquals(settings, repository.savedGameData.first().settings)
 
             repository.clearSavedGame()
 
-            assertNull(repository.savedGame.first())
+            assertNull(repository.savedGameData.first().gameState)
         }
 
     @Test
@@ -55,7 +55,7 @@ class GameRepositoryTest {
                     orientationIndex = 0,
                 )
 
-            val savedState = checkNotNull(repository.savedGame.first())
+            val savedState = checkNotNull(repository.savedGameData.first().gameState)
             assertEquals(BoardSnapshot.EMPTY, savedState.board.get(row = 0, col = 0))
             assertTrue(savedState.players[0].usedPieceIds.isEmpty())
             assertEquals(listOf(BonusTile(row = 4, col = 4)), savedState.bonusTiles)

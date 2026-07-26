@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -89,7 +90,12 @@ fun ChallengeDialog(
                 val unlocked = ChallengeLevels.isUnlocked(level.number, challengeStars)
                 val description =
                     if (unlocked) {
-                        stringResource(R.string.challenge_level_content_description, level.number, stars)
+                        pluralStringResource(
+                            R.plurals.challenge_level_content_description,
+                            stars,
+                            level.number,
+                            stars,
+                        )
                     } else {
                         stringResource(R.string.challenge_locked_content_description, level.number)
                     }

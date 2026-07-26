@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -219,8 +220,9 @@ private fun HallOfFameRow(
     highlighted: Boolean,
 ) {
     val description =
-        stringResource(
-            R.string.hall_of_fame_row_content_description,
+        pluralStringResource(
+            R.plurals.hall_of_fame_row_content_description,
+            item.entry.totalScore,
             rank,
             item.profileName,
             item.entry.totalScore,

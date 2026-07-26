@@ -137,7 +137,8 @@ class GameEngineModeTest {
     }
 
     private fun standardCorners(): List<CellPosition> =
-        GameConstants.STANDARD_CORNERS.map { corner ->
-            CellPosition(corner.first, corner.second)
-        }
+        GameModeConfigs
+            .forMode(GameMode.FOUR_PLAYER)
+            .playerSlots
+            .map { slot -> slot.startCorner }
 }

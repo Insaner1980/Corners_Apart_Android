@@ -31,6 +31,47 @@ class PackageDependencyBoundaryTest {
         )
     }
 
+    @Test
+    fun serializableTypesStayInModelOrMultiplayerProtocolBoundary() {
+        val sourceRoot = projectRoot().resolve("app/src/main/java")
+        val violations = mutableListOf<String>()
+
+        Files.walk(sourceRoot).use { paths ->
+            paths
+                .filter { path -> Files.isRegularFile(path) && path.toString().endsWith(".kt") }
+                .forEach { path ->
+                    val text = path.toFile().readText()
+                    if (!serializableRegex.containsMatchIn(text)) return@forEach
+
+                    val packageName = packageRegex.find(text)?.groupValues?.get(1)
+                    if (packageName != MODEL_PACKAGE && packageName != MULTIPLAYER_PACKAGE) {
+                        violations += "${sourceRoot.relativize(path)} declares serializable type in $packageName"
+                    }
+                }
+        }
+
+        val protocolPath = sourceRoot.resolve("com/finnvek/cornersapart/multiplayer/GameMessage.kt")
+        val protocolRelativePath = sourceRoot.relativize(protocolPath)
+        val protocolText = protocolPath.toFile().readText()
+        val protocolPackageName = packageRegex.find(protocolText)?.groupValues?.get(1)
+        if (
+            protocolPackageName != MULTIPLAYER_PACKAGE ||
+            !gameMessageDeclarationRegex.containsMatchIn(protocolText) ||
+            !gameProtocolDeclarationRegex.containsMatchIn(protocolText)
+        ) {
+            violations +=
+                "$protocolRelativePath must declare GameMessage and GameProtocol in $MULTIPLAYER_PACKAGE"
+        }
+
+        assertTrue(
+            violations.joinToString(
+                separator = System.lineSeparator(),
+                prefix = "Serializable boundary violations:${System.lineSeparator()}",
+            ),
+            violations.isEmpty(),
+        )
+    }
+
     private data class PackageEdge(
         val from: String,
         val to: String,
@@ -110,8 +151,14 @@ class PackageDependencyBoundaryTest {
 
     private companion object {
         private const val APP_PACKAGE = "com.finnvek.cornersapart"
+        private const val MODEL_PACKAGE = "$APP_PACKAGE.model"
+        private const val MULTIPLAYER_PACKAGE = "$APP_PACKAGE.multiplayer"
         private val packageRegex = Regex("""(?m)^package\s+([A-Za-z0-9_.]+)""")
         private val importRegex = Regex("""(?m)^import\s+(com\.finnvek\.cornersapart\.[A-Za-z0-9_.]+)""")
+        private val serializableRegex =
+            Regex("""(?m)^\s*@Serializable\b|^import\s+kotlinx\.serialization\.Serializable\b""")
+        private val gameMessageDeclarationRegex = Regex("""(?m)^\s*sealed\s+interface\s+GameMessage\b""")
+        private val gameProtocolDeclarationRegex = Regex("""(?m)^\s*object\s+GameProtocol\b""")
         private val forbiddenPackageEdges =
             setOf(
                 PackageEdge(from = "model", to = "engine"),

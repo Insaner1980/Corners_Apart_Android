@@ -16,6 +16,7 @@ import com.finnvek.cornersapart.model.ScoreBreakdown
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -91,6 +92,34 @@ class JsonDataStoreSerializerTest {
             val decoded = serializer.roundTrip(savedGameData)
 
             assertEquals(savedGameData, decoded)
+        }
+
+    @Test
+    fun jsonSerializerRejectsSavedGameWithMissingPlayerState() =
+        runTest {
+            val serializer =
+                JsonDataStoreSerializer(
+                    defaultValue = SavedGameData(),
+                    serializer = SavedGameData.serializer(),
+                )
+            val savedGameData =
+                SavedGameData(
+                    gameState =
+                        GameEngine().newGame(
+                            GameConfig(
+                                mode = GameMode.FOUR_PLAYER,
+                                randomSeed = 99L,
+                                bonusTiles = emptyList(),
+                            ),
+                        ),
+                )
+            val output = ByteArrayOutputStream()
+            serializer.writeTo(savedGameData, output)
+            val incompleteJson = output.toString(Charsets.UTF_8.name()).replaceFirst("\"usedPieceIds\":[],", "")
+
+            val result = runCatching { serializer.readFrom(ByteArrayInputStream(incompleteJson.encodeToByteArray())) }
+
+            assertTrue(result.isFailure)
         }
 
     @Test

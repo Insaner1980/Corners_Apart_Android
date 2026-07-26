@@ -179,9 +179,15 @@ private fun DrawScope.drawCrown(
         Path().apply {
             moveTo(crownRect.left, crownRect.bottom)
             lineTo(crownRect.left, crownRect.top + crownRect.height * CROWN_NOTCH_FRACTION)
-            lineTo(crownRect.left + crownRect.width * CROWN_QUARTER, crownRect.top + crownRect.height * CROWN_DIP_FRACTION)
+            lineTo(
+                crownRect.left + crownRect.width * CROWN_QUARTER,
+                crownRect.top + crownRect.height * CROWN_DIP_FRACTION,
+            )
             lineTo(crownRect.center.x, crownRect.top)
-            lineTo(crownRect.right - crownRect.width * CROWN_QUARTER, crownRect.top + crownRect.height * CROWN_DIP_FRACTION)
+            lineTo(
+                crownRect.right - crownRect.width * CROWN_QUARTER,
+                crownRect.top + crownRect.height * CROWN_DIP_FRACTION,
+            )
             lineTo(crownRect.right, crownRect.top + crownRect.height * CROWN_NOTCH_FRACTION)
             lineTo(crownRect.right, crownRect.bottom)
             close()

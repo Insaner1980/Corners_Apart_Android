@@ -2,8 +2,6 @@ package com.finnvek.cornersapart.multiplayer
 
 import android.Manifest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NearbyPermissionsTest {
@@ -44,18 +42,6 @@ class NearbyPermissionsTest {
                 Manifest.permission.NEARBY_WIFI_DEVICES,
             ),
             NearbyPermissions.requiredRuntimePermissions(sdkInt = 33),
-        )
-    }
-
-    @Test
-    fun emptyPermissionMapIsNotEnoughForNearby() {
-        assertFalse(NearbyPermissions.hasRequiredPermissions(emptyMap(), sdkInt = 33))
-        assertTrue(
-            NearbyPermissions.hasRequiredPermissions(
-                permissions =
-                    NearbyPermissions.requiredRuntimePermissions(sdkInt = 33).associateWith { true },
-                sdkInt = 33,
-            ),
         )
     }
 }

@@ -13,10 +13,15 @@ import com.finnvek.cornersapart.model.Move
 import com.finnvek.cornersapart.model.PieceCatalog
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
 import com.finnvek.cornersapart.opponents.OpponentDifficulty
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,6 +30,42 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LocalSessionTest {
+    @Test
+    fun gameStatePublicationDoesNotExposeStaleSessionPlayers() =
+        runTest(UnconfinedTestDispatcher()) {
+            val session =
+                LocalSession(
+                    engine = GameEngine(),
+                    initialConfig =
+                        GameConfig(
+                            mode = GameMode.FOUR_PLAYER,
+                            boardSize = GameConstants.STANDARD_BOARD_SIZE,
+                            randomSeed = 16L,
+                            bonusTiles = emptyList(),
+                        ),
+                )
+            val observedPublication =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    val state = session.gameState.drop(1).first()
+                    state.players[0].usedPieceIds.size to session.players.value[0].usedPieceCount
+                }
+
+            val result =
+                session.sendMove(
+                    Move(
+                        playerIndex = 0,
+                        pieceId = PieceCatalog.SINGLE_CELL_ID,
+                        anchorRow = 0,
+                        anchorCol = 0,
+                        orientationIndex = 0,
+                    ),
+                )
+
+            assertTrue(result.isSuccess)
+            assertEquals(1 to 1, observedPublication.await())
+            assertEquals(ConnectionState.CONNECTED, session.connectionState.value)
+        }
+
     @Test
     fun fourPlayerLocalMoveUpdatesAuthoritativeGameState() =
         runTest {
@@ -62,6 +103,70 @@ class LocalSessionTest {
         }
 
     @Test
+    fun startNewGameFullyReinitializesStateWithFreshSeedAndBonusLayout() =
+        runTest {
+            val engine = GameEngine()
+            val config =
+                GameConfig(
+                    mode = GameMode.FOUR_PLAYER,
+                    boardSize = GameConstants.STANDARD_BOARD_SIZE,
+                    randomSeed = 41L,
+                )
+            val firstSeed = 42L
+            val firstBonusLayout = engine.newGame(config.copy(randomSeed = firstSeed)).bonusTiles
+            val secondSeed =
+                generateSequence(firstSeed + 1L) { seed -> seed + 1L }
+                    .first { seed -> engine.newGame(config.copy(randomSeed = seed)).bonusTiles != firstBonusLayout }
+            val suppliedSeeds = ArrayDeque(listOf(firstSeed, secondSeed))
+            val session =
+                LocalSession(
+                    engine = engine,
+                    initialConfig = config,
+                    randomSeedProvider = { suppliedSeeds.removeFirst() },
+                )
+            val openingMove =
+                Move(
+                    playerIndex = 0,
+                    pieceId = PieceCatalog.SINGLE_CELL_ID,
+                    anchorRow = 0,
+                    anchorCol = 0,
+                    orientationIndex = 0,
+                )
+
+            assertTrue(session.sendMove(openingMove).isSuccess)
+            session.startNewGame(config.copy(bonusTiles = session.gameState.value.bonusTiles))
+            val firstRestart = session.gameState.value
+
+            assertEquals(firstSeed, firstRestart.randomSeed)
+            assertEquals(0, firstRestart.turnNumber)
+            assertEquals(0, firstRestart.currentPlayerIndex)
+            assertTrue(firstRestart.board.cells.all { cell -> cell == BoardSnapshot.EMPTY })
+            assertTrue(firstRestart.players.all { player -> player.usedPieceIds.isEmpty() && !player.passed })
+            assertTrue(firstRestart.moveHistory.isEmpty())
+            assertFalse(firstRestart.isGameOver)
+            assertTrue(firstRestart.bonusTiles.all { tile -> tile.claimedByPlayerIndex == null })
+            assertEquals(
+                firstBonusLayout,
+                firstRestart.bonusTiles,
+            )
+
+            assertTrue(session.sendMove(openingMove).isSuccess)
+            session.startNewGame(config)
+            val secondRestart = session.gameState.value
+
+            assertEquals(secondSeed, secondRestart.randomSeed)
+            assertEquals(0, secondRestart.turnNumber)
+            assertTrue(secondRestart.board.cells.all { cell -> cell == BoardSnapshot.EMPTY })
+            assertTrue(secondRestart.players.all { player -> player.usedPieceIds.isEmpty() })
+            assertTrue(secondRestart.moveHistory.isEmpty())
+            assertEquals(
+                engine.newGame(config.copy(randomSeed = secondSeed, bonusTiles = null)).bonusTiles,
+                secondRestart.bonusTiles,
+            )
+            assertFalse(firstRestart.bonusTiles == secondRestart.bonusTiles)
+        }
+
+    @Test
     fun soloGameRunsComputerSlotsBackToHumanPlayer() =
         runTest {
             val session =
@@ -76,6 +181,7 @@ class LocalSessionTest {
                         ),
                 )
 
+            val startedAt = currentTime
             val result =
                 session.sendMove(
                     Move(
@@ -88,6 +194,13 @@ class LocalSessionTest {
                 )
 
             assertTrue(result.isSuccess)
+            val elapsedMillis = currentTime - startedAt
+            val minimumDelayMillis = GameConstants.OPPONENT_TURN_DELAY_MIN_MS * 3
+            val maximumDelayMillis =
+                (GameConstants.OPPONENT_TURN_DELAY_MIN_MS + GameConstants.OPPONENT_TURN_DELAY_RANGE_MS) * 3
+            assertTrue(
+                elapsedMillis in minimumDelayMillis..maximumDelayMillis,
+            )
             assertEquals(0, session.gameState.value.currentPlayerIndex)
             assertTrue(
                 session.players.value
@@ -99,6 +212,41 @@ class LocalSessionTest {
                     .drop(1)
                     .all { player -> player.usedPieceIds.isNotEmpty() },
             )
+        }
+
+    @Test
+    fun soloPassReturnsToHumanWhenEveryComputerPlayerIsBlocked() =
+        runTest {
+            val session =
+                LocalSession(
+                    engine = GameEngine(),
+                    initialConfig =
+                        GameConfig(
+                            mode = GameMode.SOLO,
+                            randomSeed = 20L,
+                            bonusTiles = emptyList(),
+                        ),
+                )
+            val allPieceIds = PieceCatalog.all.map { piece -> piece.id }.toSet()
+            val blockedComputerState =
+                session.gameState.value.copy(
+                    currentPlayerIndex = 1,
+                    players =
+                        session.gameState.value.players.map { player ->
+                            if (player.isComputerControlled) {
+                                player.copy(usedPieceIds = allPieceIds)
+                            } else {
+                                player
+                            }
+                        },
+                )
+            session.replaceState(blockedComputerState)
+
+            val result = session.sendPass(playerIndex = 1)
+
+            assertTrue(result.isSuccess)
+            assertFalse(session.gameState.value.isGameOver)
+            assertEquals(0, session.gameState.value.currentPlayerIndex)
         }
 
     @Test

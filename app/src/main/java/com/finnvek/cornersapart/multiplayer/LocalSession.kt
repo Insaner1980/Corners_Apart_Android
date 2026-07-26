@@ -177,8 +177,7 @@ class LocalSession(
     }
 }
 
-private fun Long.ensureDifferentFrom(previousSeed: Long): Long =
-    if (this == previousSeed) this + 1L else this
+private fun Long.ensureDifferentFrom(previousSeed: Long): Long = if (this == previousSeed) this + 1L else this
 
 private data class LocalSessionPublication(
     val gameState: GameState,

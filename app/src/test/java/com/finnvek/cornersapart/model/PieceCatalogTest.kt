@@ -7,8 +7,8 @@ import org.junit.Test
 class PieceCatalogTest {
     @Test
     fun catalogContainsTwentyOnePiecesAndEightyNineCells() {
-        assertEquals(GameConstants.PIECE_COUNT, PieceCatalog.all.size)
-        assertEquals(GameConstants.TOTAL_PIECE_CELLS, PieceCatalog.all.sumOf { piece -> piece.cells.size })
+        assertEquals(EXPECTED_PIECE_COUNT, PieceCatalog.all.size)
+        assertEquals(EXPECTED_TOTAL_PIECE_CELLS, PieceCatalog.all.sumOf { piece -> piece.cells.size })
         assertEquals(
             PieceCatalog.all.size,
             PieceCatalog.all
@@ -27,7 +27,7 @@ class PieceCatalogTest {
 
         orientationsByPiece.values.forEach { orientations ->
             assertTrue(orientations.isNotEmpty())
-            assertTrue(orientations.size <= PieceTransforms.MAX_ORIENTATIONS)
+            assertTrue(orientations.size <= MAX_ORIENTATIONS)
             assertEquals(orientations.size, orientations.distinct().size)
             orientations.forEach { orientation ->
                 assertEquals(orientation, PieceTransforms.normalize(orientation))
@@ -36,7 +36,7 @@ class PieceCatalogTest {
         assertTrue(
             orientationsByPiece.values.any { orientations ->
                 orientations.size ==
-                    PieceTransforms.MAX_ORIENTATIONS
+                    MAX_ORIENTATIONS
             },
         )
     }
@@ -56,5 +56,11 @@ class PieceCatalogTest {
         }
 
         assertEquals(expectedOrientations, PieceTransforms.getAllOrientations(piece))
+    }
+
+    private companion object {
+        const val EXPECTED_PIECE_COUNT = 21
+        const val EXPECTED_TOTAL_PIECE_CELLS = 89
+        const val MAX_ORIENTATIONS = 8
     }
 }

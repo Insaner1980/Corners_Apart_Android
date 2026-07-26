@@ -19,18 +19,24 @@ class BonusTileGeneratorTest {
                 boardSize = GameConstants.STANDARD_BOARD_SIZE,
                 randomSeed = 42L,
             )
+        val startCorners =
+            GameModeConfigs
+                .forMode(GameMode.FOUR_PLAYER)
+                .playerSlots
+                .map { slot -> slot.startCorner }
+                .toSet()
 
         assertEquals(GameConstants.STANDARD_BONUS_TILE_COUNT, layout.positions.size)
         assertEquals(layout.positions.size, layout.positions.distinct().size)
         layout.positions.forEach { position ->
-            assertFalse(position in GameConstants.STANDARD_CORNERS.map { CellPosition(it.first, it.second) })
+            assertFalse(position in startCorners)
             assertFalse(
                 position in listOf(CellPosition(1, 1), CellPosition(1, 18), CellPosition(18, 18), CellPosition(18, 1)),
             )
         }
         layout.positions.forEachIndexed { index, position ->
             layout.positions.drop(index + 1).forEach { other ->
-                assertTrue(chebyshevDistance(position, other) >= BonusTileGenerator.MIN_BONUS_DISTANCE)
+                assertTrue(chebyshevDistance(position, other) >= MIN_BONUS_DISTANCE)
             }
         }
     }
@@ -71,4 +77,8 @@ class BonusTileGeneratorTest {
         first: CellPosition,
         second: CellPosition,
     ): Int = maxOf(abs(first.row - second.row), abs(first.col - second.col))
+
+    private companion object {
+        const val MIN_BONUS_DISTANCE = 2
+    }
 }

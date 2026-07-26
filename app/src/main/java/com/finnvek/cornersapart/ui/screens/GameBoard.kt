@@ -95,13 +95,14 @@ fun GameBoard(
     val activeAnchor = pressAnchor ?: externalPreviewAnchor
     val previewCells =
         remember(activeAnchor, state.selectedCells) {
-            activeAnchor?.let { anchor ->
-                targetCells(
-                    anchorRow = anchor.row,
-                    anchorCol = anchor.col,
-                    offsets = state.selectedCells,
-                )
-            }.orEmpty()
+            activeAnchor
+                ?.let { anchor ->
+                    targetCells(
+                        anchorRow = anchor.row,
+                        anchorCol = anchor.col,
+                        offsets = state.selectedCells,
+                    )
+                }.orEmpty()
         }
     val previewIsValid =
         remember(activeAnchor, state.board, state.selectedCells) {
@@ -218,7 +219,9 @@ internal fun liftedBoardAnchor(
     val pieceRowSpan = offsets.maxOfOrNull { offset -> offset.row } ?: 0
     val pieceColSpan = offsets.maxOfOrNull { offset -> offset.col } ?: 0
     return CellPosition(
-        row = (fingerRow - pieceRowSpan - PREVIEW_LIFT_CELLS).coerceIn(0, (boardSize - 1 - pieceRowSpan).coerceAtLeast(0)),
+        row =
+            (fingerRow - pieceRowSpan - PREVIEW_LIFT_CELLS)
+                .coerceIn(0, (boardSize - 1 - pieceRowSpan).coerceAtLeast(0)),
         col = (fingerCol - pieceColSpan / 2).coerceIn(0, (boardSize - 1 - pieceColSpan).coerceAtLeast(0)),
     )
 }

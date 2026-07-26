@@ -13,6 +13,64 @@ class GameEnginePlacementTest {
     private val engine = GameEngine()
 
     @Test
+    fun gameOverTakesPrecedenceOverInvalidPlayer() {
+        val state = EngineTestFixtures.standardState(engine).copy(isGameOver = true)
+
+        val rejected =
+            engine.applyMove(
+                state,
+                Move(
+                    playerIndex = -1,
+                    pieceId = PieceCatalog.SINGLE_CELL_ID,
+                    anchorRow = 0,
+                    anchorCol = 0,
+                    orientationIndex = 0,
+                ),
+            )
+
+        assertRejected(rejected, MoveRejectionReason.GAME_OVER)
+    }
+
+    @Test
+    fun wrongTurnTakesPrecedenceOverInvalidPlayer() {
+        val state = EngineTestFixtures.standardState(engine)
+
+        val rejected =
+            engine.applyMove(
+                state,
+                Move(
+                    playerIndex = -1,
+                    pieceId = PieceCatalog.SINGLE_CELL_ID,
+                    anchorRow = 0,
+                    anchorCol = 0,
+                    orientationIndex = 0,
+                ),
+            )
+
+        assertRejected(rejected, MoveRejectionReason.NOT_PLAYERS_TURN)
+    }
+
+    @Test
+    fun previewRejectsTheSameWrongTurnMoveAsApplyMove() {
+        val state = EngineTestFixtures.standardState(engine)
+        val move =
+            Move(
+                playerIndex = 1,
+                pieceId = PieceCatalog.SINGLE_CELL_ID,
+                anchorRow = 0,
+                anchorCol = GameConstants.STANDARD_BOARD_SIZE - 1,
+                orientationIndex = 0,
+            )
+
+        val preview = engine.previewPlacement(state, move)
+        val applied = engine.applyMove(state, move)
+
+        assertEquals(MoveRejectionReason.NOT_PLAYERS_TURN, preview.rejectionReason)
+        assertTrue(!preview.isValid)
+        assertRejected(applied, MoveRejectionReason.NOT_PLAYERS_TURN)
+    }
+
+    @Test
     fun firstMoveMustCoverAssignedStartingCorner() {
         val state = EngineTestFixtures.standardState(engine)
 

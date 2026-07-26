@@ -14,7 +14,7 @@ export const androidExportedComponent: MatcherPlugin = {
     for (const match of content.matchAll(componentRegex)) {
       const startTag = match[0];
       const componentType = match[1];
-      if (!/android:exported\s*=\s*"true"/.test(startTag)) continue;
+      if (!/android:exported\s*=\s*(["'])true\1/.test(startTag)) continue;
 
       const isSelfClosing = /\/\s*>$/.test(startTag);
       const closeTag = `</${componentType}>`;

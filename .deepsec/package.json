@@ -5,15 +5,15 @@
     "deepsec": "deepsec",
     "deepsec:scan": "deepsec scan --project-id corners_apart_android",
     "deepsec:scan:custom": "deepsec scan --project-id corners_apart_android --matchers android-exported-component,android-security-boundary-surface,fileprovider-broad-path,android-uri-share-without-clipdata,raw-nearby-bypass,sensitive-android-log",
-    "deepsec:process": "deepsec process --project-id corners_apart_android",
-    "deepsec:revalidate": "deepsec revalidate --project-id corners_apart_android --min-severity HIGH",
+    "deepsec:process": "deepsec process --project-id corners_apart_android --model gpt-5.6",
+    "deepsec:revalidate": "deepsec revalidate --project-id corners_apart_android --model gpt-5.6 --min-severity HIGH",
     "deepsec:export": "deepsec export --project-id corners_apart_android --format md-dir --out ./findings",
-    "test:matchers": "tsc --project tsconfig.json --noEmit false --outDir .tmp/test-build && node --test .tmp/test-build/matchers/android-exported-component.test.js .tmp/test-build/matchers/android-security-boundary-surface.test.js",
+    "test:matchers": "tsc --project tsconfig.json --noEmit false --outDir .tmp/test-build && node --test .tmp/test-build/matchers/android-exported-component.test.js .tmp/test-build/matchers/android-file-sharing-matchers.test.js .tmp/test-build/matchers/android-security-boundary-surface.test.js",
     "deepsec:report": "pnpm run deepsec:scan && pnpm run deepsec:process && pnpm run deepsec:export",
     "deepsec:report:custom": "pnpm run deepsec:scan:custom && pnpm run deepsec:process && pnpm run deepsec:export"
   },
   "dependencies": {
-    "deepsec": "2.0.12"
+    "deepsec": "2.2.6"
   },
   "devDependencies": {
     "@types/node": "25.9.3",

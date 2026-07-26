@@ -118,9 +118,10 @@ internal object PlacementValidator {
         targetCells: List<CellPosition>,
     ): List<BonusTile> {
         val targets = targetCells.toSet()
-        return state.bonusTiles.filter { bonusTile ->
-            bonusTile.claimedByPlayerIndex == null && bonusTile.position in targets
-        }.distinctBy { bonusTile -> bonusTile.position }
+        return state.bonusTiles
+            .filter { bonusTile ->
+                bonusTile.claimedByPlayerIndex == null && bonusTile.position in targets
+            }.distinctBy { bonusTile -> bonusTile.position }
     }
 
     private fun invalid(

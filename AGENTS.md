@@ -30,6 +30,7 @@
 - Shared v1 game constants live in `com.finnvek.cornersapart.model.GameConstants`
 - Serializable game/save models live under `com.finnvek.cornersapart.model`; model must not depend on `engine`; board state is `BoardSnapshot(size, flat cells)`
 - `BoardView` owns shared read-only board access helpers (`contains`, `index`, `get`) for `BoardSnapshot` and `MutableBoard`
+- `model.targetCells` is the shared anchor-plus-orientation-offset calculation used by placement validation and the board placement preview
 - Saved game persistence uses `SavedGameData(gameState, savedAtEpochMillis, settings)`; profile persistence uses `ProfilesData`; settings use `GameSettings`
 - Profiles support only local v1 avatars through `LocalAvatarStyle` and `LocalAvatarGenerator`; do not add remote avatar services
 - `ProfileRepository.appendHistory` keeps only `GameConstants.MAX_HISTORY_ENTRIES` most recent entries
@@ -42,7 +43,9 @@
 - `OpponentDifficultyMapper` is the single source of truth for persisted difficulty `1..5` to `OpponentDifficulty`; invalid values are clamped
 - `LocalSessionFactory` creates `LocalSession(initialConfig, opponentDifficulty)`; ViewModels must not instantiate `LocalSession()` directly
 - `LocalSession` is the current session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations, serializes local move/pass mutations, and supports `replaceState` for saved-game restore
-- `GameProtocol` is the kotlinx.serialization JSON message boundary for Nearby sessions; move rejections carry typed `MoveRejectionReason` values
+- `GameProtocol` is the strict kotlinx.serialization JSON message boundary for Nearby sessions; move rejections carry typed `MoveRejectionReason` values
+- `NearbyConnectionsCoordinator.SERVICE_ID` is the application id `com.finnvek.cornersapart`; host/client role changes stop all previous Nearby activity before advertising or discovery starts
+- Nearby connection liveness relies on Play Services `ConnectionLifecycleCallback.onDisconnected`; do not add app-level heartbeat messages without a demonstrated requirement
 - `HostGameCoordinator` owns host-authoritative Nearby validation and broadcasts accepted moves with full authoritative state
 - `NearbySession` sends client move/pass requests to the host, applies host sync messages, exposes `NearbyLobbyState` for reconnect tracking and `GameSessionEvent` one-shot failures, and only allows host-side `replaceState`
 - `NearbyConnectionsCoordinator` owns Nearby session orchestration, auth-token confirmation, BYTES payload routing, operation/status-code failure reporting, and endpoint sends through `ConnectionsClientFacade`; concrete Google Play services types and the `P2P_STAR` strategy stay inside `PlayServicesConnectionsClientFacade`; do not bypass these boundaries from UI

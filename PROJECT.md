@@ -263,7 +263,7 @@ Current source counts:
 Package dependency note:
 
 - These package areas are descriptive boundaries inside the single `:app` Gradle module, not separately enforced Gradle modules.
-- Current code has a deliberate `model -> engine` reference from `ScoreBreakdown.plus(ScoreDelta)` and `engine -> model` references from scoring/rules code. Resolve that cycle first if `model` and `engine` are ever split into separate modules.
+- `model -> engine` package references are not allowed and are guarded by `PackageDependencyBoundaryTest`; `ScoreBreakdown.plus(ScoreDelta)` currently lives as an engine-private helper, so the current source graph keeps `engine -> model` one-way for scoring/rules code.
 - `GameRuntimeModule` currently lives in `data/` and provides runtime services from `runtime/` plus Play Services facade wiring from `multiplayer/`, so a future module split must account for the DI module's cross-package provider role.
 
 ## Domain Constants
@@ -588,9 +588,8 @@ Generation:
 `ComputerOpponentEngine`:
 
 - Runs selection on an injected dispatcher, default `Dispatchers.Default`.
-- Uses a monotonic time deadline based on difficulty.
 - Returns `OpponentAction.Pass` if no candidates exist.
-- Evaluates candidates until deadline.
+- Evaluates the full deterministically ordered candidate set, limited by the difficulty candidate cap.
 - Sorts by evaluation total descending.
 - Uses seeded temperature-weighted selection unless difficulty temperature is effectively deterministic.
 - Seed input includes `GameState.randomSeed`, turn number, player index, difficulty, and style.
@@ -652,6 +651,8 @@ Generation:
 - Class discriminator: `type`.
 - `encodeDefaults = true`.
 - `ignoreUnknownKeys = false`.
+- Strict decode failures are caught by `NearbyConnectionsCoordinator` and published as `ConnectionState.FAILED`.
+- Advertising and discovery use the application id `com.finnvek.cornersapart` as their shared service id.
 
 `GameMessage` types:
 
@@ -663,8 +664,6 @@ Generation:
 - `PlayerJoined(player)`, serial name `playerJoined`.
 - `PlayerLeft(playerIndex)`, serial name `playerLeft`.
 - `GameConfig(config)`, serial name `gameConfig`.
-- `Ping`, serial name `ping`.
-- `Pong`, serial name `pong`.
 
 `HostGameCoordinator`:
 
@@ -677,8 +676,7 @@ Generation:
 - On invalid pass, sends `MoveRejected` with a placeholder empty move and reason.
 - Broadcasts `PlayerJoined` and sends a `FullSync` to the new endpoint.
 - Broadcasts `PlayerLeft`.
-- Responds to `Ping` with endpoint-targeted `Pong`.
-- Ignores client-side sync/config/accepted/rejected/pong messages at the host handler layer.
+- Ignores client-side sync/config/accepted/rejected messages at the host handler layer.
 
 `NearbySession`:
 
@@ -698,7 +696,7 @@ Generation:
 
 `NearbyConnectionsCoordinator`:
 
-- Owns service id `com.finnvek.cornersapart`.
+- Owns service id `com.finnvek.cornersapart` and stops previous Nearby activity before changing host/client role.
 - Uses `Strategy.P2P_STAR` for advertising and discovery.
 - Wraps concrete Play Services APIs behind `ConnectionsClientFacade`.
 - Stores pending endpoint name and authentication digits before accept/reject.
@@ -711,6 +709,7 @@ Generation:
 - Client-side inbound sync is accepted only from the selected connected host endpoint.
 - Sends `MessageTarget.Broadcast`, `MessageTarget.Host`, and endpoint-targeted messages as encoded BYTES payloads.
 - Host disconnect handling removes the endpoint mapping and marks the departed owner's player slots reconnecting through `PlayerLeft`.
+- Connection liveness relies on Play Services `ConnectionLifecycleCallback.onDisconnected`; the app protocol has no separate heartbeat messages.
 - Marks decode and payload failures as `ConnectionState.FAILED`.
 
 `PlayServicesConnectionsClientFacade`:
@@ -1109,7 +1108,9 @@ Theme files live under `app/src/main/java/com/finnvek/cornersapart/ui/theme/`.
 
 Typography:
 
-- Uses bundled `quicksand.ttf`.
+- Uses bundled static Nunito TTF files in weights 600, 700, 800, and 900.
+- The Nunito copyright notice and full SIL Open Font License 1.1 are packaged at
+  `app/src/main/resources/META-INF/LICENSE-NUNITO.txt`.
 - Defines Material typography entries for displayLarge, headlineMedium, bodyLarge, labelLarge, bodySmall, and labelSmall.
 
 Shapes:
@@ -1126,7 +1127,8 @@ Resources:
 
 - `app/src/main/res/values/strings.xml`: English UI strings, plurals, accessibility strings, and dialog text.
 - `app/src/main/res/values/colors.xml`: launcher icon background and foreground colors.
-- `app/src/main/res/font/quicksand.ttf`: bundled font.
+- `app/src/main/res/font/nunito_*.ttf`: bundled Nunito font weights.
+- `app/src/main/resources/META-INF/LICENSE-NUNITO.txt`: Nunito copyright and OFL-1.1 license.
 - `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`: adaptive launcher icon.
 - `app/src/main/res/drawable/ic_launcher_monochrome.xml`: monochrome launcher resource.
 - `app/src/main/res/drawable/ic_flip_24.xml`, `ic_help_24.xml`, `ic_history_24.xml`, `ic_person_24.xml`, `ic_rotate_left_24.xml`, `ic_rotate_right_24.xml`, `ic_settings_24.xml`, and `ic_skip_next_24.xml`: local vector drawables for gameplay, utility, and dialog action buttons. The app does not package `material-icons-extended`; `BuildDependencyHygieneTest.appDoesNotPackageMaterialIconsExtendedForAHandfulOfIcons` guards this.
@@ -1156,7 +1158,7 @@ Unit tests cover:
 - Scoring: bonus tiles, completion bonus, ranking, tie-breakers, Two-Color Duel owner aggregation.
 - Bonus tile generation.
 - Local session move/publish behavior, `LocalSessionFactory`, saved-state replacement, and Solo computer turns.
-- Nearby protocol JSON messages and unknown type rejection.
+- Nearby protocol JSON messages, unknown type rejection, and clean `FAILED` handling for unknown fields.
 - Nearby permission SDK bands.
 - Nearby configuration dependency/manifest/UI terms.
 - Host coordinator accepted/rejected moves and full sync.

@@ -11,8 +11,20 @@ class OpponentRosterTest {
     @Test
     fun rosterHasTwelveUniqueCharacters() {
         assertEquals(12, OpponentRoster.all.size)
-        assertEquals(OpponentRoster.all.size, OpponentRoster.all.map { it.id }.distinct().size)
-        assertEquals(OpponentRoster.all.size, OpponentRoster.all.map { it.name }.distinct().size)
+        assertEquals(
+            OpponentRoster.all.size,
+            OpponentRoster.all
+                .map { it.id }
+                .distinct()
+                .size,
+        )
+        assertEquals(
+            OpponentRoster.all.size,
+            OpponentRoster.all
+                .map { it.name }
+                .distinct()
+                .size,
+        )
     }
 
     @Test

@@ -51,6 +51,7 @@
          <ignored-key id="586654072EAD6677" reason="Key couldn't be downloaded from any key server"/>
          <ignored-key id="58BD11D32974088F" reason="Key couldn't be downloaded from any key server"/>
          <ignored-key id="59A252FB1199D873" reason="Key couldn't be downloaded from any key server"/>
+         <ignored-key id="59A7C2A1BD98C013" reason="Key couldn't be downloaded from any key server"/>
          <ignored-key id="5A68A2249128E2C6" reason="Key couldn't be downloaded from any key server"/>
          <ignored-key id="5E1F79A7C298661E" reason="Key couldn't be downloaded from any key server"/>
          <ignored-key id="5F69AD087600B22C" reason="Key couldn't be downloaded from any key server"/>
@@ -140,9 +141,7 @@
             <trusting group="org.jvnet.staxex"/>
          </trusted-key>
          <trusted-key id="066263ABA3F9AA7BC0A1087D40B4D7ECFEAF091D" group="org.eclipse.parsson"/>
-         <trusted-key id="0785B3EFF60B1B1BEA94E0BB7C25280EAE63EBE5">
-            <trusting group="org.apache.httpcomponents"/>
-         </trusted-key>
+         <trusted-key id="0785B3EFF60B1B1BEA94E0BB7C25280EAE63EBE5" group="org.apache.httpcomponents"/>
          <trusted-key id="09939C73246B4BA7444CAA453D002DBC5EA9615F" group="dev.drewhamilton.poko"/>
          <trusted-key id="0CC641C3A62453AB390066C4A41F13C999945293" group="commons-logging" name="commons-logging" version="1.2"/>
          <trusted-key id="0D35D3F60078655126908E8AF3D1600878E85A3D" group="io.netty"/>
@@ -182,12 +181,8 @@
             <trusting group="io.github.jeremylong"/>
             <trusting group="org.owasp"/>
          </trusted-key>
-         <trusted-key id="28118C070CB22A0175A2E8D43D12CA2AC19F3181">
-            <trusting group="com.fasterxml"/>
-         </trusted-key>
-         <trusted-key id="2BCBDD0F23EA1CAFCC11D4860374CF2E8DD1BDFD">
-            <trusting group="org.sonatype"/>
-         </trusted-key>
+         <trusted-key id="28118C070CB22A0175A2E8D43D12CA2AC19F3181" group="com.fasterxml"/>
+         <trusted-key id="2BCBDD0F23EA1CAFCC11D4860374CF2E8DD1BDFD" group="org.sonatype"/>
          <trusted-key id="2D2F3E7BAB60EDC51AEB4531419A28E3A649A40B" group="com.kichik.pecoff4j" name="pecoff4j" version="0.4.1"/>
          <trusted-key id="2DB4F1EF0FA761ECC4EA935C86FDC7E2A11262CB">
             <trusting group="commons-codec"/>
@@ -201,7 +196,6 @@
             <trusting group="org.snakeyaml" name="snakeyaml-engine" version="2.10"/>
             <trusting group="org.yaml" name="snakeyaml" version="2.5"/>
          </trusted-key>
-         <trusted-key id="3051D45031E13516A6E8FAFF280D66A55F5316C5" group="org.bitbucket.b_c" name="jose4j" version="0.9.5"/>
          <trusted-key id="31BAE2E51D95E0F8AD9B7BCC40A3C4432BD7308C" group="com.googlecode.juniversalchardet" name="juniversalchardet" version="1.0.3"/>
          <trusted-key id="32118CF76C9EC5D918E54967CA80D1F0EB6CA4BA" group="org.codehaus.mojo"/>
          <trusted-key id="33FD4BFD33554634053D73C0C2148900BCD3C2AF">
@@ -230,7 +224,6 @@
          <trusted-key id="4F8FEC6785F611D9A712EA2734918B7D3969D2F5" group="com.google.dagger" name="dagger" version="2.28.3"/>
          <trusted-key id="517B94F8D0A46317A28D8AB30DA8A5EC02D11EAD" group="net.sf.jopt-simple" name="jopt-simple" version="4.9"/>
          <trusted-key id="54A26BFDC7ECDD39BA4C123AC3BAB45F4AF71FAB" group="io.opencensus" name="opencensus-proto" version="0.2.0"/>
-         <trusted-key id="5897253BEA3046AEEA95A067E93671C7272B7B3F" group="org.jdom" name="jdom2" version="2.0.6"/>
          <trusted-key id="59B06224FD8912E36603BE79FEFE78456EDDC34A" group="io.mockk"/>
          <trusted-key id="5D283C23D9D9DC2D9C2130E6AADF2C18DCF95764">
             <trusting group="com.github.package-url"/>
@@ -246,16 +239,12 @@
             <trusting group="org.slf4j"/>
          </trusted-key>
          <trusted-key id="635EE627345F3C1DD422B2E207D3516820BCF6B1" group="com.github.ben-manes.caffeine" name="caffeine" version="2.9.3"/>
-         <trusted-key id="694621A7227D8D5289699830ABE9F3126BB741C1">
-            <trusting group="com.google"/>
-         </trusted-key>
+         <trusted-key id="694621A7227D8D5289699830ABE9F3126BB741C1" group="com.google"/>
          <trusted-key id="696B6199A2A9D8C29CE78CC0D041CAD2E452550F" group="com.google.protobuf"/>
          <trusted-key id="6A27B2F30F3DB8BF86D519F7EC5BCE97B4DEFA96" group="com.esotericsoftware" name="minlog" version="1.3.1"/>
          <trusted-key id="6D2CEFAF48CADC28E644B22BBA9255C2CA445309" group="com.samskivert" name="jmustache" version="1.16"/>
          <trusted-key id="6DD3B8C64EF75253BEB2C53AD908A43FB7EC07AC" group="jakarta.activation"/>
-         <trusted-key id="6F538074CCEBF35F28AF9B066A0975F8B1127B83">
-            <trusting group="org.jetbrains.kotlin"/>
-         </trusted-key>
+         <trusted-key id="6F538074CCEBF35F28AF9B066A0975F8B1127B83" group="org.jetbrains.kotlin"/>
          <trusted-key id="6F9D10E747DC79485ABB4F72B709E61252F136DD" group="org.apache.velocity"/>
          <trusted-key id="70CD19BFD9F6C330027D6F260315BFB7970A144F" group="javax.xml.bind"/>
          <trusted-key id="73976C9C39C1479B84E2641A5A68A2249128E2C6" group="com.google.crypto.tink" name="tink" version="1.18.0"/>
@@ -301,9 +290,7 @@
          <trusted-key id="B02335AA54CCF21E52BBF9ABD9C565AA72BA2FDD" group="io.grpc"/>
          <trusted-key id="B41089A2DA79B0FA5810252872385FF0AF338D52" group="joda-time" name="joda-time" version="2.14.2"/>
          <trusted-key id="BCC135FC7ED8214F823D73E97FE9900F412D622E" group="com.google.flatbuffers" name="flatbuffers-java" version="1.12.0"/>
-         <trusted-key id="BDB5FA4FE719D787FB3D3197F6D4A1D411E9D1AE">
-            <trusting group="com.google"/>
-         </trusted-key>
+         <trusted-key id="BDB5FA4FE719D787FB3D3197F6D4A1D411E9D1AE" group="com.google"/>
          <trusted-key id="C0612048F3393B80B22639B4F067A2FD751AE3E4" group="io.github.davidburstrom.contester" name="contester-breakpoint" version="0.2.0"/>
          <trusted-key id="C3259D20DAEC4ACE6D57CC83340B090F727518D8" group="com.google.j2objc" name="j2objc-annotations" version="3.1"/>
          <trusted-key id="C59362A11366D431E292AA32075DEF3EF14F0793" group="com.moandjiezana.toml" name="toml4j" version="0.7.2"/>
@@ -316,9 +303,7 @@
          <trusted-key id="CAFE8E040FD28E7873171932BBE1070F76B97956" group="org.eclipse.packager"/>
          <trusted-key id="CF6FCDD747FD9C32304B180B58BD11D32974088F" group="com.h2database" name="h2" version="2.4.240"/>
          <trusted-key id="CFC10B69382CBCF5387E51484ECE492B63E38ACF" group="com.h3xstream.retirejs"/>
-         <trusted-key id="D1436C0DBACEA48702AF97C363F1DD7753B8B315">
-            <trusting group="org.sonarsource"/>
-         </trusted-key>
+         <trusted-key id="D1436C0DBACEA48702AF97C363F1DD7753B8B315" group="org.sonarsource"/>
          <trusted-key id="DBD744ACE7ADE6AA50DD591F66B50994442D2D40" group="com.squareup.okio"/>
          <trusted-key id="E4EDD17FF6346F018F6FC7F34871433C7653D10C" group="net.gpedro.integrations.slack" name="slack-webhook" version="1.4.0"/>
          <trusted-key id="E5138A8E9F2E7E42D38B14D99AEE152CDCCEBFCB" group="io.github.hakky54"/>
@@ -326,9 +311,7 @@
          <trusted-key id="E7DC75FC24FB3C8DFE8086AD3D5839A2262CBBFB" group="org.jetbrains.kotlinx"/>
          <trusted-key id="E85AED155021AF8A6C6B7A4A7C7D8456294423BA" group="org.objenesis"/>
          <trusted-key id="EB1B3DE71713C9EC2E87CC26EE92349AD86DE446" group="com.google.j2objc" name="j2objc-annotations" version="2.8"/>
-         <trusted-key id="EE0CA873074092F806F59B65D364ABAA39A47320">
-            <trusting group="com.google"/>
-         </trusted-key>
+         <trusted-key id="EE0CA873074092F806F59B65D364ABAA39A47320" group="com.google"/>
          <trusted-key id="F3184BCD55F4D016E30D4C9BF42E87F9665015C9" group="org.jsoup" name="jsoup" version="1.22.2"/>
          <trusted-key id="F32AF916B428B465924FD322EC18C9AA545D8960" group="io.nlopez.compose.rules"/>
          <trusted-key id="F4DD59C90148BDC52BEB90A4530AA5F25C25011F">
@@ -431,6 +414,17 @@
          </artifact>
          <artifact name="annotation-jvm-1.9.1.pom">
             <sha256 value="89b99c218d60019316b50aab79816707bc21696c896a030e1b1ae038961bcb8e" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+         </artifact>
+      </component>
+      <component group="androidx.appcompat" name="appcompat-resources" version="1.7.0">
+         <artifact name="appcompat-resources-1.7.0.aar">
+            <sha256 value="55b6778602680f3c288ce350a2c2d3dd158d97dbffc63476275826655582c388" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="appcompat-resources-1.7.0.module">
+            <sha256 value="d7cca0b553ec109ef20ac70ae6438f584fc6bb5eb269a7f5b4098e02c6d687f9" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="appcompat-resources-1.7.0.pom">
+            <sha256 value="bbf2a5b9ac78904c9da792e16731793274f95fb4a61230719140b3e0ef736baa" origin="Verified from Google Maven"/>
          </artifact>
       </component>
       <component group="androidx.arch.core" name="core-common" version="2.1.0">
@@ -968,6 +962,17 @@
          </artifact>
          <artifact name="core-ktx-1.18.0.pom">
             <sha256 value="3a5e0009e06517627756b9203d9a8f055fda87b215a17b775bae568697854196" origin="Verified from Gradle cache" reason="OWASP Dependency-Check resolves POM metadata"/>
+         </artifact>
+      </component>
+      <component group="androidx.core" name="core-splashscreen" version="1.2.0">
+         <artifact name="core-splashscreen-1.2.0.aar">
+            <sha256 value="5ace865c4eb7e0f24369790d2c76eddafd0dbb1ebea3288f55c18d9605ea0ee0" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="core-splashscreen-1.2.0.module">
+            <sha256 value="1c88106406cdfa69d3b0dbd69e5aef4c376a405999c8e8dbbead2c7281f4abb2" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="core-splashscreen-1.2.0.pom">
+            <sha256 value="351c49fa60702a1635749dc1d24c6c02450af874fb67852cbdb0ade06beac66a" origin="Verified from Google Maven"/>
          </artifact>
       </component>
       <component group="androidx.core" name="core-viewtree" version="1.0.0">
@@ -1763,6 +1768,22 @@
          </artifact>
          <artifact name="transition-1.6.0.pom">
             <sha256 value="070d7795010071edefbef94b8c9d5a2cac5cb5f3b1a2c5e558546438177c8ef8" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+         </artifact>
+      </component>
+      <component group="androidx.vectordrawable" name="vectordrawable" version="1.1.0">
+         <artifact name="vectordrawable-1.1.0.aar">
+            <sha256 value="46fd633ac01b49b7fcabc263bf098c5a8b9e9a69774d234edcca04fb02df8e26" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+         <artifact name="vectordrawable-1.1.0.pom">
+            <sha256 value="5b0e2d5b2179e54804785cbc21ce5f473b5e1ddd55a57da482e94dcd39492bb2" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+      </component>
+      <component group="androidx.vectordrawable" name="vectordrawable-animated" version="1.1.0">
+         <artifact name="vectordrawable-animated-1.1.0.aar">
+            <sha256 value="76da2c502371d9c38054df5e2b248d00da87809ed058f3363eae87ce5e2403f8" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+         <artifact name="vectordrawable-animated-1.1.0.pom">
+            <sha256 value="276a20116b705fb75b9003ee9496c56f6fd3b32375fb232472811eba60a040bd" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
       </component>
       <component group="androidx.versionedparcelable" name="versionedparcelable" version="1.1.1">
@@ -2833,6 +2854,16 @@
             <sha256 value="05c72a0f20ae1fd79ced7ed29cff72db2842d160970a7ea0334e9b5fd047d597" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
+      <component group="com.fasterxml.jackson" name="jackson-base" version="2.21.5">
+         <artifact name="jackson-base-2.21.5.pom">
+            <sha256 value="4f4e2bea00ffe575f5ec054c07a4fbc34c1955d8635c01a3e88013bf2c71deff" origin="Verified from Maven Central" reason="OWASP Dependency-Check resolves POM metadata"/>
+         </artifact>
+      </component>
+      <component group="com.fasterxml.jackson" name="jackson-bom" version="2.21.5">
+         <artifact name="jackson-bom-2.21.5.pom">
+            <sha256 value="57fe22dec659de0655357fad0582ef7c8b2fe5a8906a6f1ff1bcbbd1e4554846" origin="Verified from Maven Central"/>
+         </artifact>
+      </component>
       <component group="com.fasterxml.jackson" name="jackson-parent" version="2.21">
          <artifact name="jackson-parent-2.21.pom">
             <sha256 value="3851df627faeb46887b956104630b74a8bbb5f7de22e974cf15982e20e0373de" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
@@ -2846,12 +2877,12 @@
             <sha256 value="cae8ffecec3328b6ecbb138e274218f2fe1c7729a0e824da559268810095ad44" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
-      <component group="com.fasterxml.jackson.core" name="jackson-core" version="2.21.3">
-         <artifact name="jackson-core-2.21.3.jar">
-            <sha256 value="baf8b739e9d9b93bcdb33f25046bfdb8dbd74c97de2a8698539fbe0c7eeac0bb" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+      <component group="com.fasterxml.jackson.core" name="jackson-core" version="2.21.5">
+         <artifact name="jackson-core-2.21.5.jar">
+            <sha256 value="b64b5874162b503a0e58a8f7758266e8dd9f91bf49e3a59ae0b5f47589a231b7" origin="Verified from Maven Central"/>
          </artifact>
-         <artifact name="jackson-core-2.21.3.module">
-            <sha256 value="3a8d7aaa7d85908bf191a1f6b2a9e00e0efb562a24d894a1cab8e7a45cdfc6cf" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+         <artifact name="jackson-core-2.21.5.module">
+            <sha256 value="de113f4531def50feb12be04e7074a8f76f5f3ef290cf886b90086a4e274530f" origin="Verified from Maven Central"/>
          </artifact>
       </component>
       <component group="com.fasterxml.jackson.core" name="jackson-databind" version="2.21.3">
@@ -2862,6 +2893,14 @@
             <sha256 value="69eca3b6fa7e140d82c4ab32d4361b4c73ddab278de2ee11d4d38efdf59dac7d" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
+      <component group="com.fasterxml.jackson.core" name="jackson-databind" version="2.21.5">
+         <artifact name="jackson-databind-2.21.5.jar">
+            <sha256 value="507418c0fafd38b2b2cfb704521630da613a8e4cc8381195a6f418017883e2c0" origin="Verified from Maven Central"/>
+         </artifact>
+         <artifact name="jackson-databind-2.21.5.module">
+            <sha256 value="920e2a0211a31f54d2e7e4effdc580d02c3412a6fefdb632a8054e60c4758381" origin="Verified from Maven Central"/>
+         </artifact>
+      </component>
       <component group="com.fasterxml.jackson.dataformat" name="jackson-dataformat-yaml" version="2.21.3">
          <artifact name="jackson-dataformat-yaml-2.21.3.jar">
             <sha256 value="f0aa297d46f9364af8b3617f8f16ee3d687bc11a8b20ea6266590a21e021c3a4" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
@@ -2870,9 +2909,22 @@
             <sha256 value="8944ab976779193f034f1d9db4f9f92c8670362d0c5f15add8b212ca3ca8f8ef" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
+      <component group="com.fasterxml.jackson.dataformat" name="jackson-dataformat-yaml" version="2.21.5">
+         <artifact name="jackson-dataformat-yaml-2.21.5.jar">
+            <sha256 value="c26143ac5503fd545bd5e9063f45a2499be89971559875e47cc868ef9359d10b" origin="Verified from Maven Central"/>
+         </artifact>
+         <artifact name="jackson-dataformat-yaml-2.21.5.module">
+            <sha256 value="bedd2e30b08b53e97b645c44820eabe0bc3485dc1e121ccaf28455362a1b5fba" origin="Verified from Maven Central"/>
+         </artifact>
+      </component>
       <component group="com.fasterxml.jackson.dataformat" name="jackson-dataformats-text" version="2.21.3">
          <artifact name="jackson-dataformats-text-2.21.3.pom">
             <sha256 value="6c8775870e85f53b98deb10a2b9a245eee0308929dc30f813c392c8628a43cd1" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
+         </artifact>
+      </component>
+      <component group="com.fasterxml.jackson.dataformat" name="jackson-dataformats-text" version="2.21.5">
+         <artifact name="jackson-dataformats-text-2.21.5.pom">
+            <sha256 value="4b41f2978371c00dc3a19a3c3b9cb5b48a1d6a417f1c7a3fd383b33c33107911" origin="Verified from Maven Central" reason="OWASP Dependency-Check resolves POM metadata"/>
          </artifact>
       </component>
       <component group="com.fasterxml.jackson.datatype" name="jackson-datatype-jsr310" version="2.21.3">
@@ -2883,6 +2935,14 @@
             <sha256 value="012ed9327736858679cc5d027d9ccb02594cae4f8820395956941100c07ef741" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
+      <component group="com.fasterxml.jackson.datatype" name="jackson-datatype-jsr310" version="2.21.5">
+         <artifact name="jackson-datatype-jsr310-2.21.5.jar">
+            <sha256 value="e941f9718d16a649614cb06711de06da34722afff9cee0b7725fc5318638304c" origin="Verified from Maven Central"/>
+         </artifact>
+         <artifact name="jackson-datatype-jsr310-2.21.5.module">
+            <sha256 value="b0791f61190514af3366600a4740c49a923ac3c7e23dc8590bdc35d70c15e4ac" origin="Verified from Maven Central"/>
+         </artifact>
+      </component>
       <component group="com.fasterxml.jackson.module" name="jackson-module-blackbird" version="2.21.3">
          <artifact name="jackson-module-blackbird-2.21.3.jar">
             <sha256 value="57c542377117bf43e5bfa83608f29e6070b550a7f4998282a85fd05f58830d73" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
@@ -2891,14 +2951,32 @@
             <sha256 value="5b223cd796a4ca0181448b8e28dc9ec5d2b71d765c3990620cc203d06971128c" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
+      <component group="com.fasterxml.jackson.module" name="jackson-module-blackbird" version="2.21.5">
+         <artifact name="jackson-module-blackbird-2.21.5.jar">
+            <sha256 value="6e1aac3aed140a3defec385083bba339d52eebb3f940582f03f64ad43ef3c433" origin="Verified from Maven Central"/>
+         </artifact>
+         <artifact name="jackson-module-blackbird-2.21.5.module">
+            <sha256 value="056c7c9beda57842c22091f05767632080438639233e0865e56961477f29a701" origin="Verified from Maven Central"/>
+         </artifact>
+      </component>
       <component group="com.fasterxml.jackson.module" name="jackson-modules-base" version="2.21.3">
          <artifact name="jackson-modules-base-2.21.3.pom">
             <sha256 value="e2c5768ca034bbbef67ccee1104c42f738da292a6f85198e636142bf293aee50" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
          </artifact>
       </component>
+      <component group="com.fasterxml.jackson.module" name="jackson-modules-base" version="2.21.5">
+         <artifact name="jackson-modules-base-2.21.5.pom">
+            <sha256 value="8edb07f6c547dc0353c5be542ba1b1b447915e923901174c8b3607fb543b6d64" origin="Verified from Maven Central" reason="OWASP Dependency-Check resolves POM metadata"/>
+         </artifact>
+      </component>
       <component group="com.fasterxml.jackson.module" name="jackson-modules-java8" version="2.21.3">
          <artifact name="jackson-modules-java8-2.21.3.pom">
             <sha256 value="6ebb988252b8bd147e79ac546a7a0f5ad8b46acf8b7ef2729336f009562cf8d6" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
+         </artifact>
+      </component>
+      <component group="com.fasterxml.jackson.module" name="jackson-modules-java8" version="2.21.5">
+         <artifact name="jackson-modules-java8-2.21.5.pom">
+            <sha256 value="381838b5f1e9fa99c82756abebc0ccd20bc7d93750117ce9d16c4a750e1e66c5" origin="Verified from Maven Central" reason="OWASP Dependency-Check resolves POM metadata"/>
          </artifact>
       </component>
       <component group="com.github.ajalt.clikt" name="clikt" version="5.0.2">
@@ -5698,28 +5776,20 @@
             <sha256 value="22b87dda9aab83fa1d0f3ea409b524e7a44921cf8f5f87999cf59046f0fe0bc3" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
-      <component group="org.bitbucket.b_c" name="jose4j" version="0.9.5">
-         <artifact name="jose4j-0.9.5.jar">
-            <sha256 value="808fb3166f3e67dad9811c331029ab1681242fd52b735bc3f33f281167fcc72e" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+      <component group="org.bitbucket.b_c" name="jose4j" version="0.9.6">
+         <artifact name="jose4j-0.9.6.jar">
+            <sha256 value="7314af50cde9c99e8eaf43eee617a23edcc6bb43036221064355094999d837ef" origin="Generated by Gradle"/>
          </artifact>
-         <artifact name="jose4j-0.9.5.pom">
-            <sha256 value="bad024180a1b469cbd94e5f2db12841bcac5443d9545607f673cfde677c1d872" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
-         </artifact>
-      </component>
-      <component group="org.bouncycastle" name="bcpkix-jdk18on" version="1.79">
-         <artifact name="bcpkix-jdk18on-1.79.jar">
-            <sha256 value="3639a24ddf9ba4b7eba0659b44770e91eba816421888e571f285aadefe532cd6" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
-         </artifact>
-         <artifact name="bcpkix-jdk18on-1.79.pom">
-            <sha256 value="35e49f4134de2ac326c3a50a25762cbb4db56f3802fa3f730cc85b653ad0987b" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
+         <artifact name="jose4j-0.9.6.pom">
+            <sha256 value="3fb7fa713e89d42784bdf4d192ece217400040bda7e933886a9f45ce8b9b557e" origin="Generated by Gradle"/>
          </artifact>
       </component>
-      <component group="org.bouncycastle" name="bcprov-jdk18on" version="1.79">
-         <artifact name="bcprov-jdk18on-1.79.jar">
-            <sha256 value="0d81ecc3124536b539bce9aa3fe9621b7f84c9cee371b635a5b31c78b79ab1da" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
+      <component group="org.bouncycastle" name="bcpkix-jdk18on" version="1.84">
+         <artifact name="bcpkix-jdk18on-1.84.jar">
+            <sha256 value="c87f16ed9e5ec61bc94151e9f3646ac44e50cd448121ce84367fa4b7ec7ec1bb" origin="Generated by Gradle"/>
          </artifact>
-         <artifact name="bcprov-jdk18on-1.79.pom">
-            <sha256 value="d8f1a06b149d746e9d98de54e2f7aa9b2eb613fb35ca67d8ae396ceaac661ee4" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
+         <artifact name="bcpkix-jdk18on-1.84.pom">
+            <sha256 value="c1281ed5eaf8f3e405557e7a5205cb6f3cdf753f84de9b1a815c75ebdeb9992a" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.bouncycastle" name="bcprov-jdk18on" version="1.84">
@@ -5730,12 +5800,12 @@
             <sha256 value="ce7abb4a91ba5d2a73fdf17a3df4762e3605a0392cc7983ef2f1ae16cd384cc3" origin="Generated by Gradle"/>
          </artifact>
       </component>
-      <component group="org.bouncycastle" name="bcutil-jdk18on" version="1.79">
-         <artifact name="bcutil-jdk18on-1.79.jar">
-            <sha256 value="c70b88ada58938cbc2f005d40329054078bcfa1149e6ffc03e9242eb6ab21836" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
+      <component group="org.bouncycastle" name="bcutil-jdk18on" version="1.84">
+         <artifact name="bcutil-jdk18on-1.84.jar">
+            <sha256 value="b374e16963421fb9cfb01cc20d7ad8fd2f8b8188e3eef0ec0a8965e245f7619a" origin="Generated by Gradle"/>
          </artifact>
-         <artifact name="bcutil-jdk18on-1.79.pom">
-            <sha256 value="e24c1fb4cf1605405a6988e9e4d6e4b2e1f4393fc73a89a9452ae625ee311d02" origin="Generated by Gradle" reason="GitHub Actions dependency verification"/>
+         <artifact name="bcutil-jdk18on-1.84.pom">
+            <sha256 value="0b0cb81a65ee1737d51286350a9e56489336b8f9908198febd0494243eea2978" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.checkerframework" name="checker-compat-qual" version="2.5.3">
@@ -6047,12 +6117,12 @@
             <sha256 value="bfa36d2947d9876f32a740796399e77bb98c7328997b45bd26b3f7d92b37a54a" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
-      <component group="org.jdom" name="jdom2" version="2.0.6">
-         <artifact name="jdom2-2.0.6.jar">
-            <sha256 value="1345f11ba606d15603d6740551a8c21947c0215640770ec67271fe78bea97cf5" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+      <component group="org.jdom" name="jdom2" version="2.0.6.1">
+         <artifact name="jdom2-2.0.6.1.jar">
+            <sha256 value="0b20f45e3a0fd8f0d12cdc5316b06776e902b1365db00118876f9175c60f302c" origin="Verified from Maven Central" reason="Fallback for unavailable signing key"/>
          </artifact>
-         <artifact name="jdom2-2.0.6.pom">
-            <sha256 value="47b23a79fe336b741b82434c6e049d68165256e405e75c10921fd72fa8a65d8d" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+         <artifact name="jdom2-2.0.6.1.pom">
+            <sha256 value="55795e1018b8ae647b937967cf810a99b08582c2374e7873c128734c8c914bf3" origin="Verified from Maven Central" reason="Fallback for unavailable signing key"/>
          </artifact>
       </component>
       <component group="org.jetbrains" name="annotations" version="13.0">
