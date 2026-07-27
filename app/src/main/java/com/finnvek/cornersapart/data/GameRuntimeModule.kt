@@ -7,6 +7,7 @@ import com.finnvek.cornersapart.multiplayer.ConnectionsClientFacade
 import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.PlayServicesConnectionsClientFacade
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
+import com.finnvek.cornersapart.runtime.StringProvider
 import com.finnvek.cornersapart.runtime.SystemTimeProvider
 import com.finnvek.cornersapart.runtime.TimeProvider
 import dagger.Module
@@ -31,6 +32,12 @@ object GameRuntimeModule {
     @Provides
     @Singleton
     fun provideTimeProvider(): TimeProvider = SystemTimeProvider()
+
+    @Provides
+    @Singleton
+    fun provideStringProvider(
+        @ApplicationContext context: Context,
+    ): StringProvider = StringProvider { resourceId -> context.getString(resourceId) }
 
     @Provides
     @Singleton

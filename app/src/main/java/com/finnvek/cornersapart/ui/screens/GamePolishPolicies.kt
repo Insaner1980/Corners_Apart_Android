@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.ui.screens
 
+import com.finnvek.cornersapart.ui.theme.CornersApartBreakpoints
 import com.finnvek.cornersapart.viewmodel.GameEffect
 
 enum class GameLayoutMode {
@@ -9,13 +10,11 @@ enum class GameLayoutMode {
 
 object GameLayoutPolicy {
     fun modeForWidthDp(widthDp: Int): GameLayoutMode =
-        if (widthDp >= EXPANDED_WIDTH_DP) {
+        if (widthDp >= CornersApartBreakpoints.EXPANDED_WIDTH_DP) {
             GameLayoutMode.EXPANDED
         } else {
             GameLayoutMode.COMPACT
         }
-
-    private const val EXPANDED_WIDTH_DP = 840
 }
 
 enum class GameSoundEvent {

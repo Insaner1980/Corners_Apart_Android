@@ -97,6 +97,7 @@ import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
 import com.finnvek.cornersapart.ui.theme.CornersApartSpacing
 import com.finnvek.cornersapart.ui.theme.candyBackground
 import com.finnvek.cornersapart.ui.theme.withCandyShadow
+import com.finnvek.cornersapart.ui.util.displayNameResource
 import com.finnvek.cornersapart.viewmodel.GameEffect
 import com.finnvek.cornersapart.viewmodel.GameUiState
 import com.finnvek.cornersapart.viewmodel.GameViewModel
@@ -303,9 +304,9 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
     val scoreNotice =
         (accessibilityAnnouncement as? AccessibilityAnnouncement.ScoreGained)?.let { gained ->
             if (gained.bonusTileClaimed) {
-                "+${gained.scoreDelta} ♦"
+                stringResource(R.string.score_notice_bonus, gained.scoreDelta)
             } else {
-                "+${gained.scoreDelta}"
+                stringResource(R.string.score_notice, gained.scoreDelta)
             }
         }
     LaunchedEffect(announcementId) {
@@ -1246,7 +1247,7 @@ private fun PiecePanel(
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
-                text = "$usedCount / ${pieces.size}",
+                text = stringResource(R.string.piece_usage_count, usedCount, pieces.size),
                 style = MaterialTheme.typography.titleMedium,
                 color =
                     if (usedCount == pieces.size) {
@@ -1325,9 +1326,15 @@ private fun PieceCard(
     val colors = CornersApartPlayerPalette.colorsFor(colorIndex)
     val description =
         if (item.isUsed) {
-            stringResource(R.string.piece_used_content_description, item.piece.displayName)
+            stringResource(
+                R.string.piece_used_content_description,
+                stringResource(item.piece.displayNameResource()),
+            )
         } else {
-            stringResource(R.string.piece_content_description, item.piece.displayName)
+            stringResource(
+                R.string.piece_content_description,
+                stringResource(item.piece.displayNameResource()),
+            )
         }
     var cardCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val dragCells =

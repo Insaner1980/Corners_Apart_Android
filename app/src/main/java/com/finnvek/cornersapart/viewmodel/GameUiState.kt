@@ -31,7 +31,7 @@ data class GameUiState(
     val preferredDifficulty: Int = 3,
     val preferredMode: GameMode = GameModeConfigs.defaultMode,
     val history: List<HistoryEntry> = emptyList(),
-    val activeProfileName: String = "Player",
+    val activeProfileName: String = "",
     val hasSavedGame: Boolean = false,
     val resumeSummary: ResumeGameSummary? = null,
     val rankedScores: List<PlayerScore> = emptyList(),

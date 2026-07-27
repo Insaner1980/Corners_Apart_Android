@@ -24,7 +24,7 @@
 - Nearby Connections uses Google Play services `play-services-nearby`; do not add raw Bluetooth or Wi-Fi Direct fallback for v1
 - AGP 9 built-in Kotlin is used; do not apply `org.jetbrains.kotlin.android` in the app module
 - Hilt remains the DI boundary
-- Runtime-only app services that are shared across layers live under `com.finnvek.cornersapart.runtime`; `TimeProvider` / `SystemTimeProvider` are there so `data` does not depend on `viewmodel`
+- Runtime-only app services that are shared across layers live under `com.finnvek.cornersapart.runtime`; `TimeProvider` / `SystemTimeProvider` and `StringProvider` are there so `data` does not depend on `viewmodel` and ViewModels do not access Android resources directly
 - `data/` owns JSON DataStore repositories through `GameRepository`, `ProfileRepository`, and `SettingsRepository`; UI and ViewModels must not access DataStore directly
 - Compose theme tokens live under `app/src/main/java/com/finnvek/cornersapart/ui/theme/`
 - Shared v1 game constants live in `com.finnvek.cornersapart.model.GameConstants`
@@ -37,7 +37,7 @@
 - `HistoryStatsCalculator` owns higher-is-better history/stat calculations
 - `GameModeConfig` / `GameModeConfigs` is the single source of truth for mode defaults: board size, bonus count, color slots, start corners, computer slots, and color owner mapping
 - Pure game rules live under `com.finnvek.cornersapart.engine`; UI/session/opponent code must not duplicate placement, scoring, ranking, bonus, or turn logic
-- `PieceCatalog` is the single source of truth for the 21 pieces and 89 total cells
+- `PieceCatalog` is the single source of truth for the 21 stable piece IDs and their geometry (89 total cells); localized piece names are resolved only at the UI boundary through `ui.util.PieceNameResources`
 - Two-Color Duel keeps turn order as color slots 0-3 while `Player.ownerIndex` maps colors 0/2 to Player 1 and 1/3 to Player 2; rankings aggregate by owner
 - `opponents/` owns local computer turns through `MoveGenerator`, `MoveEvaluator`, and `ComputerOpponentEngine`; decisions use seeded randomness from game state and always return a legal move or pass
 - `OpponentDifficultyMapper` is the single source of truth for persisted difficulty `1..5` to `OpponentDifficulty`; invalid values are clamped

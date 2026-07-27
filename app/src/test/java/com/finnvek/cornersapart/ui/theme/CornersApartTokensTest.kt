@@ -22,4 +22,9 @@ class CornersApartTokensTest {
         assertEquals(Color(0xFFD8A928), CornersApartColors.BonusAccent)
         assertEquals(Color(0xFFFFC53D), CornersApartColors.BonusAccentBright)
     }
+
+    @Test
+    fun expandedLayoutBreakpointIsCentralized() {
+        assertEquals(840, CornersApartBreakpoints.EXPANDED_WIDTH_DP)
+    }
 }

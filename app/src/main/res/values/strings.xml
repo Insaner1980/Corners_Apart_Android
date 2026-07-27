@@ -114,6 +114,7 @@
     <string name="settings_sound">Sound</string>
     <string name="settings_haptics">Haptics</string>
     <string name="profiles_title">Profiles</string>
+    <string name="default_profile_name">Player</string>
     <string name="profile_active_label">%1$s active</string>
     <string name="profile_name_label">Name</string>
     <string name="profile_color_label">Color</string>
@@ -178,6 +179,7 @@
     <string name="move_rejected_out_of_bounds">Piece does not fit on the board there</string>
     <string name="move_rejected_piece_used">That piece has already been played</string>
     <string name="accessibility_action_failed">Action failed: %1$s</string>
+    <string name="action_failed_default_reason">Please try again.</string>
     <string name="accessibility_game_over">Game over</string>
     <string name="game_board_content_description">Game board</string>
     <string name="game_status_turn">%1$s turn</string>
@@ -190,6 +192,31 @@
     <string name="control_pass">Pass turn</string>
     <string name="selected_piece_title">Selected piece</string>
     <string name="piece_panel_title">Pieces</string>
+    <string name="piece_usage_count">%1$d / %2$d</string>
+    <string name="score_notice">+%1$d</string>
+    <string name="score_notice_bonus">+%1$d ♦</string>
     <string name="piece_content_description">Piece %1$s</string>
     <string name="piece_used_content_description">Piece %1$s, used</string>
+    <string name="piece_name_one_dot">One Dot</string>
+    <string name="piece_name_two_bar">Two Bar</string>
+    <string name="piece_name_three_bar">Three Bar</string>
+    <string name="piece_name_three_corner">Three Corner</string>
+    <string name="piece_name_four_bar">Four Bar</string>
+    <string name="piece_name_four_block">Four Block</string>
+    <string name="piece_name_four_tee">Four Tee</string>
+    <string name="piece_name_four_corner">Four Corner</string>
+    <string name="piece_name_four_step">Four Step</string>
+    <string name="piece_name_five_bar">Five Bar</string>
+    <string name="piece_name_five_block_tail">Five Block Tail</string>
+    <string name="piece_name_five_tee">Five Tee</string>
+    <string name="piece_name_five_cross">Five Cross</string>
+    <string name="piece_name_five_long_corner">Five Long Corner</string>
+    <string name="piece_name_five_shift">Five Shift</string>
+    <string name="piece_name_five_stair">Five Stair</string>
+    <string name="piece_name_five_cup">Five Cup</string>
+    <string name="piece_name_five_wide_corner">Five Wide Corner</string>
+    <string name="piece_name_five_hook">Five Hook</string>
+    <string name="piece_name_five_zag">Five Zag</string>
+    <string name="piece_name_five_offset">Five Offset</string>
+    <string name="piece_name_unknown">Unknown</string>
 </resources>

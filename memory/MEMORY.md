@@ -6,7 +6,8 @@
 - App identity: `Corners Apart`
 - Root project name: `CornersApart`
 - Namespace and application ID: `com.finnvek.cornersapart`
-- Canonical implementation source: `corners_apart_android_spec_reviewed.md`
+- Authoritative implementation sources: live source code and tests, documented in `PROJECT.md`
+- `corners_apart_android_spec_reviewed.md` is historical reference material and may be stale
 - Starter conversion plan: `Corners Apart Android - Starterista v1-projektiksi.md`
 
 ## Architecture
@@ -25,7 +26,8 @@
 - Profiles support local-only v1 avatars through `LocalAvatarStyle` and `LocalAvatarGenerator`; remote avatar services are out of scope.
 - `HistoryStatsCalculator` owns higher-is-better history and statistics aggregation.
 - `GameModeConfig` / `GameModeConfigs` is the single source of truth for mode defaults: board size, bonus count, color slots, start corners, computer slots, and color owner mapping.
-- `PieceCatalog` is the single source of truth for the 21 pieces and 89 total cells.
+- `PieceCatalog` is the single source of truth for the 21 stable piece IDs and their geometry (89 total cells); localized names are mapped at the UI boundary.
+- `StringProvider` keeps localized Android resource lookup behind a runtime interface so ViewModels remain Android-resource agnostic.
 - Pure game rules live under `com.finnvek.cornersapart.engine`.
 - `GameEngine` owns new-game creation, move application, pass handling, valid move lookup, and placement previews.
 - `PlacementValidator`, `CornerCache`, `BonusTileGenerator`, and `Scoring` own rule validation, corner candidates, bonus layouts, and higher-is-better ranking.
@@ -42,7 +44,7 @@
 - `NearbySession` sends client move/pass requests to the host, applies host sync messages, exposes `NearbyLobbyState` for reconnect tracking plus `GameSessionEvent` one-shot failures, and only allows host-side `replaceState`.
 - `NearbyConnectionsCoordinator` owns Nearby session orchestration, auth-token pending state, BYTES payload decoding, operation/status-code failure reporting, and endpoint sends through `ConnectionsClientFacade`; concrete Google Play services types and the `P2P_STAR` strategy are contained in `PlayServicesConnectionsClientFacade`.
 - `TimeProvider` / `SystemTimeProvider` live under `com.finnvek.cornersapart.runtime` so Hilt runtime wiring and ViewModels can share time services without a `data` -> `viewmodel` package dependency.
-- `GameViewModel` is Hilt-injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, runtime `TimeProvider`, and `NearbyConnectionsCoordinator`; it exposes repository-backed `StateFlow<GameUiState>` and `SharedFlow<GameEffect>`, renders the active Nearby session state/effects when present, and keeps saved-game/history persistence scoped to local gameplay.
+- `GameViewModel` is Hilt-injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, runtime `StringProvider`, runtime `TimeProvider`, and `NearbyConnectionsCoordinator`; it exposes repository-backed `StateFlow<GameUiState>` and `SharedFlow<GameEffect>`, renders the active Nearby session state/effects when present, and keeps saved-game/history persistence scoped to local gameplay.
 - `GameScreen` is the Compose entry screen and provides the Canvas board, mode chips, permission-gated Nearby create/find actions, resume/profile/settings/help/history dialogs, player score bar, rotate/flip/pass controls, selected-piece preview, and piece strip.
 - `ProfileRepository.appendHistory` trims to the latest `GameConstants.MAX_HISTORY_ENTRIES`; game-over history uses `Scoring.rankPlayers`.
 - UI, session, persistence, and future computer-opponent code should call the engine/model APIs instead of duplicating rule logic.

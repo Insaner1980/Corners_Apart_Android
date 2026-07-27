@@ -54,7 +54,10 @@ Theme and resources:
 - `app/src/main/java/com/finnvek/cornersapart/ui/theme/Type.kt`
 - `app/src/main/java/com/finnvek/cornersapart/ui/theme/Shapes.kt`
 - `app/src/main/res/values/strings.xml`
-- `app/src/main/res/font/quicksand.ttf`
+- `app/src/main/res/font/nunito_semibold.ttf`
+- `app/src/main/res/font/nunito_bold.ttf`
+- `app/src/main/res/font/nunito_extrabold.ttf`
+- `app/src/main/res/font/nunito_black.ttf`
 
 UI state and effects:
 
@@ -82,9 +85,9 @@ The UI follows unidirectional data flow:
 
 Action containers in `GameScreen.kt`:
 
-- `GameScreenActions`: mode selection, Nearby create/find, history/stats, saved-game resume/discard.
+- `GameScreenActions`: mode selection, Nearby create/find/connect/accept/reject, history/stats, saved-game resume/discard.
 - `GamePieceActions`: select piece, rotate counterclockwise, rotate clockwise, flip, pass, place at board cell.
-- `GameSettingsActions`: sound, haptics, reduced motion, preferred difficulty, preferred mode.
+- `GameSettingsActions`: sound, haptics, preferred difficulty, preferred mode.
 - `GameProfileActions`: set active profile, add profile, update profile.
 - `GameDialogState`: accessibility announcement and History & stats dialog state.
 
@@ -164,11 +167,13 @@ Nearby runtime permission behavior:
 - If permissions are missing, it launches `RequestMultiplePermissions`.
 - After all requested permissions are granted, the pending host/discovery action resumes.
 
-Current Nearby visibility limitation:
+Visible Nearby state:
 
 - `GameUiState.nearbyState` includes connection state, discovered endpoints, pending connection, and error message.
-- Current visible UI only renders create/find buttons.
-- The current screen does not yet render discovered endpoint rows, pending authentication token confirmation, connection status text, or Nearby errors.
+- The panel renders connection status and errors.
+- Discovered endpoints are rendered as connect buttons.
+- Pending connections render the endpoint name and authentication code with accept/reject actions.
+- A visible disconnect/reconnect action is not currently exposed.
 
 Utility action row:
 
@@ -399,7 +404,6 @@ Content:
 - Preferred mode selector.
 - Sound switch.
 - Haptics switch.
-- Reduced motion switch.
 
 Difficulty:
 
@@ -556,16 +560,15 @@ The UI does not branch into separate screens per mode. Board size, player cards,
 - `isGameOver`: status line and game-over dialog.
 - `soundEnabled`: one-shot sound policy.
 - `hapticsEnabled`: input and effect haptics.
-- `reducedMotionEnabled`: stored in state and settings; `MotionPolicy` supports zero durations when enabled.
 - `gameDurationSeconds`: game-over duration.
 - `preferredDifficulty`: settings difficulty chips and the currently collected settings value.
 - `preferredMode`: settings preferred-mode chips.
 - `history`: History & stats dialog.
-- `activeProfileName`: present in state; not visibly rendered by current UI.
+- `activeProfileName`: used by the History & stats hall-of-fame highlighting.
 - `hasSavedGame`: resume dialog gate.
 - `resumeSummary`: resume dialog content.
 - `rankedScores`: game-over dialog.
-- `nearbyState`: present in state; not visibly rendered beyond create/find actions.
+- `nearbyState`: renders connection status, errors, discovered endpoints, and pending authentication actions.
 - `profiles`: Profiles dialog.
 
 `PlayerUiState` fields consumed or available:
@@ -575,7 +578,7 @@ The UI does not branch into separate screens per mode. Board size, player cards,
 
 `PiecePanelItem` fields:
 
-- `piece`: id, display name, and cells.
+- `piece`: stable id and cells; the UI maps the id to a localized display-name resource.
 - `isSelected`: card border.
 - `isUsed`: disabled click, alpha, and content description.
 
@@ -597,11 +600,12 @@ UI calls into `GameViewModel` through these behaviors:
 - Discard saved game and start new game: `discardSavedGameAndStartNewGame()`.
 - Sound setting: `setSoundEnabled(enabled)`.
 - Haptics setting: `setHapticsEnabled(enabled)`.
-- Reduced motion setting: `setReducedMotionEnabled(enabled)`.
 - Difficulty setting: `setPreferredDifficulty(level)`.
 - Preferred mode setting: `setPreferredMode(mode)`.
 - Nearby host: `startNearbyHosting()`.
 - Nearby discovery: `startNearbyDiscovery()`.
+- Nearby connect: `connectNearbyEndpoint(endpointId)`.
+- Nearby accept/reject: `acceptNearbyConnection(endpointId)` / `rejectNearbyConnection(endpointId)`.
 - Profile activate: `setActiveProfile(profileId)`.
 - Profile add: `addProfile(name, colorIndex, avatarStyle)`.
 - Profile update: `updateProfile(profileId, name, colorIndex, avatarStyle)`.
@@ -696,7 +700,7 @@ Material color schemes:
 
 Font:
 
-- `Quicksand` from `app/src/main/res/font/quicksand.ttf`.
+- Bundled static `Nunito` TTF files in weights 600, 700, 800, and 900.
 
 Configured Material typography:
 
@@ -749,8 +753,8 @@ Tokens currently defined:
 
 Current implementation note:
 
-- `MotionPolicy.durationMillis(defaultMillis, reducedMotionEnabled)` returns `0` when reduced motion is enabled.
-- Current visible UI code defines the policy but does not yet apply these animation tokens to visible Compose animations.
+- Animation durations are centralized in theme tokens.
+- Reduced-motion persistence and a visible reduced-motion setting are not part of the current implementation.
 
 ## Accessibility
 
@@ -772,7 +776,6 @@ Current accessibility gaps to consider before release:
 - Board cells are drawn on a single Canvas and individual cells are not separately focusable.
 - Board placement currently requires tapping the canvas; there is no keyboard/D-pad cell navigation.
 - Profile color choices are text chips, not swatches.
-- Nearby connection/authentication state is not visibly or semantically exposed in the current screen.
 
 ## Haptics And Sound
 
@@ -856,14 +859,13 @@ Instrumented Compose tests currently assert:
 
 - Game screen shows board and accessible controls.
 - History & stats dialog shows History and Stats tabs.
-- Settings dialog shows Sound, Haptics, and Reduced motion toggles.
+- Settings dialog shows Sound and Haptics toggles.
 - Help dialog shows key rule sections.
 - Game-over dialog shows score breakdown labels and Play again.
 
 Unit tests currently assert:
 
 - Layout policy switches to expanded at `840.dp`.
-- Motion policy disables durations when reduced motion is enabled.
 - Sound policy maps move accepted, bonus claim, game over, rejection, and disabled-sound cases.
 - Theme player and surface palette token values match the reviewed specification.
 
@@ -878,8 +880,8 @@ When changing UI:
 Current gaps visible from code:
 
 - No active navigation graph; add one only when multiple route surfaces exist.
-- Nearby state is collected but not fully rendered.
-- Reduced motion setting exists, and `MotionPolicy` exists, but visible Compose animations are not yet implemented.
+- Nearby state is rendered for status, errors, discovered endpoints, and pending authentication; disconnect/reconnect remains unsurfaced.
+- Reduced-motion persistence and UI are intentionally absent from the current implementation.
 - Profile dialog edits avatar style but does not preview avatar graphics.
 - Profile color selector uses numbered chips instead of swatches.
 - Board Canvas has one board-level content description, not per-cell semantics.
@@ -890,7 +892,7 @@ Known release/polish watchpoints from project state:
 
 - Physical two-device Nearby stress testing remains manual/release verification.
 - Compact Duel needs manual play-test coverage before release claims.
-- Privacy policy placeholders remain outside the UI code but are release relevant.
+- Privacy policy accuracy remains release relevant; verify local-storage and Nearby data-flow claims before release.
 
 ## Future UI Change Checklist
 
