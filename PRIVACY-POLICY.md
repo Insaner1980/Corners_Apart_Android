@@ -1,14 +1,14 @@
 # Privacy Policy
 
-**Corners Apart** does not collect, store, or transmit any personal data.
+**Corners Apart** stores user-entered profile names and related game data locally on your device. It does not send this data to developer-controlled servers or third-party analytics. During a Nearby game, participating devices exchange player and session data with each other through Google Play services Nearby Connections.
 
 ## Data Collection
 
-This app does not collect any data. No analytics, no crash reporting, no tracking.
+This app includes no analytics, crash reporting, advertising, or tracking.
 
 ## Data Storage
 
-All data is stored locally on your device. No data is sent to any server.
+Profiles, settings, saved games, and game history are stored locally on your device. Nearby player, session, and game-state data is shared only between devices participating in that Nearby game.
 
 ## Permissions
 

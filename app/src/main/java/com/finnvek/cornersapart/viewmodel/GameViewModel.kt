@@ -392,7 +392,7 @@ class GameViewModel
                         persistAfterAcceptedTurn(stateAfter)
                     }
                 } else {
-                    _effects.tryEmit(result.toFailureEffect())
+                    _effects.tryEmit(result.toFailureEffect(stringProvider))
                 }
             }
         }
@@ -414,7 +414,7 @@ class GameViewModel
                         persistAfterAcceptedTurn(stateAfter)
                     }
                 } else {
-                    _effects.tryEmit(result.toFailureEffect())
+                    _effects.tryEmit(result.toFailureEffect(stringProvider))
                 }
             }
         }
@@ -943,15 +943,6 @@ class GameViewModel
             }
         }
 
-        private fun Result<Unit>.toFailureEffect(): GameEffect =
-            when (val error = exceptionOrNull()) {
-                is MoveRejectedException -> GameEffect.MoveRejected(error.reason)
-                else ->
-                    GameEffect.ActionFailed(
-                        error?.message ?: stringProvider.getString(R.string.action_failed_default_reason),
-                    )
-            }
-
         private fun GameSessionEvent.toEffect(): GameEffect =
             when (this) {
                 is GameSessionEvent.MoveRejected -> GameEffect.MoveRejected(reason)
@@ -989,3 +980,15 @@ class GameViewModel
 
 private const val DEFAULT_PROFILE_ID = "local-default"
 private const val MILLIS_PER_SECOND = 1_000L
+
+internal fun Result<Unit>.toFailureEffect(stringProvider: StringProvider): GameEffect =
+    when (val error = exceptionOrNull()) {
+        is MoveRejectedException -> GameEffect.MoveRejected(error.reason)
+        else ->
+            GameEffect.ActionFailed(
+                error
+                    ?.message
+                    ?.takeIf { message -> message.isNotBlank() }
+                    ?: stringProvider.getString(R.string.action_failed_default_reason),
+            )
+    }

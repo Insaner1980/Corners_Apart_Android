@@ -650,6 +650,42 @@ class GameViewModelTest {
             assertEquals(listOf(2, 2), historyEntry.scores.map { score -> score.totalScore })
         }
 
+    @Test
+    fun blankProfileNameUsesLocalizedDefault() =
+        runTest {
+            val harness = createViewModelHarness()
+            advanceUntilIdle()
+
+            harness.viewModel.addProfile(
+                name = "   ",
+                colorIndex = 0,
+                avatarStyle = LocalAvatarStyle.INITIALS,
+            )
+            advanceUntilIdle()
+
+            assertEquals(
+                "Player",
+                harness.profileRepository.activeProfile
+                    .first()
+                    ?.name,
+            )
+        }
+
+    @Test
+    fun blankFailureMessageUsesLocalizedFallback() {
+        val effect =
+            Result
+                .failure<Unit>(IllegalStateException("   "))
+                .toFailureEffect { resourceId ->
+                    when (resourceId) {
+                        R.string.action_failed_default_reason -> "Please try again."
+                        else -> error("Unexpected string resource: $resourceId")
+                    }
+                }
+
+        assertEquals(GameEffect.ActionFailed("Please try again."), effect)
+    }
+
     private fun createViewModel(): GameViewModel = createViewModelHarness().viewModel
 
     private fun createViewModelHarness(

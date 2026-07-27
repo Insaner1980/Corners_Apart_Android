@@ -776,7 +776,6 @@ Current accessibility gaps to consider before release:
 - Board cells are drawn on a single Canvas and individual cells are not separately focusable.
 - Board placement currently requires tapping the canvas; there is no keyboard/D-pad cell navigation.
 - Profile color choices are text chips, not swatches.
-- Nearby controls use visible text, and the Nearby panel declares polite live-region semantics for state changes.
 
 ## Haptics And Sound
 
