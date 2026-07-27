@@ -93,18 +93,18 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 
 | Item | Version |
 |---|---:|
-| Gradle wrapper | 9.5.1 |
-| Android Gradle Plugin | 9.2.1 |
-| Kotlin | 2.4.0 |
-| KSP | 2.3.9 |
-| Hilt | 2.59.2 |
-| AndroidX Hilt Lifecycle ViewModel Compose | 1.3.0 |
-| Compose BOM | 2026.05.01 |
+| Gradle wrapper | 9.6.1 |
+| Android Gradle Plugin | 9.3.1 |
+| Kotlin | 2.4.20-Beta1 |
+| KSP | 2.3.10 |
+| Hilt | 2.60.1 |
+| AndroidX Hilt Lifecycle ViewModel Compose | 1.4.0 |
+| Compose BOM | 2026.06.01 |
 | Compose Stability Analyzer | 0.10.0 |
-| Lifecycle | 2.10.0 |
+| Lifecycle | 2.11.0 |
 | Coroutines | 1.11.0 |
 | DataStore | 1.2.1 |
-| Core KTX | 1.18.0 |
+| Core KTX | 1.19.0 |
 | Activity Compose | 1.13.0 |
 | kotlinx.serialization | 1.11.0 |
 | Play Services Nearby | 19.3.0 |
