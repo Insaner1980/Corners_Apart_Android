@@ -1,5 +1,6 @@
 package com.finnvek.cornersapart.viewmodel
 
+import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.data.GameRepository
 import com.finnvek.cornersapart.data.InMemoryJsonStateStore
 import com.finnvek.cornersapart.data.ProfileRepository
@@ -706,6 +707,13 @@ class GameViewModelTest {
                 gameRepository = gameRepository,
                 profileRepository = profileRepository,
                 settingsRepository = settingsRepository,
+                stringProvider = { resourceId ->
+                    when (resourceId) {
+                        R.string.default_profile_name -> "Player"
+                        R.string.action_failed_default_reason -> "Please try again."
+                        else -> error("Unexpected string resource: $resourceId")
+                    }
+                },
                 timeProvider = timeProvider,
                 nearbyConnectionsCoordinator = nearbyConnectionsCoordinator,
                 gameEngine = GameEngine(),

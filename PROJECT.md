@@ -76,7 +76,7 @@ Remaining or release-only:
 - `GameLayoutPolicy` and `GameSoundPolicy` are wired for responsive layout selection and local event sound policy, but additional visual animation polish can still be expanded.
 - Physical two-device Nearby stress testing remains a manual/release verification item.
 - Compact Duel still needs manual play-test coverage before release claims.
-- `PRIVACY-POLICY.md` is present but still contains placeholders (`[App Name]`, `[your email]`, `[date]`).
+- `PRIVACY-POLICY.md` identifies Corners Apart, provides a support mechanism, and records its last update date.
 
 ## Build System
 
@@ -249,7 +249,7 @@ Main package areas:
 - `multiplayer/`: local and Nearby session boundaries, protocol messages, host coordinator, lobby/reconnect state, runtime permission policy, and transport abstraction.
 - `data/`: JSON DataStore serializers, state-store wrapper, repository classes, and Hilt persistence/runtime modules.
 - `viewmodel/`: `GameViewModel`, `GameUiState`, UI player/piece models, and one-shot effects.
-- `runtime/`: runtime-only app services shared across layers, currently `TimeProvider` and `SystemTimeProvider`.
+- `runtime/`: runtime-only app services shared across layers, currently `TimeProvider`, `SystemTimeProvider`, and `StringProvider`.
 - `ui/screens/`: game route, game screen content, board rendering, score bar, dialogs, history/stats, layout policy, and local sound policy.
 - `ui/components/`: piece drawing helpers.
 - `ui/theme/`: colors, spacing, animation tokens, alpha tokens, typography, shapes, player palette, and Material theme.
@@ -350,9 +350,9 @@ Standard slot names and colors follow index order:
 
 ## Piece Catalog
 
-`PieceCatalog` is the single source of truth for pieces. It contains 21 pieces and 89 total cells.
+`PieceCatalog` is the single source of truth for stable piece ids and geometry. It contains 21 pieces and 89 total cells. Localized display names are resolved only at the UI boundary through `ui.util.PieceNameResources`.
 
-Piece ids and display names:
+Piece ids, English resource values, and cell counts:
 
 | Id | Name | Cells |
 |---|---|---:|
@@ -766,6 +766,7 @@ Runtime Hilt module:
 - Provides singleton `GameEngine`.
 - Provides singleton `ComputerOpponentEngine` using the shared `GameEngine`.
 - Provides singleton `TimeProvider` as `SystemTimeProvider`.
+- Provides singleton `StringProvider` backed by application resources.
 - Provides singleton `ConnectionsClientFacade` as `PlayServicesConnectionsClientFacade`.
 - Provides singleton `NearbyConnectionsCoordinator` with the app name as the local endpoint name.
 
@@ -867,7 +868,7 @@ Runtime Hilt module:
 `GameViewModel`:
 
 - Annotated with `@HiltViewModel`.
-- Injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, `TimeProvider`, and `NearbyConnectionsCoordinator`.
+- Injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, `StringProvider`, `TimeProvider`, and `NearbyConnectionsCoordinator`.
 - Exposes `uiState: StateFlow<GameUiState>`.
 - Exposes `effects: SharedFlow<GameEffect>`.
 - Defaults selected piece to `one-dot`.
@@ -1417,7 +1418,6 @@ These are current-state items worth asking precise code-review questions about:
 - Should removed dormant settings (`reducedMotionEnabled`, `preferredRuleset`) remain absent from persistence, settings UI, and serializer output?
 - Should the release-signing task-name matcher keep relying on Gradle task names, or should additional artifact-producing AGP task names be covered as AGP changes?
 - Should `:app:dependencyCheckAnalyze` remain a configuration-cache fallback failure task, and should wrapper/report flows always call the real task with `--no-configuration-cache`?
-- Should `PRIVACY-POLICY.md` be finalized before release?
 - Should `sonar` task dependency on `assembleDebug` stay, or should analysis avoid artifact build coupling if release/signing/Firebase-style gates are added later?
 
 ## External Docs Checked While Writing

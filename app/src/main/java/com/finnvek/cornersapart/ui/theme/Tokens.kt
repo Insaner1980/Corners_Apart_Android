@@ -100,6 +100,10 @@ object CornersApartSpacing {
     val StreakBadgeRadius = 20.dp
 }
 
+object CornersApartBreakpoints {
+    const val EXPANDED_WIDTH_DP = 840
+}
+
 @Suppress("ktlint:standard:property-naming")
 object CornersApartAlpha {
     const val PassedPlayer = 0.40f

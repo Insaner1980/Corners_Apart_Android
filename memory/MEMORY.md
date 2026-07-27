@@ -6,7 +6,8 @@
 - App identity: `Corners Apart`
 - Root project name: `CornersApart`
 - Namespace and application ID: `com.finnvek.cornersapart`
-- Canonical implementation source: `corners_apart_android_spec_reviewed.md`
+- Authoritative implementation sources: live source code and tests, documented in `PROJECT.md`
+- `corners_apart_android_spec_reviewed.md` is historical reference material and may be stale
 - Starter conversion plan: `Corners Apart Android - Starterista v1-projektiksi.md`
 
 ## Architecture
@@ -25,7 +26,8 @@
 - Profiles support local-only v1 avatars through `LocalAvatarStyle` and `LocalAvatarGenerator`; remote avatar services are out of scope.
 - `HistoryStatsCalculator` owns higher-is-better history and statistics aggregation.
 - `GameModeConfig` / `GameModeConfigs` is the single source of truth for mode defaults: board size, bonus count, color slots, start corners, computer slots, and color owner mapping.
-- `PieceCatalog` is the single source of truth for the 21 pieces and 89 total cells.
+- `PieceCatalog` is the single source of truth for the 21 stable piece IDs and their geometry (89 total cells); localized names are mapped at the UI boundary.
+- `StringProvider` keeps localized Android resource lookup behind a runtime interface so ViewModels remain Android-resource agnostic.
 - Pure game rules live under `com.finnvek.cornersapart.engine`.
 - `GameEngine` owns new-game creation, move application, pass handling, valid move lookup, and placement previews.
 - `PlacementValidator`, `CornerCache`, `BonusTileGenerator`, and `Scoring` own rule validation, corner candidates, bonus layouts, and higher-is-better ranking.

@@ -5,7 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class PieceDef(
     val id: String,
-    val displayName: String,
     val cells: List<CellOffset>,
 )
 
@@ -16,27 +15,27 @@ object PieceCatalog {
 
     val all: List<PieceDef> =
         listOf(
-            piece(SINGLE_CELL_ID, "One Dot", 0 to 0),
-            piece(TWO_LINE_ID, "Two Bar", 0 to 0, 0 to 1),
-            piece("three-bar", "Three Bar", 0 to 0, 0 to 1, 0 to 2),
-            piece(THREE_BEND_ID, "Three Corner", 0 to 0, 1 to 0, 1 to 1),
-            piece("four-bar", "Four Bar", 0 to 0, 0 to 1, 0 to 2, 0 to 3),
-            piece("four-block", "Four Block", 0 to 0, 0 to 1, 1 to 0, 1 to 1),
-            piece("four-tee", "Four Tee", 0 to 0, 0 to 1, 0 to 2, 1 to 1),
-            piece("four-corner", "Four Corner", 0 to 0, 1 to 0, 2 to 0, 2 to 1),
-            piece("four-step", "Four Step", 0 to 1, 0 to 2, 1 to 0, 1 to 1),
-            piece("five-bar", "Five Bar", 0 to 0, 0 to 1, 0 to 2, 0 to 3, 0 to 4),
-            piece("five-block-tail", "Five Block Tail", 0 to 0, 0 to 1, 1 to 0, 1 to 1, 2 to 0),
-            piece("five-tee", "Five Tee", 0 to 0, 0 to 1, 0 to 2, 1 to 1, 2 to 1),
-            piece("five-cross", "Five Cross", 0 to 1, 1 to 0, 1 to 1, 1 to 2, 2 to 1),
-            piece("five-long-corner", "Five Long Corner", 0 to 0, 1 to 0, 2 to 0, 3 to 0, 3 to 1),
-            piece("five-shift", "Five Shift", 0 to 1, 1 to 0, 1 to 1, 1 to 2, 2 to 2),
-            piece("five-stair", "Five Stair", 0 to 0, 1 to 0, 1 to 1, 2 to 1, 2 to 2),
-            piece("five-cup", "Five Cup", 0 to 0, 0 to 2, 1 to 0, 1 to 1, 1 to 2),
-            piece("five-wide-corner", "Five Wide Corner", 0 to 0, 1 to 0, 2 to 0, 2 to 1, 2 to 2),
-            piece("five-hook", "Five Hook", 0 to 0, 1 to 0, 2 to 0, 3 to 0, 1 to 1),
-            piece("five-zag", "Five Zag", 0 to 0, 0 to 1, 1 to 1, 2 to 1, 2 to 2),
-            piece("five-offset", "Five Offset", 0 to 2, 1 to 0, 1 to 1, 1 to 2, 2 to 0),
+            piece(SINGLE_CELL_ID, 0 to 0),
+            piece(TWO_LINE_ID, 0 to 0, 0 to 1),
+            piece("three-bar", 0 to 0, 0 to 1, 0 to 2),
+            piece(THREE_BEND_ID, 0 to 0, 1 to 0, 1 to 1),
+            piece("four-bar", 0 to 0, 0 to 1, 0 to 2, 0 to 3),
+            piece("four-block", 0 to 0, 0 to 1, 1 to 0, 1 to 1),
+            piece("four-tee", 0 to 0, 0 to 1, 0 to 2, 1 to 1),
+            piece("four-corner", 0 to 0, 1 to 0, 2 to 0, 2 to 1),
+            piece("four-step", 0 to 1, 0 to 2, 1 to 0, 1 to 1),
+            piece("five-bar", 0 to 0, 0 to 1, 0 to 2, 0 to 3, 0 to 4),
+            piece("five-block-tail", 0 to 0, 0 to 1, 1 to 0, 1 to 1, 2 to 0),
+            piece("five-tee", 0 to 0, 0 to 1, 0 to 2, 1 to 1, 2 to 1),
+            piece("five-cross", 0 to 1, 1 to 0, 1 to 1, 1 to 2, 2 to 1),
+            piece("five-long-corner", 0 to 0, 1 to 0, 2 to 0, 3 to 0, 3 to 1),
+            piece("five-shift", 0 to 1, 1 to 0, 1 to 1, 1 to 2, 2 to 2),
+            piece("five-stair", 0 to 0, 1 to 0, 1 to 1, 2 to 1, 2 to 2),
+            piece("five-cup", 0 to 0, 0 to 2, 1 to 0, 1 to 1, 1 to 2),
+            piece("five-wide-corner", 0 to 0, 1 to 0, 2 to 0, 2 to 1, 2 to 2),
+            piece("five-hook", 0 to 0, 1 to 0, 2 to 0, 3 to 0, 1 to 1),
+            piece("five-zag", 0 to 0, 0 to 1, 1 to 1, 2 to 1, 2 to 2),
+            piece("five-offset", 0 to 2, 1 to 0, 1 to 1, 1 to 2, 2 to 0),
         ).toSnapshotList()
 
     private val byId: Map<String, PieceDef> =
@@ -48,12 +47,10 @@ object PieceCatalog {
 
     private fun piece(
         id: String,
-        displayName: String,
         vararg cells: Pair<Int, Int>,
     ): PieceDef =
         PieceDef(
             id = id,
-            displayName = displayName,
             cells = cells.map { cell -> CellOffset(row = cell.first, col = cell.second) }.toSnapshotList(),
         )
 }

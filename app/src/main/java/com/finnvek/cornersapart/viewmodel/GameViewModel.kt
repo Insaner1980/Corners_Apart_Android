@@ -2,6 +2,7 @@ package com.finnvek.cornersapart.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.finnvek.cornersapart.R
 import com.finnvek.cornersapart.data.GameRepository
 import com.finnvek.cornersapart.data.ProfileRepository
 import com.finnvek.cornersapart.data.SettingsRepository
@@ -40,6 +41,7 @@ import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.opponents.OpponentCharacter
 import com.finnvek.cornersapart.opponents.OpponentDifficultyMapper
 import com.finnvek.cornersapart.opponents.OpponentRoster
+import com.finnvek.cornersapart.runtime.StringProvider
 import com.finnvek.cornersapart.runtime.TimeProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -65,6 +67,7 @@ class GameViewModel
         private val gameRepository: GameRepository,
         private val profileRepository: ProfileRepository,
         private val settingsRepository: SettingsRepository,
+        private val stringProvider: StringProvider,
         private val timeProvider: TimeProvider,
         private val nearbyConnectionsCoordinator: NearbyConnectionsCoordinator,
         private val gameEngine: GameEngine,
@@ -266,7 +269,7 @@ class GameViewModel
             avatarStyle: LocalAvatarStyle,
         ) {
             viewModelScope.launch {
-                val resolvedName = name.trim().ifBlank { DEFAULT_PROFILE_NAME }
+                val resolvedName = name.trim().ifBlank { defaultProfileName() }
                 val id = "local-${timeProvider.nowEpochMillis()}-${resolvedName.lowercase().filter {
                     it
                         .isLetterOrDigit()
@@ -715,7 +718,7 @@ class GameViewModel
                 preferredDifficulty = settings.preferredDifficulty,
                 preferredMode = settings.preferredMode,
                 history = activeProfile.historyUiState(),
-                activeProfileName = activeProfile?.name ?: DEFAULT_PROFILE_NAME,
+                activeProfileName = activeProfile?.name ?: defaultProfileName(),
                 hasSavedGame = savedGameData.gameState?.hasValidIndexDomains() == true && !resumeDecisionMade,
                 resumeSummary = savedGameData.toResumeSummary(),
                 rankedScores = rankedScoresForUiAndHistory(),
@@ -943,7 +946,10 @@ class GameViewModel
         private fun Result<Unit>.toFailureEffect(): GameEffect =
             when (val error = exceptionOrNull()) {
                 is MoveRejectedException -> GameEffect.MoveRejected(error.reason)
-                else -> GameEffect.ActionFailed(error?.message ?: ACTION_FAILED_MESSAGE)
+                else ->
+                    GameEffect.ActionFailed(
+                        error?.message ?: stringProvider.getString(R.string.action_failed_default_reason),
+                    )
             }
 
         private fun GameSessionEvent.toEffect(): GameEffect =
@@ -965,12 +971,14 @@ class GameViewModel
         private fun defaultProfile(): Profile =
             Profile(
                 id = DEFAULT_PROFILE_ID,
-                name = DEFAULT_PROFILE_NAME,
+                name = defaultProfileName(),
                 colorIndex = DEFAULT_PROFILE_OWNER_INDEX,
                 avatarStyle = LocalAvatarStyle.INITIALS,
                 avatarSeed = DEFAULT_PROFILE_ID,
                 active = true,
             )
+
+        private fun defaultProfileName(): String = stringProvider.getString(R.string.default_profile_name)
 
         private fun GameSettings.normalized(): GameSettings =
             copy(preferredDifficulty = OpponentDifficultyMapper.toPersistedLevel(preferredDifficulty))
@@ -980,6 +988,4 @@ class GameViewModel
     }
 
 private const val DEFAULT_PROFILE_ID = "local-default"
-private const val DEFAULT_PROFILE_NAME = "Player"
 private const val MILLIS_PER_SECOND = 1_000L
-private const val ACTION_FAILED_MESSAGE = "Action failed."
