@@ -652,14 +652,14 @@ private fun com.finnvek.cornersapart.ui.screens.UtilityActions(onShowHistoryStat
 
 @Composable
 public fun com.finnvek.cornersapart.ui.screens.rememberGameSoundPlayer(): com.finnvek.cornersapart.ui.screens.GameSoundPlayer
-  skippable: true
-  restartable: true
+  skippable: false
+  restartable: false
   params:
 
 @Composable
 private fun com.finnvek.cornersapart.ui.screens.toAnnouncementText(): kotlin.String
-  skippable: true
-  restartable: true
+  skippable: false
+  restartable: false
   params:
 
 @Composable
