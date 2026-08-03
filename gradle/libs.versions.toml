@@ -24,7 +24,7 @@ jacoco = "0.8.15"
 
 ktlintGradle = "14.2.0"
 detekt = "2.0.0-alpha.5"
-detektComposeRules = "0.6.2"
+detektComposeRules = "0.6.3"
 owaspDependencyCheck = "12.2.2"
 sonarqube = "7.3.1.8318"
 
