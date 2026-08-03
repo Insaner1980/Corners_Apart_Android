@@ -136,17 +136,23 @@ class GameEngineScoringTest {
         val state =
             standardStateWithPlayers { player ->
                 when (player.index) {
-                    0 ->
+                    0 -> {
                         player.copy(
                             scoreBreakdown = ScoreFixtures.breakdown(totalCells = 8, bonusPoints = 0),
                             usedPieceIds = setOf(PieceCatalog.THREE_BEND_ID),
                         )
-                    1 ->
+                    }
+
+                    1 -> {
                         player.copy(
                             scoreBreakdown = ScoreFixtures.breakdown(totalCells = 8, bonusPoints = 0),
                             usedPieceIds = setOf(PieceCatalog.THREE_BEND_ID, PieceCatalog.TWO_LINE_ID),
                         )
-                    else -> player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 1, bonusPoints = 0))
+                    }
+
+                    else -> {
+                        player.copy(scoreBreakdown = ScoreFixtures.breakdown(totalCells = 1, bonusPoints = 0))
+                    }
                 }
             }
 
@@ -182,22 +188,29 @@ class GameEngineScoringTest {
                             ).players
                             .map { player ->
                                 when (player.index) {
-                                    0 ->
+                                    0 -> {
                                         player.copy(
                                             scoreBreakdown = ScoreFixtures.breakdown(totalCells = 5, bonusPoints = 0),
                                         )
-                                    1 ->
+                                    }
+
+                                    1 -> {
                                         player.copy(
                                             scoreBreakdown = ScoreFixtures.breakdown(totalCells = 7, bonusPoints = 0),
                                         )
-                                    2 ->
+                                    }
+
+                                    2 -> {
                                         player.copy(
                                             scoreBreakdown = ScoreFixtures.breakdown(totalCells = 6, bonusPoints = 3),
                                         )
-                                    else ->
+                                    }
+
+                                    else -> {
                                         player.copy(
                                             scoreBreakdown = ScoreFixtures.breakdown(totalCells = 2, bonusPoints = 0),
                                         )
+                                    }
                                 }
                             },
                 )

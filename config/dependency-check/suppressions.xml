@@ -2,13 +2,13 @@
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd"
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
               xsi:schemaLocation="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd https://dependency-check.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
-    <suppress>
+    <suppress until="2026-10-31Z">
         <notes><![CDATA[
         Virheellinen CPE-osuma: compose-stability-runtime-android on Skydovesin
         Compose-analytiikkakirjasto, ei GitHub Enterprise Server. Raportoidut
         GitHub Enterprise CVE:t eivat koske tata Maven-artefaktia.
         ]]></notes>
-        <packageUrl>pkg:maven/com.github.skydoves/compose-stability-runtime-android@0.10.0</packageUrl>
+        <packageUrl>pkg:maven/com.github.skydoves/compose-stability-runtime-android@0.11.1</packageUrl>
         <cpe>cpe:/a:github:github</cpe>
     </suppress>
 </suppressions>

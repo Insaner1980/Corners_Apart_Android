@@ -300,9 +300,13 @@ class NearbyConnectionsCoordinator(
         if (endpointId !in connectedEndpointIds) return false
         return when (message) {
             is GameMessage.PlaceMove -> endpointOwnsPlayerLocked(endpointId, message.move.playerIndex)
+
             is GameMessage.Pass -> endpointOwnsPlayerLocked(endpointId, message.playerIndex)
+
             is GameMessage.PlayerJoined -> false
+
             is GameMessage.PlayerLeft -> false
+
             is GameMessage.FullSync,
             is GameMessage.GameConfig,
             is GameMessage.MoveAccepted,
@@ -331,8 +335,11 @@ class NearbyConnectionsCoordinator(
     ) {
         val move =
             when (message) {
-                is GameMessage.PlaceMove -> message.move
-                is GameMessage.Pass ->
+                is GameMessage.PlaceMove -> {
+                    message.move
+                }
+
+                is GameMessage.Pass -> {
                     Move(
                         playerIndex = message.playerIndex,
                         pieceId = "",
@@ -340,7 +347,11 @@ class NearbyConnectionsCoordinator(
                         anchorCol = 0,
                         orientationIndex = 0,
                     )
-                else -> return
+                }
+
+                else -> {
+                    return
+                }
             }
         sendMessage(
             MessageTarget.Endpoint(endpointId),

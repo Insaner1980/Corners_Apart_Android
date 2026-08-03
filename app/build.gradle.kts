@@ -196,6 +196,7 @@ hilt {
 }
 
 ktlint {
+    version.set(libs.versions.ktlint)
     android.set(true)
     ignoreFailures.set(false)
 
@@ -404,6 +405,7 @@ dependencies {
     ksp(libs.kotlin.metadata.jvm)
 
     detektPlugins(libs.detekt.compose.rules)
+    ktlintRuleset(libs.ktlint.compose.rules)
 
     lintChecks(libs.android.security.lints)
 

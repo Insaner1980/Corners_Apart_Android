@@ -40,6 +40,7 @@ object GameModeConfigs {
     fun defaultBoardSizeFor(mode: GameMode): Int =
         when (mode) {
             GameMode.COMPACT_DUEL -> GameConstants.COMPACT_BOARD_SIZE
+
             GameMode.SOLO,
             GameMode.TWO_COLOR_DUEL,
             GameMode.THREE_PLAYER,
@@ -52,21 +53,25 @@ object GameModeConfigs {
         boardSize: Int = defaultBoardSizeFor(mode),
     ): GameModeConfig =
         when (mode) {
-            GameMode.SOLO ->
+            GameMode.SOLO -> {
                 GameModeConfig(
                     mode = mode,
                     boardSize = boardSize,
                     bonusTileCount = GameConstants.STANDARD_BONUS_TILE_COUNT,
                     playerSlots = soloSlots(boardSize),
                 )
-            GameMode.TWO_COLOR_DUEL ->
+            }
+
+            GameMode.TWO_COLOR_DUEL -> {
                 GameModeConfig(
                     mode = mode,
                     boardSize = boardSize,
                     bonusTileCount = GameConstants.STANDARD_BONUS_TILE_COUNT,
                     playerSlots = twoColorDuelSlots(boardSize),
                 )
-            GameMode.COMPACT_DUEL ->
+            }
+
+            GameMode.COMPACT_DUEL -> {
                 GameModeConfig(
                     mode = mode,
                     boardSize = boardSize,
@@ -74,7 +79,9 @@ object GameModeConfigs {
                     playerSlots = compactDuelSlots(boardSize),
                     requiresPlayTesting = true,
                 )
-            GameMode.THREE_PLAYER ->
+            }
+
+            GameMode.THREE_PLAYER -> {
                 GameModeConfig(
                     mode = mode,
                     boardSize = boardSize,
@@ -84,13 +91,16 @@ object GameModeConfigs {
                             .take(3)
                             .toSnapshotList(),
                 )
-            GameMode.FOUR_PLAYER ->
+            }
+
+            GameMode.FOUR_PLAYER -> {
                 GameModeConfig(
                     mode = mode,
                     boardSize = boardSize,
                     bonusTileCount = GameConstants.STANDARD_BONUS_TILE_COUNT,
                     playerSlots = standardSlots(boardSize),
                 )
+            }
         }
 
     fun defaultGameConfig(

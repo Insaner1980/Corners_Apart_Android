@@ -196,10 +196,50 @@ class GameScreenTest {
         composeRule.onNodeWithText("Play again").assertIsDisplayed()
     }
 
+    @Test
+    fun reviewButtonStartsReviewAndHidesGameOverDialog() {
+        var reviewStarts = 0
+        composeRule.setContent {
+            CornersApartTheme {
+                GameScreenContent(
+                    state = testUiState(isGameOver = true, canReviewFinishedGame = true),
+                    screenActions =
+                        GameScreenActions(
+                            onStartMatchReview = { reviewStarts += 1 },
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Review game").performClick()
+
+        assertEquals(1, reviewStarts)
+        composeRule.onAllNodesWithText("Play again").assertCountEquals(0)
+    }
+
+    @Test
+    fun nearbyFinishedGameDoesNotShowReviewButton() {
+        composeRule.setContent {
+            CornersApartTheme {
+                GameScreenContent(
+                    state =
+                        testUiState(
+                            isGameOver = true,
+                            sessionType = SessionType.NEARBY,
+                            canReviewFinishedGame = false,
+                        ),
+                )
+            }
+        }
+
+        composeRule.onAllNodesWithText("Review game").assertCountEquals(0)
+    }
+
     private fun testUiState(
         isGameOver: Boolean = false,
         sessionType: SessionType = SessionType.LOCAL,
         nearbyState: NearbyUiState = NearbyUiState(),
+        canReviewFinishedGame: Boolean = false,
     ): GameUiState {
         val selectedPiece = PieceCatalog.require(PieceCatalog.THREE_BEND_ID)
         val players =
@@ -260,6 +300,7 @@ class GameScreenTest {
                         )
                     }.sortedByDescending { score -> score.totalScore },
             nearbyState = nearbyState,
+            canReviewFinishedGame = canReviewFinishedGame,
         )
     }
 }

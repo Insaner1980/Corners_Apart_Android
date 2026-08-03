@@ -81,13 +81,16 @@ internal object PlacementValidator {
             !player.hasPlacedAnyPiece &&
                 player.startCorner !in targetCells
             -> MoveRejectionReason.START_CORNER_NOT_COVERED
+
             touchesSamePlayerByEdge(board, player.index, targetCells) -> MoveRejectionReason.SAME_PLAYER_EDGE_TOUCH
+
             player.hasPlacedAnyPiece &&
                 !touchesSamePlayerDiagonally(
                     board,
                     player.index,
                     targetCells,
                 ) -> MoveRejectionReason.NO_DIAGONAL_TOUCH
+
             else -> null
         }
 

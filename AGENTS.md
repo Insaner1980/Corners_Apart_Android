@@ -9,10 +9,15 @@
 
 ## Quality Tools
 
+- `config/android-check.json` is the source of truth for project modules and Gradle task coverage; wrappers must not infer coverage from the checkout directory name.
+- `config/check-exceptions.json` owns time-bounded, exact scanner exceptions. A missing, expired, blocked, stale, or broad exception must fail closed with `ERROR/2`.
+- MobSF-sääntöjä ei ohiteta globaalisti `.mobsf`-tiedostossa. Hyväksytty poikkeus sitoo yhden säännön yhteen `findingPath`-tiedostoon; sama sääntö toisessa tiedostossa jää löydökseksi.
+- Plain `ql` checks both the GitHub default-branch CodeQL baseline and current local Java/Kotlin/Gradle inputs, running the locked local CLI automatically when the verified remote SHA does not cover them. `-CurrentCommit` remains a legacy remote-scope override.
 - Project-local PowerShell wrappers live in `tools/*.ps1` and mostly delegate to `C:\Dev\Android-check\tools\InvokeProjectCheck.ps1`
 - `lc` / `tools\lc.ps1` runs ktlint + detekt + Android lint, results in `reports/`
 - `sc` / `tools\sc.ps1` runs semgrep + OWASP dependency-check, results in `reports/`
 - `tools\sonar.ps1` is the repo-local SonarCloud path and requires `SONAR_TOKEN` for the full Gradle scan
+- `tools\sonar.ps1` also requires `-AllowExternalUpload`; `-PlanOnly` is the safe local inspection path.
 - Don't run these scripts yourself — user runs them via `! lc` / `! sc`
 - `reports/` is gitignored, never commit it
 
@@ -40,6 +45,7 @@
 - `PieceCatalog` is the single source of truth for the 21 stable piece IDs and their geometry (89 total cells); localized piece names are resolved only at the UI boundary through `ui.util.PieceNameResources`
 - Two-Color Duel keeps turn order as color slots 0-3 while `Player.ownerIndex` maps colors 0/2 to Player 1 and 1/3 to Player 2; rankings aggregate by owner
 - `opponents/` owns local computer turns through `MoveGenerator`, `MoveEvaluator`, and `ComputerOpponentEngine`; decisions use seeded randomness from game state and always return a legal move or pass
+- `review/` owns transient local-match replay and analysis through `GameReplayer` and `MatchReviewAnalyzer`; it may depend only on pure model/engine/opponent APIs, reconstructs unrecorded finishing passes, evaluates every owner 0 action with deterministic MASTER/BLOCKER scoring, and must not add persistence or Nearby support
 - `OpponentDifficultyMapper` is the single source of truth for persisted difficulty `1..5` to `OpponentDifficulty`; invalid values are clamped
 - `LocalSessionFactory` creates `LocalSession(initialConfig, opponentDifficulty)`; ViewModels must not instantiate `LocalSession()` directly
 - `LocalSession` is the current session boundary for local Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player configurations, serializes local move/pass mutations, and supports `replaceState` for saved-game restore

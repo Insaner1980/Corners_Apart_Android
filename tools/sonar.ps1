@@ -4,6 +4,11 @@
 param(
     [switch]$PlanOnly,
 
+    [switch]$AllowExternalUpload,
+
+    [ValidateRange(1, 86400)]
+    [int]$GradleTimeoutSeconds = 3600,
+
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$SonarArgs
 )
@@ -93,6 +98,9 @@ function Test-GradleSonarTokenConfigured {
 }
 
 if ($SonarArgs.Count -gt 0) {
+    if (-not $AllowExternalUpload) {
+        throw "EXTERNAL_SERVICE_APPROVAL_REQUIRED: sonar.exe-komennot vaativat -AllowExternalUpload-valitsimen."
+    }
     Invoke-SonarCli -Arguments $SonarArgs
 }
 
@@ -118,6 +126,7 @@ if ($PlanOnly) {
         "  - Gradle sonar: reports/sonar.txt"
         "  - optional sonar.exe issue export: reports/sonar-issues.json"
         "  - requires SONAR_TOKEN or systemProp.sonar.token for the full Gradle scan"
+        "  - actual external call requires -AllowExternalUpload"
         "  - project: $projectKey"
         "  - host: $hostUrl"
     )
@@ -135,6 +144,20 @@ Set-Content -LiteralPath $scanReport -Encoding utf8 -Value @(
     ""
 )
 
+if (-not $AllowExternalUpload) {
+    Add-Content -LiteralPath $scanReport -Encoding utf8 -Value @(
+        "ERROR: EXTERNAL_UPLOAD_APPROVAL_REQUIRED"
+        "Sonar-analyysi voi lähettää lähdekoodia ja analyysimetatietoa ulkoiseen palveluun."
+        "Tarkista PlanOnly-tuloste ja käytä -AllowExternalUpload vain nimenomaisella luvalla."
+    )
+    Get-Content -LiteralPath $scanReport
+    exit 2
+}
+
+if (Test-Path -LiteralPath $issuesReport) {
+    Remove-Item -LiteralPath $issuesReport -Force
+}
+
 Push-Location -LiteralPath $repoRoot
 try {
     $env:SONAR_HOST_URL = if ($env:SONAR_HOST_URL) { $env:SONAR_HOST_URL } else { $hostUrl }
@@ -147,22 +170,57 @@ try {
             ""
         )
         Get-Content -LiteralPath $scanReport
-        exit 1
+        exit 2
     }
 
-    & .\gradlew.bat "sonar" "--console=plain" *>&1 |
-        Tee-Object -FilePath $scanReport -Append |
-        Out-Host
-    $scanExitCode = if ($null -ne $global:LASTEXITCODE) { [int]$global:LASTEXITCODE } else { 0 }
+    try {
+        Import-Module "C:\Dev\Android-check\tools\CheckRuntime.psm1" -Force -ErrorAction Stop
+        $scanResult = Invoke-ManagedProcess `
+            -Executable (Join-Path $repoRoot "gradlew.bat") `
+            -Arguments @("sonar", "--console=plain") `
+            -WorkingDirectory $repoRoot `
+            -TimeoutSeconds $GradleTimeoutSeconds
+        foreach ($streamText in @($scanResult.StandardOutput, $scanResult.StandardError)) {
+            if (-not [string]::IsNullOrWhiteSpace($streamText)) {
+                Add-Content -LiteralPath $scanReport -Encoding utf8 -Value $streamText
+                Write-Output $streamText
+            }
+        }
+    }
+    catch {
+        Add-Content -LiteralPath $scanReport -Encoding utf8 -Value "ERROR: SONAR_ANALYSIS_PROCESS_ERROR: $($_.Exception.Message)"
+        exit 2
+    }
+
+    if ($scanResult.TimedOut) {
+        Add-Content -LiteralPath $scanReport -Encoding utf8 -Value "ERROR: SONAR_ANALYSIS_TIMEOUT ($GradleTimeoutSeconds s)"
+        exit 2
+    }
+    if ($scanResult.ExitCode -ne 0) {
+        Add-Content -LiteralPath $scanReport -Encoding utf8 -Value "ERROR: SONAR_ANALYSIS_FAILED (exit $($scanResult.ExitCode))"
+        exit 2
+    }
 
     $cli = Get-Command sonar.exe -CommandType Application -ErrorAction SilentlyContinue
-    if ($null -ne $cli) {
-        & $cli.Source "list" "issues" "--project" $projectKey "--statuses" "OPEN,CONFIRMED" "--format" "json" *>&1 |
-            Tee-Object -FilePath $issuesReport |
-            Out-Null
+    if ($null -eq $cli) {
+        Add-Content -LiteralPath $scanReport -Encoding utf8 -Value "NOT_APPLICABLE: sonar.exe issue export is unavailable."
+        exit 0
     }
 
-    exit $scanExitCode
+    try {
+        Import-Module "C:\Dev\Android-check\tools\SonarProjectChecks.psm1" -Force -ErrorAction Stop
+        Invoke-SonarIssueExport `
+            -Executable $cli.Source `
+            -Arguments @("list", "issues", "--project", $projectKey, "--statuses", "OPEN,CONFIRMED", "--format", "json") `
+            -WorkingDirectory $repoRoot `
+            -ReportPath $issuesReport | Out-Null
+    }
+    catch {
+        Add-Content -LiteralPath $scanReport -Encoding utf8 -Value "ERROR: $($_.Exception.Message)"
+        exit 2
+    }
+
+    exit 0
 }
 finally {
     Pop-Location

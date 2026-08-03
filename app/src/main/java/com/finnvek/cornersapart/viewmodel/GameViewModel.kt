@@ -41,9 +41,14 @@ import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.opponents.OpponentCharacter
 import com.finnvek.cornersapart.opponents.OpponentDifficultyMapper
 import com.finnvek.cornersapart.opponents.OpponentRoster
+import com.finnvek.cornersapart.review.MatchReviewAnalyzer
+import com.finnvek.cornersapart.review.MatchReviewFailure
+import com.finnvek.cornersapart.review.MatchReviewUpdate
+import com.finnvek.cornersapart.review.MoveClassification
 import com.finnvek.cornersapart.runtime.StringProvider
 import com.finnvek.cornersapart.runtime.TimeProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -71,6 +76,7 @@ class GameViewModel
         private val timeProvider: TimeProvider,
         private val nearbyConnectionsCoordinator: NearbyConnectionsCoordinator,
         private val gameEngine: GameEngine,
+        private val matchReviewAnalyzer: MatchReviewAnalyzer,
     ) : ViewModel() {
         private val _effects = MutableSharedFlow<GameEffect>(extraBufferCapacity = 1)
         private var selectedPieceId: String = PieceCatalog.SINGLE_CELL_ID
@@ -103,6 +109,10 @@ class GameViewModel
         private var recordedGameOverTurn: Int? = null
         private var defaultProfileCreationRequested: Boolean = false
         private var finishedGameRanking: FinishedGameRanking? = null
+        private var reviewableFinalState: GameState? = null
+        private var matchReviewUiState: MatchReviewUiState? = null
+        private var matchReviewJob: Job? = null
+        private var matchReviewGeneration: Long = 0L
         private val _uiState: MutableStateFlow<GameUiState> = MutableStateFlow(session.gameState.value.toUiState())
         private val session: GameSession
             get() = nearbySession ?: localSession
@@ -147,6 +157,7 @@ class GameViewModel
                     nearbyEventsJob?.cancel()
                     nearbySession = currentSession
                     if (currentSession != null) {
+                        resetMatchReview()
                         resumeDecisionMade = true
                         selectedPieceId = PieceCatalog.SINGLE_CELL_ID
                         selectedOrientationIndex = 0
@@ -196,6 +207,7 @@ class GameViewModel
                 }
                 val savedSettings = savedGameData.settings.normalized()
                 settings = savedSettings
+                resetMatchReview()
                 leaveNearbySessionForLocalPlay()
                 resetLocalSessionActions()
                 settingsRepository.updateSettings { savedSettings }
@@ -385,9 +397,10 @@ class GameViewModel
                         ),
                     )
                 if (result.isSuccess) {
+                    val stateAfter = gameplaySession.gameState.value
+                    captureReviewableFinalState(gameplaySession, stateAfter)
                     refreshUiState()
                     emitAcceptedEffect(gameplaySession, stateBefore)
-                    val stateAfter = gameplaySession.gameState.value
                     if (gameplaySession.sessionType == SessionType.LOCAL) {
                         persistAfterAcceptedTurn(stateAfter)
                     }
@@ -405,8 +418,9 @@ class GameViewModel
                 val playerIndex = stateBefore.currentPlayerIndex
                 val result = gameplaySession.sendPass(playerIndex)
                 if (result.isSuccess) {
-                    refreshUiState()
                     val stateAfter = gameplaySession.gameState.value
+                    captureReviewableFinalState(gameplaySession, stateAfter)
+                    refreshUiState()
                     if (!stateBefore.isGameOver && stateAfter.isGameOver) {
                         _effects.tryEmit(GameEffect.GameOver)
                     }
@@ -429,6 +443,7 @@ class GameViewModel
         }
 
         private fun startLocalSession(nextSettings: GameSettings) {
+            resetMatchReview()
             activeChallengeLevel = null
             activeDailyDate = null
             activeRivalId = null
@@ -450,6 +465,7 @@ class GameViewModel
         fun startDailyChallenge() {
             val date = timeProvider.todayIsoDate()
             resumeDecisionMade = true
+            resetMatchReview()
             leaveNearbySessionForLocalPlay()
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
@@ -480,6 +496,7 @@ class GameViewModel
         fun startChallengeLevel(levelNumber: Int) {
             val level = ChallengeLevels.forNumber(levelNumber) ?: return
             resumeDecisionMade = true
+            resetMatchReview()
             leaveNearbySessionForLocalPlay()
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
@@ -511,6 +528,7 @@ class GameViewModel
             val rival = OpponentRoster.forId(rivalId) ?: return
             if (!OpponentRoster.isUnlocked(rival.id, activeProfile()?.rivalWins.orEmpty())) return
             resumeDecisionMade = true
+            resetMatchReview()
             leaveNearbySessionForLocalPlay()
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
             selectedOrientationIndex = 0
@@ -551,6 +569,7 @@ class GameViewModel
         }
 
         private fun prepareForNearbySession() {
+            resetMatchReview()
             resetLocalSessionActions()
             lastGameAllTimeRank = null
             selectedPieceId = PieceCatalog.SINGLE_CELL_ID
@@ -744,8 +763,180 @@ class GameViewModel
                 bestDailyStreak = activeProfile()?.bestDailyStreak ?: 0,
                 allTimeRank = lastGameAllTimeRank,
                 hallOfFameByMode = hallOfFameUiState(),
+                canReviewFinishedGame =
+                    reviewableFinalState?.isGameOver == true &&
+                        session.sessionType == SessionType.LOCAL,
+                matchReview = matchReviewUiState,
             )
         }
+
+        @Suppress("TooGenericExceptionCaught")
+        fun startMatchReview() {
+            val finalState = reviewableFinalState ?: return
+            if (!finalState.isGameOver ||
+                session.sessionType != SessionType.LOCAL ||
+                session.gameState.value != finalState
+            ) {
+                return
+            }
+
+            matchReviewJob?.cancel()
+            matchReviewGeneration += 1
+            val generation = matchReviewGeneration
+            matchReviewUiState = initialMatchReviewUiState(finalState)
+            refreshUiState()
+            matchReviewJob =
+                viewModelScope.launch {
+                    try {
+                        matchReviewAnalyzer
+                            .analyze(finalState, reviewedOwnerIndex = DEFAULT_PROFILE_OWNER_INDEX)
+                            .collect { update ->
+                                if (generation != matchReviewGeneration ||
+                                    reviewableFinalState != finalState
+                                ) {
+                                    return@collect
+                                }
+                                applyMatchReviewUpdate(update)
+                            }
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (error: Throwable) {
+                        if (generation == matchReviewGeneration) {
+                            applyMatchReviewFailure(
+                                MatchReviewFailure.UnexpectedAnalysisError(cause = error),
+                            )
+                        }
+                    }
+                }
+        }
+
+        private fun initialMatchReviewUiState(finalState: GameState): MatchReviewUiState =
+            MatchReviewUiState(
+                phase = MatchReviewPhase.ANALYZING,
+                players =
+                    finalState.players.map { player ->
+                        MatchReviewPlayerUiState(
+                            index = player.index,
+                            name =
+                                profileDisplayMapper.displayName(
+                                    player.name,
+                                    player.ownerIndex,
+                                    player.colorIndex,
+                                ),
+                            colorIndex = profileDisplayMapper.visualColorIndex(player.colorIndex),
+                        )
+                    },
+                timeline = emptyList(),
+                assessmentsByStepIndex = emptyMap(),
+                analyzedCount = 0,
+                totalCount = 0,
+                currentStepIndex = 0,
+                accuracy = null,
+                classificationCounts = emptyClassificationCounts(),
+            )
+
+        fun reviewStepForward() {
+            val review = matchReviewUiState ?: return
+            updateReviewStep(review.currentStepIndex + 1)
+        }
+
+        fun reviewStepBack() {
+            val review = matchReviewUiState ?: return
+            updateReviewStep(review.currentStepIndex - 1)
+        }
+
+        fun reviewJumpTo(index: Int) {
+            updateReviewStep(index)
+        }
+
+        fun closeMatchReview() {
+            matchReviewJob?.cancel()
+            matchReviewJob = null
+            matchReviewGeneration += 1
+            matchReviewUiState = null
+            refreshUiState()
+        }
+
+        private fun updateReviewStep(index: Int) {
+            val review = matchReviewUiState ?: return
+            if (review.timeline.isEmpty()) return
+            matchReviewUiState =
+                review.copy(currentStepIndex = index.coerceIn(0, review.timeline.lastIndex))
+            refreshUiState()
+        }
+
+        private fun applyMatchReviewUpdate(update: MatchReviewUpdate) {
+            val current = matchReviewUiState ?: return
+            matchReviewUiState =
+                when (update) {
+                    is MatchReviewUpdate.Progress -> {
+                        current.copy(
+                            phase = MatchReviewPhase.ANALYZING,
+                            timeline = update.value.timeline,
+                            assessmentsByStepIndex = update.value.assessmentsByStepIndex,
+                            analyzedCount = update.value.analyzedCount,
+                            totalCount = update.value.totalCount,
+                            currentStepIndex =
+                                current.currentStepIndex.coerceInTimeline(update.value.timeline.lastIndex),
+                            accuracy = update.value.runningAccuracy,
+                        )
+                    }
+
+                    is MatchReviewUpdate.Completed -> {
+                        current.copy(
+                            phase = MatchReviewPhase.COMPLETE,
+                            timeline = update.result.timeline,
+                            assessmentsByStepIndex = update.result.assessmentsByStepIndex,
+                            analyzedCount = update.result.assessmentsByStepIndex.size,
+                            totalCount = update.result.assessmentsByStepIndex.size,
+                            currentStepIndex =
+                                current.currentStepIndex.coerceInTimeline(update.result.timeline.lastIndex),
+                            accuracy = update.result.accuracy,
+                            classificationCounts = update.result.classificationCounts,
+                        )
+                    }
+
+                    is MatchReviewUpdate.Failed -> {
+                        current.copy(
+                            phase = MatchReviewPhase.FAILED,
+                            failure = update.failure,
+                        )
+                    }
+                }
+            refreshUiState()
+        }
+
+        private fun applyMatchReviewFailure(failure: MatchReviewFailure) {
+            val current = matchReviewUiState ?: return
+            matchReviewUiState =
+                current.copy(
+                    phase = MatchReviewPhase.FAILED,
+                    failure = failure,
+                )
+            refreshUiState()
+        }
+
+        private fun captureReviewableFinalState(
+            gameplaySession: GameSession,
+            stateAfter: GameState,
+        ) {
+            if (gameplaySession.sessionType == SessionType.LOCAL && stateAfter.isGameOver) {
+                reviewableFinalState = stateAfter.toSnapshotCopy()
+            }
+        }
+
+        private fun resetMatchReview() {
+            matchReviewJob?.cancel()
+            matchReviewJob = null
+            matchReviewGeneration += 1
+            reviewableFinalState = null
+            matchReviewUiState = null
+        }
+
+        private fun emptyClassificationCounts(): Map<MoveClassification, Int> =
+            MoveClassification.entries.associateWith { 0 }
+
+        private fun Int.coerceInTimeline(lastIndex: Int): Int = if (lastIndex < 0) 0 else coerceIn(0, lastIndex)
 
         private fun GameState.toPlayerUiStates(currentPlayer: Player): List<PlayerUiState> =
             players
@@ -983,12 +1174,16 @@ private const val MILLIS_PER_SECOND = 1_000L
 
 internal fun Result<Unit>.toFailureEffect(stringProvider: StringProvider): GameEffect =
     when (val error = exceptionOrNull()) {
-        is MoveRejectedException -> GameEffect.MoveRejected(error.reason)
-        else ->
+        is MoveRejectedException -> {
+            GameEffect.MoveRejected(error.reason)
+        }
+
+        else -> {
             GameEffect.ActionFailed(
                 error
                     ?.message
                     ?.takeIf { message -> message.isNotBlank() }
                     ?: stringProvider.getString(R.string.action_failed_default_reason),
             )
+        }
     }

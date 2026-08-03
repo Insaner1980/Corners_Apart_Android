@@ -31,15 +31,25 @@ object GameSoundPolicy {
     ): GameSoundEvent? {
         if (!soundEnabled) return null
         return when (effect) {
-            is GameEffect.MoveAccepted ->
+            is GameEffect.MoveAccepted -> {
                 if (effect.bonusTileClaimed) {
                     GameSoundEvent.BONUS_CLAIM
                 } else {
                     GameSoundEvent.PLACEMENT
                 }
-            GameEffect.GameOver -> GameSoundEvent.GAME_OVER
-            is GameEffect.MoveRejected -> GameSoundEvent.REJECT
-            is GameEffect.ActionFailed -> GameSoundEvent.REJECT
+            }
+
+            GameEffect.GameOver -> {
+                GameSoundEvent.GAME_OVER
+            }
+
+            is GameEffect.MoveRejected -> {
+                GameSoundEvent.REJECT
+            }
+
+            is GameEffect.ActionFailed -> {
+                GameSoundEvent.REJECT
+            }
         }
     }
 }

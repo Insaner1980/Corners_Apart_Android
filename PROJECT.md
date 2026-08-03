@@ -1,110 +1,127 @@
-# Corners Apart Android Project Reference
+<!-- generated-by: gsd-doc-writer -->
+# Corners Apart Android — Current Project Reference
 
-Last verified from the live checkout on 2026-07-03.
+Last source audit: 2026-07-28.
 
-This document is the current-state project map for `C:\Dev\Corners_Apart_Android`. It is written for precise future code review questions, implementation planning, and agent handoff. Treat the source code as the final source of truth after any future code changes.
+This document describes the live checkout at `C:\Dev\Corners_Apart_Android`. It is intended as a source-backed reference for exact code-review questions, maintenance work, and possible UI redesign planning. Repository-relative paths and concrete symbols are included where they materially narrow the implementation boundary.
 
-## Executive Summary
+A direct verification command covering ktlint, detekt, Android lint, all debug JVM tests, debug assembly, and Android-test compilation completed successfully on 2026-07-28: `.\gradlew.bat :app:ktlintMainSourceSetCheck :app:ktlintTestSourceSetCheck :app:detekt :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:compileDebugAndroidTestKotlin --no-configuration-cache --console=plain`. It reported `BUILD SUCCESSFUL in 19m 18s` with 81 actionable tasks; the generated XML records 279 passing JVM tests with no failures, errors, or skips. Targeted Compose tests were also executed on a Pixel 9 Pro API 36 emulator. No security, Sonar, release, physical-device, two-device Nearby, store, signing, or project-local wrapper command was run, so those claims remain manual or unverified where applicable.
 
-Corners Apart is a native Android polyomino strategy game written in Kotlin with Jetpack Compose, Material 3, Hilt, DataStore, kotlinx.serialization, and Google Play services Nearby as the v1 multiplayer transport direction.
+## Source-of-truth order
 
-The app package, namespace, and application id are `com.finnvek.cornersapart`. The user-facing app name is `Corners Apart`. The root Gradle project is `CornersApart`, and the only included module is `:app`.
+Use the following order when this document and another artifact disagree:
 
-The current implementation has a working pure Kotlin game engine, local sessions, a playable Compose game screen, rule-based computer opponents for Solo mode, multiple mode configurations, JSON DataStore repository scaffolding, a Nearby session/protocol abstraction, Android runtime permission handling for Nearby, polish dialogs, history/stat calculation models, unit tests, instrumented Compose tests, CI workflows, and several local static-analysis/security wrappers.
+1. Production source under `app/src/main/java/com/finnvek/cornersapart/`.
+2. Tests under `app/src/test/java/com/finnvek/cornersapart/` and `app/src/androidTest/java/com/finnvek/cornersapart/`.
+3. Gradle, manifest, resources, CI, and analyzer configuration.
+4. `AGENTS.md`, `README.md`, `PRIVACY-POLICY.md`, and this file as maintained architecture and product context.
+5. Historical specifications, reviewed plans, screenshots, and prototypes.
 
-Current non-release state: `GameViewModel` is repository-backed for settings, saved games, active profiles, history, and Nearby UI state. Local sessions are created through `LocalSessionFactory`, saved games include a settings snapshot, resume/profile/settings/history/game-over flows are wired into Compose, and Nearby has a concrete Google Play services adapter behind `NearbyConnectionsCoordinator` and `ConnectionsClientFacade`. `GameViewModel` selects `nearbySession ?: localSession` as the active `GameSession`, collects active Nearby session game-state/effect flows when `NearbyConnectionsCoordinator.currentSession` is non-null, and persists saved games/history only for local sessions. Compose exposes create/find/connect/accept/reject Nearby actions and renders discovered endpoints, pending authentication codes, status, and errors. Release-only items such as Compact Duel physical play-test coverage, two-device Nearby stress testing, visible disconnect/reconnect controls, and Play Store data-safety remain outside this non-release implementation pass.
+The project is an original Corners Apart product. Historical rule references and similarly themed commercial games are not implementation authorities and must not leak into user-facing wording, identity, or assets.
 
-## Repository Identity
+## Executive summary
 
-- Root path: `C:\Dev\Corners_Apart_Android`
-- Root project name: `CornersApart`
-- Gradle module graph: root plus `:app`
-- Namespace: `com.finnvek.cornersapart`
-- Application id: `com.finnvek.cornersapart`
-- App label: `Corners Apart`
-- Version code: `1`
-- Version name: `1.0.0`
-- Release signing environment prefix: `CORNERS_APART`
-- Primary language: Kotlin
-- UI framework: Jetpack Compose with Material 3
-- Minimum SDK: `26`
-- Compile SDK: `37`
-- Target SDK: `37`
-- Java/Kotlin JVM target: 17
-- License: MIT, copyright 2026 Finnvek
+Corners Apart is a single-module native Android polyomino strategy game written in Kotlin. The app uses Jetpack Compose and Material 3 for UI, Hilt for dependency injection, DataStore with kotlinx.serialization JSON for local persistence, pure Kotlin model/engine code for game rules, local rule-based computer opponents, and Google Play services Nearby Connections for peer-to-peer sessions.
 
-## Source-Of-Truth Order
+The current checkout implements:
 
-Use this order when answering implementation or review questions:
+- Five base modes: Solo, Two-color duel, Compact duel, Three players, and Four players.
+- A 21-piece, 89-cell catalog, placement validation, deterministic bonus layouts, scoring, ranking, pass/turn/game-over rules, and immutable publication snapshots.
+- Six computer difficulty tiers and three play styles.
+- Local play, automatic Solo opponents, fixed-seed challenge levels, a date-seeded daily challenge, and a 12-character Rivals ladder.
+- Local profiles, settings, saves, history, statistics, challenge stars, achievements, daily bests/streaks, Rivals records, and a device-wide Top 20.
+- A host-authoritative Nearby protocol and concrete Google Play services adapter.
+- A fixed dark “candy” visual system, custom splash assembly animation, responsive compact/expanded layouts, Canvas board interaction, drag/drop placement previews, dialogs, raw sound effects, haptics, and accessibility announcements.
+- JVM unit tests, two instrumented Compose test classes, build/release policy tests, GitHub Actions, dependency verification, static-analysis configuration, and repository-local wrapper entry points.
 
-1. Live source code under `app/src/main/java/com/finnvek/cornersapart/`.
-2. Tests under `app/src/test/java/` and `app/src/androidTest/java/`.
-3. Build, manifest, resource, and tool config files.
-4. `AGENTS.md`, `memory/MEMORY.md`, and this `PROJECT.md` for architecture guardrails and handoff context.
-5. Historical specs such as `corners_apart_android_spec_reviewed.md`; these explain intended v1 behavior but can be stale compared with code.
+The implementation is still not a verified release candidate. Compact Duel is explicitly marked as requiring play testing; physical multi-device Nearby behavior is not proven by this documentation pass; no navigation graph exists; release signing values are external; and several newly added challenge/Rivals/profile progression paths have less direct test coverage than the core engine and Nearby coordinator.
 
-Do not treat `blokus_standard_rules.md`, prototype docs, or external commercial game material as implementation sources. The app must remain Corners Apart with original wording, presentation, and product identity.
+## Repository and product identity
 
-## Implementation Status
+| Item | Current value | Authority |
+|---|---|---|
+| Root project | `CornersApart` | `settings.gradle.kts` |
+| Included modules | `:app` only | `settings.gradle.kts` |
+| Namespace | `com.finnvek.cornersapart` | `app/build.gradle.kts` |
+| Application ID | `com.finnvek.cornersapart` | `app/build.gradle.kts` |
+| Nearby service ID | `com.finnvek.cornersapart` | `NearbyConnectionsCoordinator.SERVICE_ID` |
+| App label | `Corners Apart` | `app/src/main/res/values/strings.xml` |
+| Version code | `1` | `app/build.gradle.kts` |
+| Version name | `1.0.0` | `app/build.gradle.kts` |
+| Minimum SDK | 26 | `app/build.gradle.kts` |
+| Compile/target SDK | 37 / 37 | `app/build.gradle.kts` |
+| Java/Kotlin target | JVM 17 | `app/build.gradle.kts` |
+| License | MIT, copyright 2026 Finnvek | `LICENSE` |
 
-Implemented now:
+Current checked-in Kotlin source inventory:
 
-- Android app identity, manifest, launcher activity, Hilt application class, and Compose entry point.
-- Pure Kotlin model layer for game state, players, board snapshots, pieces, moves, settings, profiles, history, score breakdowns, and mode configuration.
-- Pure Kotlin engine for new game creation, placement validation, move application, passing, valid move enumeration, previews, scoring, ranking, turn advancement, and game-over detection.
-- Piece catalog with 21 pieces and 89 total cells.
-- Bonus tile templates and deterministic seed-based transforms for standard and compact boards.
-- Five game modes: Solo, Two-Color Duel, Compact Duel, Three-Player, and Four-Player.
-- Rule-based local computer opponents with 3 styles and 5 difficulty levels.
-- `LocalSession` for local play and Solo computer turns.
-- Nearby protocol/session abstractions and concrete adapter: `GameMessage`, `GameProtocol`, `HostGameCoordinator`, `NearbySession`, `NearbyTransport`, `NearbyConnectionsCoordinator`, `ConnectionsClientFacade`, `PlayServicesConnectionsClientFacade`, lobby reconnect state, endpoint-owner authorization, and host-authoritative validation. This layer is implemented and unit-tested; when `NearbyConnectionsCoordinator.currentSession` is non-null, `GameViewModel` uses that session as the active board-session owner.
-- Nearby runtime permission policy and manifest permission declarations for current target SDK bands.
-- JSON DataStore repository layer for saved game, profiles, and settings.
-- Compose game UI with board, score bar, mode chips, piece strip, selected-piece preview, rotate/flip/pass controls, resume/profile/settings/help/history dialogs, game-over dialog, haptics, local sound cues, and accessibility announcements.
-- Repository-backed `GameViewModel` flow for settings, save/resume, active profile history, ranked game-over state, and Nearby state.
-- Settings dialog for difficulty, preferred mode, sound, and haptics.
-- Profile dialog for local profile selection, creation, and editing with local avatar styles.
-- Saved-game resume dialog backed by `SavedGameData` settings snapshots.
-- Game-over and history entries use `Scoring.rankPlayers` so Two-Color Duel owner aggregation is preserved.
-- Centralized theme tokens for colors, spacing, shapes, typography, alpha, and animation durations.
-- Unit and instrumented tests across model, engine, opponents, multiplayer, data, ViewModel, UI policy, UI screen smoke, theme, and release identity.
-- GitHub Actions build/test/lint workflow, SonarCloud workflow, CodeQL workflow for Actions, Dependabot config, Gradle dependency verification metadata, ktlint, detekt config, Compose Stability Analyzer dumps, Android security lint checks, Semgrep config, DeepSec config, MobSF config, OSV config, Dependency-Check config, and Android-check wrapper scripts.
+- 111 production `.kt` files under `app/src/main/java`.
+- 70 JVM test `.kt` files under `app/src/test/java`.
+- Two instrumented-test `.kt` files under `app/src/androidTest/java`.
 
-Remaining or release-only:
+These counts are a snapshot, not an architectural limit.
 
-- No Navigation Compose dependency is currently declared; the app remains a single `MainActivity`/`GameRoute` surface until a navigation graph is added.
-- `GameLayoutPolicy` and `GameSoundPolicy` are wired for responsive layout selection and local event sound policy, but additional visual animation polish can still be expanded.
-- Physical two-device Nearby stress testing remains a manual/release verification item.
-- Compact Duel still needs manual play-test coverage before release claims.
-- `PRIVACY-POLICY.md` documents local profile/save/settings/history storage, peer-to-peer Nearby player/session exchange, the absence of developer-controlled data servers and analytics, a support mechanism, and its last update date.
+## Implemented, deferred, and unverified state
 
-## Build System
+### Implemented in source
 
-Gradle files:
+- Android launcher, Hilt application, Compose activity, system splash theme, and custom four-piece launch overlay.
+- Pure domain/engine pipeline with no Android, Compose, DataStore, Hilt, Play Services, wall-clock, locale, transport, opponent, or app-layer dependency reachable from `engine/`; the intended restriction is checked by `EngineDependencyBoundaryTest`.
+- Local and Nearby `GameSession` implementations.
+- Repository-backed `GameViewModel` with local save/history behavior and active Nearby session delegation.
+- Candy-styled game UI, settings/profile/help/history/game-over dialogs, challenges, daily streak UI, Rivals gallery/intro/results, achievements, and Top 20.
+- Source-set security settings that disable backup, device transfer, and cleartext traffic.
+- Dependency and build-tool policy configuration described later in this document.
 
-- `settings.gradle.kts`: configures plugin repositories, dependency repositories, root project name, and includes `:app`.
-- `build.gradle.kts`: root plugin aliases, ktlint root config, Sonar root config, and root `sonar` task dependency wiring.
-- `app/build.gradle.kts`: Android app module config, build types, signing gate, lint, Kotlin compiler options, Hilt, ktlint, detekt, Dependency-Check, JaCoCo, and dependencies.
-- `gradle/libs.versions.toml`: central dependency and plugin version catalog.
-- `gradle/wrapper/gradle-wrapper.properties`: Gradle wrapper distribution.
-- `gradle.properties`: Gradle, Android, and Kotlin build properties.
+### Explicitly deferred or not part of v1
 
-Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
+- Room; persistence is JSON DataStore.
+- Raw Bluetooth, Wi-Fi Direct, Wi-Fi Aware, sockets, or other transport fallbacks; Nearby Connections is the v1 transport boundary.
+- Remote avatar/image services.
+- Navigation Compose and a multi-screen navigation graph.
+- App-owned analytics, ads, crash reporting, and developer-controlled game/profile servers. Google Play services Nearby SDK behavior is a separate third-party platform boundary described under Security and privacy.
+- User-facing “AI” claims; opponents are deterministic/rule-based local code.
 
-| Item | Version |
+### Manual or unverified in this audit
+
+- Fresh forced test execution, test pass counts from a newly generated report, lint/detekt/stability/Sonar/security results, and coverage percentages. The direct up-to-date unit-test gate is recorded above and in the Tests section.
+- Connected/emulator Compose behavior and screenshot fidelity.
+- Physical two-device or multi-client Nearby advertising, discovery, authentication, ownership, disconnect, timeout, and reconnection.
+- Compact Duel balance/usability; `GameModeConfig.requiresPlayTesting` is `true`.
+- Release keystore availability, signed APK/AAB production, shrinker behavior, store upload, Play data-safety declarations, and production distribution.
+- External Android-check wrapper behavior beyond the thin repository scripts, because most wrappers delegate to `C:\Dev\Android-check\tools\InvokeProjectCheck.ps1`.
+
+## Build system and toolchain
+
+### Gradle layout
+
+- `settings.gradle.kts` declares `CornersApart`, includes `:app`, configures the Foojay toolchain resolver, filters plugin repositories, and enforces `RepositoriesMode.FAIL_ON_PROJECT_REPOS`.
+- Root `build.gradle.kts` owns root plugin aliases, forced build-tool security overrides, ktlint filtering, Sonar property bridging, and the root `sonar` task dependency on `:app:assembleDebug` and `:app:jacocoDebugUnitTestReport`.
+- `app/build.gradle.kts` owns Android configuration, signing, lint, Kotlin/JVM targets, Hilt/KSP, serialization, Compose, stability validation, detekt, JaCoCo, conditional OWASP configuration, and dependencies.
+- `gradle/libs.versions.toml` is the central version catalog.
+- `gradle/wrapper/gradle-wrapper.properties` pins and checksums the Gradle distribution.
+- `gradle.properties` enables configuration/build cache, limits workers, sets Android/R8 behavior, and centralizes forced build-tool dependency versions.
+
+AGP 9 built-in Kotlin is the project baseline. The app does not apply `org.jetbrains.kotlin.android`, `kotlin-android`, or kapt. Kotlin serialization and Compose compiler plugins remain explicit, and KSP is used for Hilt code generation.
+
+### Current version pins
+
+| Component | Version |
 |---|---:|
 | Gradle wrapper | 9.6.1 |
 | Android Gradle Plugin | 9.3.1 |
 | Kotlin | 2.4.20-Beta1 |
 | KSP | 2.3.10 |
 | Hilt | 2.60.1 |
-| AndroidX Hilt Lifecycle ViewModel Compose | 1.4.0 |
+| AndroidX Hilt lifecycle/ViewModel Compose | 1.4.0 |
 | Compose BOM | 2026.06.01 |
 | Compose Stability Analyzer | 0.10.0 |
+| Android security lint checks | 1.0.4 |
 | Lifecycle | 2.11.0 |
 | Coroutines | 1.11.0 |
 | DataStore | 1.2.1 |
-| Core KTX | 1.19.0 |
+| AndroidX Core KTX | 1.19.0 |
+| Core SplashScreen | 1.2.0 |
 | Activity Compose | 1.13.0 |
 | kotlinx.serialization | 1.11.0 |
 | Play Services Nearby | 19.3.0 |
@@ -112,1320 +129,1344 @@ Current toolchain versions from `gradle/libs.versions.toml` and wrapper config:
 | ktlint Gradle plugin | 14.2.0 |
 | detekt | 2.0.0-alpha.5 |
 | detekt Compose rules | 0.6.2 |
-| Android Security Lints | 1.0.4 |
 | OWASP Dependency-Check | 12.2.2 |
 | SonarQube Gradle plugin | 7.3.1.8318 |
 | JUnit | 4.13.2 |
-| MockK | 1.13.16 |
-| AndroidX Test JUnit | 1.3.0 |
-| AndroidX Test Runner | 1.7.0 |
+| MockK | 1.14.11 |
+| AndroidX Test JUnit / Runner / Espresso | 1.3.0 / 1.7.0 / 3.7.0 |
 
-AGP 9 built-in Kotlin is used for the app module. Do not add `org.jetbrains.kotlin.android`, `kotlin-android`, kapt, or `android.builtInKotlin=false` unless the project intentionally reverses that architecture decision and updates the release guardrails. The app module applies the Android application plugin, Compose compiler plugin, Kotlin serialization plugin, Compose Stability Analyzer plugin, KSP, Hilt, ktlint, detekt, and JaCoCo. The OWASP Dependency-Check plugin alias is declared with `apply false`; the app module applies `org.owasp.dependencycheck` only when Gradle is not running with configuration cache requested. Android security lint checks are added through the `lintChecks(libs.android.security.lints)` dependency.
+Version comments for Billing, Glance, CameraX, ML Kit, and Sentry in `gradle/libs.versions.toml` are dormant comments, not active dependencies.
 
-Gradle repository policy:
+### Current official platform cross-checks
 
-- Plugin resolution uses `google`, `mavenCentral`, and `gradlePluginPortal` with content filters: Android and AndroidX plugins come from `google`, ktlint/detekt/Foojay/OWASP/Sonar plugins come from `gradlePluginPortal`, and those plugin groups/modules are excluded from `mavenCentral`.
-- Dependency resolution uses `google` and `mavenCentral`.
-- `repositoriesMode` is `FAIL_ON_PROJECT_REPOS`.
-- Repository guard tests reject project/buildSrc/convention build-script repository blocks, included builds without explicit repository-policy coverage, and committed Gradle init scripts.
+These links are external compatibility and redesign references, not substitutes for the checked-in source:
 
-Gradle properties:
+- [AGP 9.3 release notes](https://developer.android.com/build/releases/agp-9-3-0-release-notes) list API 37 as the maximum supported API level and JDK 17 as the required JDK; the project uses AGP 9.3.1, compile/target SDK 37, and JVM 17.
+- [AGP 9 built-in Kotlin migration guidance](https://developer.android.com/build/releases/agp-9-0-0-release-notes#built-in-kotlin) matches the project’s intentional omission of `org.jetbrains.kotlin.android`.
+- [Android architecture recommendations](https://developer.android.com/topic/architecture/recommendations) support the project’s unidirectional state, ViewModel, `StateFlow`, and lifecycle-aware collection direction.
+- [Compose accessibility guidance](https://developer.android.com/develop/ui/compose/accessibility) is the review baseline for semantics, custom gesture alternatives, touch targets, and future board accessibility work.
+- [Nearby Android setup guidance](https://developers.google.com/nearby/connections/android/get-started) is the current permission-declaration baseline used to identify the SDK 31 coarse-location review item below.
+- [Nearby connection management guidance](https://developers.google.com/nearby/connections/android/manage-connections) is the review baseline for mutual acceptance and authentication-token confirmation.
+- [Nearby Connections overview](https://developers.google.com/nearby/connections/overview) documents SDK-level usage analytics collection, including performance metrics and device information, which must be considered separately from app-owned analytics code.
+- [Android local-network permission guidance](https://developer.android.com/privacy-and-security/local-network-permission) is the review baseline for the SDK 37 `ACCESS_LOCAL_NETWORK` declaration and runtime request.
 
-- Configuration cache is enabled.
-- Build cache is enabled.
-- Parallel Gradle execution is disabled.
-- Worker max is `2`.
-- AndroidX is enabled.
-- Kotlin code style is official.
-- Android non-transitive R classes are enabled.
-- R8 full mode is enabled.
-- Kotlin compiler execution strategy is not overridden in `gradle.properties`; the Kotlin Gradle plugin default daemon strategy is used.
+### Direct runtime dependency responsibilities
 
-## Build Types And Signing
+- Compose UI/graphics/foundation/Material 3: rendering and interaction.
+- Lifecycle runtime/Compose/ViewModel Compose: lifecycle-aware collection and ViewModel integration.
+- Hilt and AndroidX Hilt ViewModel Compose: injection.
+- Coroutines core/Android: flows, serialization, delays, and background opponent work.
+- DataStore core: JSON-backed persistent state.
+- kotlinx.serialization core/JSON: persistence and Nearby protocol encoding.
+- Core KTX and SplashScreen: Android helpers and launch splash.
+- Activity Compose: Compose activity integration.
+- Play Services Nearby: advertising, discovery, connections, and BYTES payloads.
 
-Debug:
+There is no direct Navigation Compose, Material 2, DataStore Preferences, Room, Coil, DiceBear, Firebase, analytics, ads, or crash-reporting dependency.
 
-- No debug-specific build config fields are currently defined.
+### Gradle behavior
 
-Release:
+`gradle.properties` currently sets:
 
-- `isDebuggable = false`
-- `isMinifyEnabled = true`
-- `isShrinkResources = true`
-- Uses default optimized Android ProGuard file plus `app/proguard-rules.pro`.
-- Uses release signing config only when all required env vars are present.
+- `org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8`
+- configuration cache and build cache enabled
+- parallel execution disabled
+- maximum two workers
+- AndroidX and non-transitive R classes enabled
+- official Kotlin style
+- R8 full mode enabled
 
-Release signing env vars:
+`buildToolSecurityOverrides` forces Jackson Core 2.21.5, Bouncy Castle 1.84 artifacts, jose4j 0.9.6, and JDOM 2.0.6.1 across build configurations. These are build-tool dependency controls, not a declaration that those artifacts ship in the app runtime.
+
+### Build types and signing
+
+Debug has no custom `BuildConfig` fields.
+
+Release is non-debuggable, enables code minification and resource shrinking, and uses the Android Gradle Plugin default optimized ProGuard template (requested through `getDefaultProguardFile`) plus `app/proguard-rules.pro`. The default template is supplied by the Android toolchain, not stored at the repository root. The project rules retain Hilt-related classes.
+
+Release signing requires all four variables:
 
 - `CORNERS_APART_KEYSTORE_PATH`
 - `CORNERS_APART_KEYSTORE_PASSWORD`
 - `CORNERS_APART_KEY_ALIAS`
 - `CORNERS_APART_KEY_PASSWORD`
 
-The Gradle task graph rejects release artifact tasks if these signing env vars are missing. The current matcher checks task names, not paths: it explicitly covers `assembleRelease`, `bundleRelease`, `packageRelease`, `packageReleaseBundle`, `signReleaseBundle`, and `packageReleaseUniversalApk`, plus names ending in `Release` and starting with `assemble`, `bundle`, `package`, or `publish`. The guard intentionally allows release verification tasks such as `compileReleaseKotlin`, `detektRelease`, and `lintRelease` without signing env vars. Unit tests also dry-run real artifact task graphs including `:app:makeApkFromBundleForRelease`, `:app:zipApksForRelease`, and a configuration-cache env-change scenario.
+The task-graph guard fails artifact-producing release tasks when the complete set is unavailable. It deliberately permits release verification tasks that do not produce an artifact. Actual signing values and signed artifact generation are external and unverified here.
 
-## Main Commands
+### Common direct commands
 
-Project commands from `AGENTS.md` and build files:
+Use the Windows wrapper in this checkout:
 
-- `.\gradlew.bat assembleDebug`: debug build.
-- `.\gradlew.bat test`: unit tests.
-- `.\gradlew.bat :app:detekt`: detekt static analysis.
-- `.\gradlew.bat lint`: Android lint.
-- `.\gradlew.bat :app:jacocoDebugUnitTestReport`: JaCoCo XML and HTML unit-test coverage report for debug.
-- `.\gradlew.bat :app:dependencyCheckAnalyze --no-configuration-cache --console=plain`: OWASP Dependency-Check. A normal configuration-cache request registers a lightweight fallback task that fails with guidance instead of applying the incompatible OWASP task.
-- `.\gradlew.bat sonar`: Gradle Sonar analysis task; root task depends on `:app:assembleDebug` and `:app:jacocoDebugUnitTestReport`.
+```powershell
+.\gradlew.bat assembleDebug
+.\gradlew.bat test
+.\gradlew.bat :app:detekt
+.\gradlew.bat lint
+.\gradlew.bat :app:jacocoDebugUnitTestReport
+.\gradlew.bat sonar
+.\gradlew.bat :app:dependencyCheckAnalyze --no-configuration-cache --console=plain
+```
 
-User-owned wrappers:
+When configuration cache is active, `app/build.gradle.kts` registers a guidance-only `dependencyCheckAnalyze` task instead of applying the incompatible OWASP task. The real scan therefore requires `--no-configuration-cache`.
 
-- `lint-check` / `lc`: ktlint, detekt, Android lint, reports under `reports/`.
-- `security-check` / `sc`: Semgrep and OWASP Dependency-Check, reports under `reports/`.
+Project instructions reserve `lc`/`tools/lc.ps1` and `sc`/`tools/sc.ps1` for the user. Do not run those wrappers autonomously.
 
-Do not run `lc` or `sc` yourself. The user runs them when wanted. If asked to read lint results, read `reports/ktlint.txt`, `reports/detekt.txt`, and `reports/lint.txt`. If asked to read security results, read `reports/security-code.txt` and `reports/security-deps.txt`.
+## Runtime manifest and application entry
 
-## Android Manifest And Runtime Boundaries
+### Manifest security and components
 
-Manifest path: `app/src/main/AndroidManifest.xml`.
-
-Declared permissions:
-
-- `ACCESS_WIFI_STATE`, max SDK 31.
-- `CHANGE_WIFI_STATE`, max SDK 31.
-- `BLUETOOTH`, max SDK 30.
-- `BLUETOOTH_ADMIN`, max SDK 30.
-- `ACCESS_COARSE_LOCATION`.
-- `ACCESS_FINE_LOCATION`, min SDK 29 and max SDK 31.
-- `BLUETOOTH_ADVERTISE`, min SDK 31.
-- `BLUETOOTH_CONNECT`, min SDK 31.
-- `BLUETOOTH_SCAN`, min SDK 31, `neverForLocation`.
-- `NEARBY_WIFI_DEVICES`, min SDK 32, `neverForLocation`.
-
-Application flags:
+`app/src/main/AndroidManifest.xml` configures:
 
 - `android:name=".App"`
 - `android:allowBackup="false"`
-- `android:dataExtractionRules="@xml/data_extraction_rules"`
 - `android:fullBackupContent="false"`
+- `android:dataExtractionRules="@xml/data_extraction_rules"`
 - `android:usesCleartextTraffic="false"`
-- `android:icon="@mipmap/ic_launcher"`
-- `android:label="@string/app_name"`
 - `android:supportsRtl="true"`
-- Theme: platform Material Light NoActionBar.
+- launcher icon `@mipmap/ic_launcher`
+- label `@string/app_name`
+- base theme `@style/Theme.CornersApart`
+
+`app/src/main/res/xml/data_extraction_rules.xml` excludes the root data domain from both cloud backup and device transfer.
+
+`MainActivity` is the exported launcher component. The main manifest also contains `tools:node="remove"` directives for an unwanted Play Services exposure-notification wake-up service and Profile Installer receiver. Those are manifest-merger removal instructions, not app-owned runtime services.
+
+`ManifestSecurityPolicyTest.releaseManifestExportsOnlyMainActivity` checks the packaged release manifest, but that assertion depends on `processReleaseManifestForPackage` output and was not executed in this audit.
+
+The debug manifest repeats backup/cleartext restrictions and adds only non-exported `ComposeTestActivity`.
+
+### Declared Nearby permissions
+
+The main manifest declares:
+
+- `ACCESS_WIFI_STATE` and `CHANGE_WIFI_STATE`, maximum SDK 31.
+- Legacy `BLUETOOTH` and `BLUETOOTH_ADMIN`, maximum SDK 30.
+- `ACCESS_COARSE_LOCATION`, maximum SDK 31.
+- `ACCESS_FINE_LOCATION`, SDK 29–31.
+- `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT`, and `BLUETOOTH_SCAN` from SDK 31; scan is marked `neverForLocation`.
+- `NEARBY_WIFI_DEVICES` from SDK 32, marked `neverForLocation`.
+- `ACCESS_LOCAL_NETWORK` from SDK 37.
+
+No `INTERNET` permission is declared.
+
+`NearbyPermissions.requiredRuntimePermissions()` maps runtime requests as follows:
+
+| Device SDK | Requested at runtime |
+|---|---|
+| 26–28 | coarse location |
+| 29–30 | fine location |
+| 31 | coarse + fine location + advertise/connect/scan |
+| 32–36 | advertise/connect/scan + nearby Wi-Fi devices |
+| 37+ | advertise/connect/scan + nearby Wi-Fi devices + local network |
+
+`GameRoute` requests all missing permissions in one `RequestMultiplePermissions` launch before host/discover actions. It proceeds only if every returned value is granted. The current callback does not surface a denial explanation or settings deep link.
+
+The current Google Nearby “Get started” sample declares coarse location only through SDK 28 and fine location for SDK 29–31. This project additionally declares and requests coarse location on SDK 31. The table above describes the code exactly; the extra SDK 31 coarse request should be revalidated on real Android 12 devices and against the Play Services version in use rather than treated as an assumed requirement.
+
+### Startup flow
+
+```text
+Android launcher
+  -> Theme.CornersApart.Starting
+  -> MainActivity.installSplashScreen()
+  -> @HiltAndroidApp App
+  -> @AndroidEntryPoint MainActivity
+  -> enableEdgeToEdge(dark transparent system bars)
+  -> CornersApartTheme
+  -> CornersApartLaunch custom overlay
+  -> Surface(fillMaxSize)
+  -> GameRoute(hiltViewModel<GameViewModel>())
+  -> GameScreenContent
+```
+
+`CornersApartLaunch` in `app/src/main/java/com/finnvek/cornersapart/ui/components/CornersApartLaunch.kt` composes the app behind a custom overlay, assembles four packaged WebP pieces over a 720 ms timeline, performs a short settle/hold/fade, blocks pointer input, and clears overlay semantics. Visibility is stored with `rememberSaveable`, so it is a composition/activity launch experience rather than a ViewModel-owned state machine.
+
+The platform starting theme uses a static placeholder drawable; the four-piece animation is Compose-owned after activity content starts.
+
+## Architecture and package boundaries
+
+### High-level component flow
+
+```text
+Android resources / MainActivity
+              |
+              v
+Compose GameRoute / GameScreenContent
+        |             |
+        v             v
+ MatchReview UI   GameViewModel
+        ^          /  |  |  \
+        |         v   v  v   v
+   review analyzer LocalSession Data repositories NearbyConnectionsCoordinator
+        |             |       |                 |
+        v             v       v                 v
+ GameEngine/MoveEvaluator GameEngine DataStore NearbySession -> ConnectionsClientFacade
+        |             |        JSON          |                 |
+        v             v                      v                 v
+      model         model                GameProtocol   Play Services Nearby
+                      ^
+                      |
+              opponents -> GameEngine
+```
+
+### Package responsibilities
+
+| Package/path | Responsibility and important symbols |
+|---|---|
+| root package | `App`, `MainActivity` |
+| `model/` | Serializable domain/save/profile/settings/history state; `GameConstants`, `GameModeConfigs`, `PieceCatalog`, `PieceTransforms`, `BoardSnapshot`, progression calculators |
+| `engine/` | Pure rules; `GameEngine`, internal `PlacementValidator`, `CornerCache`, `BonusTileGenerator`, `Scoring`, typed move results |
+| `opponents/` | Move generation/evaluation and named Rivals; `ComputerOpponentEngine`, `MoveGenerator`, `MoveEvaluator`, `OpponentDifficulty`, `OpponentRoster` |
+| `review/` | Pure transient match reconstruction and deterministic owner 0 coaching; `GameReplayer`, `MatchReviewAnalyzer`, `ReviewScoring` |
+| `multiplayer/` | `GameSession`, `LocalSession`, Nearby protocol/session/coordinator, permissions, facade, Play Services adapter |
+| `data/` | JSON DataStore setup, repositories, Hilt runtime/persistence modules |
+| `runtime/` | Android-facing abstractions shared across layers: `TimeProvider`, `SystemTimeProvider`, `StringProvider` |
+| `viewmodel/` | `GameViewModel`, `GameUiState`, transient `MatchReviewUiState`, `GameEffect`, profile display mapping |
+| `ui/screens/` | Route, playable/review boards, layouts, match-review and other dialogs, challenge/Rivals/Top 20 surfaces, sound policy/player |
+| `ui/components/` | Shared board drawing, candy controls/dialog/status chip, piece drawing, avatars, streak/confetti/launch visuals |
+| `ui/theme/` | Fixed color system, spacing/breakpoints/alpha, shapes, typography, player palette |
+| `ui/util/` | Catalog-piece to localized resource mapping |
 
-Components:
+These are package boundaries inside one Gradle module. `PackageDependencyBoundaryTest` scans imports for cycles and explicitly forbids `model -> engine`, `data -> viewmodel`, and `multiplayer -> ui`. It also restricts serialization declarations to `model` or the multiplayer protocol boundary.
 
-- `MainActivity` is exported and is the launcher activity.
-- No services, receivers, providers, or other exported components are currently declared.
+`GameRuntimeModule` is intentionally cross-cutting: it lives under `data/` but provides engine/opponent/review/runtime services and the Play Services facade/coordinator. The `data -> review` import is DI wiring only; `review/` does not depend on `data`, ViewModels, UI, Android, or DataStore. A future Gradle module split must either relocate or divide this DI module.
 
-Backup and device-transfer policy:
+### Dependency and ownership invariants
 
-- `app/src/main/res/xml/data_extraction_rules.xml` excludes root path `.` from cloud backup.
-- The same file excludes root path `.` from device transfer.
+- `model` must not depend on `engine`.
+- `engine` is the single source for placement, scoring, ranking, bonus, pass, turn, and end-game rules.
+- UI, sessions, repositories, and opponents must not reimplement engine rules.
+- UI/ViewModels do not access DataStore directly.
+- Match review is memory-only and available only for the just-finished local state captured by `GameViewModel`; starting/restoring another game or entering Nearby cancels it and invalidates stale analyzer emissions.
+- `GameReplayer` uses public engine APIs and requires exact final-state equality. Because `moveHistory` stores placements but not passes, it reconstructs voluntary passes between recorded moves and the final manual passes after the last recorded move; automatically skipped immobile players do not create timeline steps.
+- `MatchReviewAnalyzer` evaluates all valid candidates with a per-call `MoveEvaluator`, fixed MASTER/BLOCKER parameters, deterministic tie-breaking, and an injected background dispatcher. It never calls the randomized/private 2-ply opponent action path.
+- ViewModels do not call Android resources directly; `StringProvider` supplies the small non-Compose resource boundary.
+- Play Services types stay in `PlayServicesConnectionsClientFacade`; coordinator/session/UI use project-owned interfaces and state types.
+- Generic `GameSession` does not expose `replaceState`; restore is concrete local/host-only behavior.
+- Serializable domain types live under `model/`; `GameMessage`, protocol payload types, and `SessionPlayer` are the multiplayer exception.
 
-## Application Entry
+## Domain model
 
-`App.kt`:
+### Core constants
 
-- Declares `class App : Application()`.
-- Annotated with `@HiltAndroidApp`.
+`app/src/main/java/com/finnvek/cornersapart/model/GameConstants.kt` is the current shared source for:
 
-`MainActivity.kt`:
+| Constant | Value |
+|---|---:|
+| Standard board | 20 × 20 |
+| Compact board | 14 × 14 |
+| Standard / compact bonus count | 10 / 6 |
+| Placed cell points | 1 |
+| Bonus tile points | 3 |
+| Completion bonus | 10 |
+| Maximum profile history entries | 50 |
+| Difficulty levels | 6 |
+| Opponent delay | 300 ms minimum + random 0–400 ms |
 
-- Extends `ComponentActivity`.
-- Annotated with `@AndroidEntryPoint`.
-- Calls `enableEdgeToEdge()`.
-- Sets Compose content to `CornersApartTheme`, `Surface(fillMaxSize())`, and `GameRoute`.
-- Nearby runtime permission launcher lives in `GameRoute`, not in `MainActivity`.
+Player/color labels are `Pink`, `Mango`, `Cyan`, and `Lime`. Timing values for UI notices, animations, Nearby reconnect, and drag previews are owned by their respective UI/coordinator files rather than `GameConstants`.
 
-## Package Structure
+### Board representation and snapshot semantics
 
-Current source package root: `app/src/main/java/com/finnvek/cornersapart/`.
+- `BoardView` defines `size`, `cellAt`, bounds checks, row/column to flat index mapping, and read helpers.
+- `BoardSnapshot` stores a flat `List<Int>` of exactly `size * size`; `EMPTY` is `-1`.
+- `MutableBoard` owns the engine mutation buffer and converts back to `BoardSnapshot`.
+- Board cells contain player-slot indexes, not owner indexes or color indexes.
+- `GameState.hasValidIndexDomains()` verifies contiguous player indexes, a valid current player, owner ranges, non-negative color indexes, board cell player indexes, bonus claim indexes, and move-history player indexes.
+- `StateSnapshots.kt` produces unmodifiable copies for board/player/game/history/profile/save publication boundaries.
 
-Main package areas:
+The new progression collections in `Profile` (`challengeStars`, `achievements`, `dailyBestScores`, `rivalWins`, and `rivalLosses`) are not explicitly copied in `Profile.toSnapshotCopy()`; only history is copied there. The properties are typed as read-only Kotlin collections, but a future immutability review should decide whether the snapshot helper should defensively copy every collection.
 
-- `model/`: serializable domain data, save/profile/settings/history models, game constants, game modes, piece catalog, board state, score models, and piece transforms.
-- `engine/`: pure rules, validation, scoring, ranking, bonus layout generation, candidate corner logic, and move result types.
-- `opponents/`: local rule-based computer opponent move generation, evaluation, difficulty parameters, styles, and action selection.
-- `multiplayer/`: local and Nearby session boundaries, protocol messages, host coordinator, lobby/reconnect state, runtime permission policy, and transport abstraction.
-- `data/`: JSON DataStore serializers, state-store wrapper, repository classes, and Hilt persistence/runtime modules.
-- `viewmodel/`: `GameViewModel`, `GameUiState`, UI player/piece models, and one-shot effects.
-- `runtime/`: runtime-only app services shared across layers, currently `TimeProvider`, `SystemTimeProvider`, and `StringProvider`.
-- `ui/screens/`: game route, game screen content, board rendering, score bar, dialogs, history/stats, layout policy, and local sound policy.
-- `ui/components/`: piece drawing helpers.
-- `ui/theme/`: colors, spacing, animation tokens, alpha tokens, typography, shapes, player palette, and Material theme.
+### Pieces and transforms
 
-Current source counts:
+`PieceCatalog` is the only piece-geometry registry. It contains:
 
-- Main Kotlin source files: 84
-- Unit-test Kotlin source files: 53
-- Instrumented-test Kotlin source files: 1
+- one monomino
+- one domino
+- two trominoes
+- five tetrominoes
+- twelve pentominoes
+- 21 stable IDs and 89 total occupied cells
 
-Package dependency note:
+`PieceTransforms` supports clockwise/counterclockwise rotation, horizontal flip, normalization to `(0,0)`, sorted offsets, cached unique orientations, and lookup by orientation index. Tests guard catalog count, total cells, unique normalized orientations, and a maximum of eight orientations.
 
-- These package areas are descriptive boundaries inside the single `:app` Gradle module, not separately enforced Gradle modules.
-- `model -> engine` package references are not allowed and are guarded by `PackageDependencyBoundaryTest`; `ScoreBreakdown.plus(ScoreDelta)` currently lives as an engine-private helper, so the current source graph keeps `engine -> model` one-way for scoring/rules code.
-- `GameRuntimeModule` currently lives in `data/` and provides runtime services from `runtime/` plus Play Services facade wiring from `multiplayer/`, so a future module split must account for the DI module's cross-package provider role.
+UI names are mapped in `app/src/main/java/com/finnvek/cornersapart/ui/util/PieceNameResources.kt`; IDs and localized display labels are intentionally separate.
 
-## Domain Constants
+### Serializable game roots
 
-`GameConstants` centralizes shared v1 constants:
+`GameState` contains:
 
-- Standard board size: 20.
-- Compact board size: 14.
-- Player count: 4.
-- Piece count: 21.
-- Total piece cells: 89.
-- Standard bonus tile count: 10.
-- Compact bonus tile count: 6.
-- Bonus tile points: 3.
-- Placed cell points: 1.
-- Completion bonus points: 10.
-- Max history entries: 50.
-- Difficulty levels: 5.
-- Board interaction lock: 160 ms.
-- Invalid feedback cooldown: 180 ms.
-- Opponent turn delay min/range: 300 ms plus 400 ms range.
-- Turn advance delay: 400 ms.
-- Human auto-pass delay: 1500 ms.
-- Save notification duration: 2000 ms.
-- Reconnect timeout: 60000 ms.
-- Background timeout: 300000 ms.
-- Max avatar dimension: 160.
-- Max avatar file size: 5 MiB.
-- Player names and color labels: Indigo, Amber, Coral, Teal.
-
-The standard constants also include historical corner lists, but current game-mode corner ownership is generated by `GameModeConfigs`.
-
-## Game Modes
-
-`GameMode` values:
-
-- `SOLO`
-- `TWO_COLOR_DUEL`
-- `COMPACT_DUEL`
-- `THREE_PLAYER`
-- `FOUR_PLAYER`
-
-`Ruleset` currently has only `STANDARD`.
-
-`GameModeConfigs` is the single source of truth for mode defaults:
-
-| Mode | Board | Bonuses | Slots | Owners | Computer slots | Starts | Notes |
-|---|---:|---:|---:|---|---|---|---|
-| `SOLO` | 20 | 10 | 4 | 0, 1, 2, 3 | 1, 2, 3 | slot 0 bottom-right; slot 1 top-left; slot 2 top-right; slot 3 bottom-left | Human is slot 0. Solo auto-runs computer turns in `LocalSession`. |
-| `TWO_COLOR_DUEL` | 20 | 10 | 4 | 0, 1, 0, 1 | none | standard four corners | Turn order remains color slots 0-3; rankings aggregate by owner in engine scoring. |
-| `COMPACT_DUEL` | 14 | 6 | 2 | 0, 1 | none | top-left and bottom-right | `requiresPlayTesting = true`. |
-| `THREE_PLAYER` | 20 | 10 | 3 | 0, 1, 2 | none | top-left, top-right, bottom-right | Uses the first three standard slots. |
-| `FOUR_PLAYER` | 20 | 10 | 4 | 0, 1, 2, 3 | none | top-left, top-right, bottom-right, bottom-left | Default mode. |
-
-Standard slot names and colors follow index order:
-
-- 0: Indigo.
-- 1: Amber.
-- 2: Coral.
-- 3: Teal.
-
-## Board Model
-
-`BoardSnapshot` is the immutable serializable board shape:
-
-- `size: Int`.
-- `cells: List<Int>`.
-- `cells.size` must equal `size * size`.
-- `size` must be positive.
-- Empty cells use `BoardSnapshot.EMPTY`, value `-1`.
-- Occupied cells store player index values.
-- Indexing is flat row-major: `row * size + col`.
-
-`MutableBoard` is an engine-side mutable buffer:
-
-- Holds `IntArray`.
-- Can be created from `BoardSnapshot`.
-- Implements content equality and content hash code.
-- Converts back to `BoardSnapshot`.
-
-`CellPosition` is a serializable row/column coordinate.
-
-`CellOffset` is a serializable row/column shape offset.
-
-## Piece Catalog
-
-`PieceCatalog` is the single source of truth for stable piece ids and geometry. It contains 21 pieces and 89 total cells. Localized display names are resolved only at the UI boundary through `ui.util.PieceNameResources`.
-
-Piece ids, English resource values, and cell counts:
-
-| Id | Name | Cells |
-|---|---|---:|
-| `one-dot` | One Dot | 1 |
-| `two-bar` | Two Bar | 2 |
-| `three-bar` | Three Bar | 3 |
-| `three-corner` | Three Corner | 3 |
-| `four-bar` | Four Bar | 4 |
-| `four-block` | Four Block | 4 |
-| `four-tee` | Four Tee | 4 |
-| `four-corner` | Four Corner | 4 |
-| `four-step` | Four Step | 4 |
-| `five-bar` | Five Bar | 5 |
-| `five-block-tail` | Five Block Tail | 5 |
-| `five-tee` | Five Tee | 5 |
-| `five-cross` | Five Cross | 5 |
-| `five-long-corner` | Five Long Corner | 5 |
-| `five-shift` | Five Shift | 5 |
-| `five-stair` | Five Stair | 5 |
-| `five-cup` | Five Cup | 5 |
-| `five-wide-corner` | Five Wide Corner | 5 |
-| `five-hook` | Five Hook | 5 |
-| `five-zag` | Five Zag | 5 |
-| `five-offset` | Five Offset | 5 |
-
-Important ids:
-
-- `SINGLE_CELL_ID = "one-dot"`
-- `TWO_LINE_ID = "two-bar"`
-- `THREE_BEND_ID = "three-corner"`
-
-`PieceTransforms` owns piece transforms:
-
-- Max orientation count: 8.
-- `rotateCW`.
-- `rotateCCW`.
-- `flipH`.
-- `normalize`.
-- `getAllOrientations`.
-- `getOrientation`.
-- Orientation lists are cached by piece id in a `ConcurrentHashMap`.
-- Orientations are built from four rotations of the original cells plus four rotations of a horizontal flip, then normalized and deduplicated.
-
-## Game State Model
-
-`GameState` is serializable and contains:
-
-- `board`.
-- `players`.
-- `currentPlayerIndex`.
-- `turnNumber`.
-- `ruleset`.
-- `gameMode`.
-- `randomSeed`.
-- `bonusTiles`.
-- `bonusLayoutId`.
-- `moveHistory`.
-- `isGameOver`.
-
-`Player` is serializable and contains:
-
-- `index`.
-- `name`.
-- `colorIndex`.
-- `startCorner`.
-- `usedPieceIds`.
-- `scoreBreakdown`.
-- `passed`.
-- `isActiveScoring`.
-- `isComputerControlled`.
-- `ownerIndex`.
-
-`Move` is serializable and contains:
-
-- `playerIndex`.
-- `pieceId`.
-- `anchorRow`.
-- `anchorCol`.
-- `orientationIndex`.
-
-`ScoreBreakdown` is serializable:
-
-- `placedCellPoints`.
-- `bonusTilePoints`.
-- `completionBonus`.
-- `total` computed as the sum of those fields.
-- `plus(ScoreDelta)` returns an updated breakdown.
-
-`BonusTile` is serializable:
-
-- `row`.
-- `col`.
-- `claimedByPlayerIndex`.
-- `claimedOnTurn`.
-- `position` computed as `CellPosition(row, col)`.
-
-## Core Rules
-
-`GameEngine` is the main pure rule entrypoint:
-
-- `newGame(config)`.
-- `applyMove(state, move)`.
-- `pass(state, playerIndex)`.
-- `getValidMoves(state, playerIndex)`.
-- `hasValidMove(state, playerIndex)`.
-- `previewPlacement(state, move)`.
-
-Placement validation is owned by `PlacementValidator`:
-
-- Rejects moves after game over.
-- Rejects non-current player moves when turn enforcement is enabled.
-- Rejects invalid player indexes.
-- Rejects already-passed players.
-- Rejects reused pieces.
-- Rejects unknown piece ids.
-- Rejects unknown orientation indexes.
-- Rejects out-of-bounds placements.
-- Rejects placements over occupied cells.
-- First placement for each player must cover that player's start corner.
-- Same-player edge contact is always rejected.
-- After the first placement, same-player diagonal contact is required.
-- Opponent edge or corner contact is allowed.
-- Claimable bonus tiles are any unclaimed bonus tiles covered by the target cells.
-
-`MoveRejectionReason` values:
-
-- `GAME_OVER`
-- `NOT_PLAYERS_TURN`
-- `INVALID_PLAYER`
-- `PLAYER_HAS_PASSED`
-- `UNKNOWN_PIECE`
-- `UNKNOWN_ORIENTATION`
-- `PIECE_ALREADY_USED`
-- `OUT_OF_BOUNDS`
-- `CELL_OCCUPIED`
-- `START_CORNER_NOT_COVERED`
-- `SAME_PLAYER_EDGE_TOUCH`
-- `NO_DIAGONAL_TOUCH`
-
-Turn and game-end behavior:
-
-- Accepted moves update the board, player's used piece set, score breakdown, bonus tile ownership, turn number, and move history.
-- Accepted moves clear the moving player's `passed` flag.
-- Pass is allowed only for the current player.
-- Pass marks the current player as passed and increments `turnNumber`.
-- Game ends when all active scoring players have passed or have no valid move.
-- `nextPlayerIndex` skips inactive, passed, and no-valid-move players.
-- If the game is over, current player does not advance.
-
-## Scoring And Ranking
-
-`Scoring.scoreMove`:
-
-- 1 point per placed cell.
-- 3 points per claimed bonus tile.
-- 10 completion bonus points if the move completes the full piece set.
-
-`Scoring.rankPlayers`:
-
-- Filters to active-scoring players.
-- Groups players by `ownerIndex`.
-- Combines score breakdowns within each owner group.
-- Counts claimed bonus tiles by owner.
-- Uses owner name when multiple color slots belong to one owner (`Player {ownerIndex + 1}`).
-- Sort order:
-  1. Higher total score.
-  2. Higher placed-cell points.
-  3. Higher claimed bonus tile count.
-  4. Fewer remaining pieces.
-  5. Lower owner index.
-
-`GameOverDialog` and history entries consume this canonical ranking through ViewModel-prepared `rankedScores`, so Two-Color Duel owner aggregation is preserved in end-of-game presentation.
-
-## Bonus Tile Generation
-
-`BonusTileGenerator` owns deterministic bonus layout selection and transforms.
-
-Constants and templates:
-
-- `MIN_BONUS_DISTANCE = 2` is declared.
-- Standard board template id: `standard-cross-01`.
-- Standard template board size: 20.
-- Standard template positions: `(3,5)`, `(5,14)`, `(5,5)`, `(8,8)`, `(8,11)`, `(11,8)`, `(11,11)`, `(14,5)`, `(14,14)`, `(16,14)`.
-- Compact board template id: `compact-balance-01`.
-- Compact template board size: 14.
-- Compact positions: `(3,3)`, `(3,10)`, `(6,5)`, `(7,8)`, `(10,3)`, `(10,10)`.
-
-Generation:
-
-- Template list is chosen by board size.
-- Seed-derived index chooses a template.
-- Seed-derived transform chooses one of four transforms.
-- Transforms are identity, rotate 180, mirror vertical, or mirror horizontal.
-- Returned layout id is `${template.id}:$transform`.
-- Returned positions are truncated to requested count.
-
-## Opponent System
-
-`opponents/` owns local computer turns.
-
-`OpponentStyle` values:
-
-- `EXPANSIONIST`
-- `OPPORTUNIST`
-- `BLOCKER`
-
-`OpponentDifficulty` values and parameters:
-
-| Difficulty | Temperature | Candidate cap | Time budget | Large-piece bias | Bonus awareness | Blocking awareness |
-|---|---:|---:|---:|---:|---:|---:|
-| `BEGINNER` | 3.0 | 10 | 250 ms | -0.40 | 0.2 | 0.0 |
-| `EASY` | 2.0 | 25 | 400 ms | -0.15 | 0.6 | 0.3 |
-| `MEDIUM` | 1.0 | 80 | 700 ms | 0.00 | 1.0 | 0.8 |
-| `HARD` | 0.5 | 200 | 1200 ms | 0.25 | 1.4 | 1.3 |
-| `EXPERT` | 0.2 | 500 | 1800 ms | 0.45 | 1.8 | 1.7 |
-
-`MoveGenerator`:
-
-- Calls `GameEngine.getValidMoves`.
-- Sorts moves by larger piece size first, then piece id, orientation index, anchor row, anchor col.
-- Applies the difficulty candidate soft cap.
-- Converts moves to `MoveCandidate` with placed cell count and claimed bonus tile count.
-
-`MoveEvaluator`:
-
-- Scores placed cells.
-- Scores bonus claims.
-- Scores spread away from the player's start corner.
-- Scores center pressure.
-- Scores blocking proximity to opponent start corners.
-- Applies style-specific and difficulty-specific weights.
-
-`ComputerOpponentEngine`:
-
-- Runs selection on an injected dispatcher, default `Dispatchers.Default`.
-- Returns `OpponentAction.Pass` if no candidates exist.
-- Evaluates the full deterministically ordered candidate set, limited by the difficulty candidate cap.
-- Sorts by evaluation total descending.
-- Uses seeded temperature-weighted selection unless difficulty temperature is effectively deterministic.
-- Seed input includes `GameState.randomSeed`, turn number, player index, difficulty, and style.
-- Revalidates the chosen move before returning it.
-- Falls back to the first valid evaluated move, then pass.
-- Default style by player index: index mod 3 of 1 is Expansionist, 2 is Opportunist, otherwise Blocker.
-
-`LocalSession` auto-runs computer turns only when `gameMode == SOLO`, the game is not over, and the current player is computer-controlled.
-
-## Sessions And Multiplayer
-
-`GameSession` interface:
-
-- `sessionType`.
-- `gameMode`.
-- `players: StateFlow<List<SessionPlayer>>`.
-- `gameState: StateFlow<GameState>`.
-- `connectionState: StateFlow<ConnectionState>`.
-- `sendMove(move)`.
-- `sendPass(playerIndex)`.
-- `startNewGame(config)`.
-- `replaceState(state)`.
-
-`LocalSession`:
-
-- Defaults to a Four-Player game.
-- Publishes `GameState`, `SessionPlayer` list, and `ConnectionState.CONNECTED`.
-- Applies moves through `GameEngine.applyMove`.
-- Converts engine rejections to `IllegalArgumentException(reason.name)`.
-- Applies pass through `GameEngine.pass`.
-- Runs Solo computer actions in a loop until the next current player is human or the game ends.
-
-`SessionPlayer`:
-
-- `index`.
-- `name`.
-- `isLocal`.
-- `isComputerControlled`.
-- `colorIndex`.
-- `ownerIndex`.
-- `usedPieceCount`.
-
-`ConnectionState` values:
-
-- `DISCONNECTED`
-- `CONNECTED`
-- `RECONNECTING`
-- `FAILED`
-
-`SessionType` values:
-
-- `LOCAL`
-- `NEARBY`
-
-## Nearby Protocol
-
-`GameProtocol` uses kotlinx.serialization JSON:
-
-- Class discriminator: `type`.
-- `encodeDefaults = true`.
-- `ignoreUnknownKeys = false`.
-- Strict decode failures are caught by `NearbyConnectionsCoordinator` and published as `ConnectionState.FAILED`.
-- Advertising and discovery use the application id `com.finnvek.cornersapart` as their shared service id.
-
-`GameMessage` types:
-
-- `PlaceMove(move)`, serial name `placeMove`.
-- `MoveAccepted(move, state, scoreDelta)`, serial name `moveAccepted`.
-- `MoveRejected(move, reason)`, serial name `moveRejected`.
-- `Pass(playerIndex)`, serial name `pass`.
-- `FullSync(state)`, serial name `fullSync`.
-- `PlayerJoined(player)`, serial name `playerJoined`.
-- `PlayerLeft(playerIndex)`, serial name `playerLeft`.
-- `GameConfig(config)`, serial name `gameConfig`.
-
-`HostGameCoordinator`:
-
-- Owns an authoritative `GameState`.
-- Accepts `PlaceMove` by applying `GameEngine.applyMove`.
-- Broadcasts accepted moves as `MoveAccepted` with full authoritative state and score delta.
-- Sends rejected moves back to the endpoint only.
-- Accepts pass by applying `GameEngine.pass`.
-- Broadcasts pass results as `FullSync`.
-- On invalid pass, sends `MoveRejected` with a placeholder empty move and reason.
-- Broadcasts `PlayerJoined` and sends a `FullSync` to the new endpoint.
-- Broadcasts `PlayerLeft`.
-- Ignores client-side sync/config/accepted/rejected messages at the host handler layer.
-
-`NearbySession`:
-
-- Has roles `HOST` and `CLIENT`.
-- Uses abstract `NearbyTransport`.
-- Host calls `HostGameCoordinator` locally and sends resulting messages through transport.
-- Client sends `PlaceMove` and `Pass` requests to `MessageTarget.Host`.
-- Client applies `FullSync` and `MoveAccepted` messages by publishing the authoritative state.
-- Lobby messages update connected/reconnecting player sets.
-- `connectionState` is `RECONNECTING` when any player index is marked reconnecting, otherwise `CONNECTED`.
-- Host-only `startNewGame` creates a new engine state and coordinator.
-
-`NearbyTransport`:
-
-- Functional interface with `send(target, message)`.
-- Concrete Google Play services sends are handled by `NearbyConnectionsCoordinator` through `ConnectionsClientFacade`.
-
-`NearbyConnectionsCoordinator`:
-
-- Owns service id `com.finnvek.cornersapart` and stops previous Nearby activity before changing host/client role.
-- Uses `Strategy.P2P_STAR` for advertising and discovery.
-- Wraps concrete Play Services APIs behind `ConnectionsClientFacade`.
-- Stores pending endpoint name and authentication digits before accept/reject.
-- Tracks connected endpoints, approved endpoints, host endpoint id, session role, and endpoint-to-owner mappings.
-- Assigns each accepted remote endpoint to the next non-computer owner index that is not the local owner.
-- Accepts only BYTES payloads through the facade and decodes them with `GameProtocol`.
-- Routes decoded messages into the current `NearbySession`.
-- Host-side inbound authorization requires a connected endpoint; `PlaceMove`, `Pass`, and `PlayerJoined` are restricted to the endpoint's mapped owner.
-- Unauthorized `PlaceMove` payloads receive `MoveRejected(reason = NOT_PLAYERS_TURN)`.
-- Client-side inbound sync is accepted only from the selected connected host endpoint.
-- Sends `MessageTarget.Broadcast`, `MessageTarget.Host`, and endpoint-targeted messages as encoded BYTES payloads.
-- Host disconnect handling removes the endpoint mapping and marks the departed owner's player slots reconnecting through `PlayerLeft`.
-- Connection liveness relies on Play Services `ConnectionLifecycleCallback.onDisconnected`; the app protocol has no separate heartbeat messages.
-- Marks decode and payload failures as `ConnectionState.FAILED`.
-
-`PlayServicesConnectionsClientFacade`:
-
-- Uses `AdvertisingOptions.Builder().setStrategy(...)` and `DiscoveryOptions.Builder().setStrategy(...)`.
-- Translates Play Services connection, discovery, and payload callbacks into testable project callbacks.
-- Uses `Payload.fromBytes(...)` for outgoing messages.
-
-## Nearby Permissions
-
-`NearbyPermissions.requiredRuntimePermissions(sdkInt)`:
-
-- SDK <= 28: `ACCESS_COARSE_LOCATION`.
-- SDK 29-30: `ACCESS_FINE_LOCATION`.
-- SDK 31: `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION`, `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`.
-- SDK >= 32: `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`, `NEARBY_WIFI_DEVICES`.
-- SDK >= 37 additionally adds string permission `android.permission.ACCESS_LOCAL_NETWORK`.
-
-`NearbyPermissions.hasRequiredPermissions` requires every runtime permission returned for the SDK band to map to `true`.
-
-Review note: target/compile SDK are currently 37. The runtime permission policy includes `android.permission.ACCESS_LOCAL_NETWORK` for SDK >= 37, but `AndroidManifest.xml` does not declare that permission. `NearbyPermissionsTest` currently covers SDK 28, 30, 31, 32, and 33 only, so SDK 37 manifest/runtime alignment needs explicit validation before release claims about Android 17 local-network behavior.
-
-## Persistence
-
-Persistence is intentionally DataStore plus kotlinx.serialization JSON for v1. Room is intentionally not used.
-
-`CornersApartJson`:
-
-- `encodeDefaults = true`.
-- `ignoreUnknownKeys = true`.
-
-DataStore files:
-
-- `saved-game.json`: serialized `SavedGameData`.
-- `profiles.json`: serialized `ProfilesData`.
-- `settings.json`: serialized `GameSettings`.
-
-Repository factory extensions:
-
-- `Context.gameRepository()`.
-- `Context.profileRepository()`.
-- `Context.settingsRepository()`.
-
-Hilt module:
-
-- `PersistenceModule`.
-- Installed in `SingletonComponent`.
-- Provides singleton `GameRepository`, `ProfileRepository`, and `SettingsRepository`.
-
-Runtime Hilt module:
-
-- `GameRuntimeModule`.
-- Installed in `SingletonComponent`.
-- Provides singleton `GameEngine`.
-- Provides singleton `ComputerOpponentEngine` using the shared `GameEngine`.
-- Provides singleton `TimeProvider` as `SystemTimeProvider`.
-- Provides singleton `StringProvider` backed by application resources.
-- Provides singleton `ConnectionsClientFacade` as `PlayServicesConnectionsClientFacade`.
-- Provides singleton `NearbyConnectionsCoordinator` with the app name as the local endpoint name.
-
-`JsonDataStoreSerializer<T>`:
-
-- Implements `androidx.datastore.core.Serializer<T>`.
-- Uses a supplied `KSerializer<T>`.
-- Converts kotlinx serialization or illegal argument parse failures to `CorruptionException`.
-- Writes encoded JSON bytes.
-
-`JsonStateStore<T>`:
-
-- Abstracts a `Flow<T>` and suspend `update`.
-
-`DataStoreJsonStateStore<T>`:
-
-- Wraps a `DataStore<T>`.
-- Exposes `dataStore.data`.
-- Calls `dataStore.updateData`.
-
-`GameRepository`:
-
-- Exposes `savedGameData`.
-- Exposes `savedGame`.
-- `saveGame(state, settings, savedAtEpochMillis)` writes `SavedGameData`.
-- `clearSavedGame()` resets to default `SavedGameData()`.
-
-`ProfileRepository`:
-
-- Exposes `profiles`.
-- Exposes `activeProfile`.
-- `upsertProfile(profile)` inserts or replaces a profile and ensures at least one active profile.
-- `setActiveProfile(profileId)` sets exactly one profile active when ids match.
-- `appendHistory(profileId, entry)` appends a history entry to the selected profile.
-- `appendHistory` keeps only the latest `GameConstants.MAX_HISTORY_ENTRIES` entries.
-
-`SettingsRepository`:
-
-- Exposes `settings`.
-- `updateSettings(transform)` updates `GameSettings`.
-
-`GameSettings`:
-
-- `preferredDifficulty`, default 3.
-- `soundEnabled`, default true.
-- `hapticsEnabled`, default true.
-- `preferredMode`, default `FOUR_PLAYER`.
-- No persisted `reducedMotionEnabled` field.
-- No persisted `preferredRuleset` field.
-- `JsonDataStoreSerializerTest.jsonSerializerDoesNotPersistDormantSettings` asserts that default settings JSON does not contain `reducedMotionEnabled` or `preferredRuleset`.
-
-## Profiles, Avatars, And History
-
-`Profile`:
-
-- Serializable.
-- Fields: `id`, `name`, `colorIndex`, `avatarStyle`, `avatarSeed`, `customAvatarPath`, `active`, `history`.
-- `preferredColorIndex` currently returns `colorIndex`.
-
-`LocalAvatarStyle`:
-
-- `INITIALS`
-- `GEOMETRIC`
-- `MOSAIC`
-- `RINGS`
-
-`LocalAvatarGenerator`:
-
-- Generates local-only avatar descriptors.
-- Uses profile `avatarSeed`, falling back to profile `id`.
-- Initials are first letters from up to two name parts, uppercase, or `CA` when blank.
-- Produces four opaque ARGB palette entries from deterministic hash mixing.
-- `GeneratedAvatar.localOnly` defaults to `true`.
-
-`HistoryEntry`:
-
-- `date`.
-- `rank`.
-- `totalScore`.
-- `scoreBreakdown`.
-- `claimedBonusTiles`.
-- `piecesPlaced`.
-- `difficulty`.
-- `ruleset`.
-- `gameMode`.
-- `timeSeconds`.
-- `scores`.
-
-`HistoryStatsCalculator`:
-
-- Returns default empty stats for no entries.
-- Higher score is better.
-- Calculates total games, win count, win rate, average score, best score, average rank, average claimed bonus tiles, completion bonus count, favorite difficulty, score trend, and per-difficulty stats.
-- Score trend uses the last 20 entries.
-- Favorite difficulty is chosen by highest count, then higher difficulty on ties.
-
-## ViewModel State
+- `BoardSnapshot`
+- ordered players and current player index
+- turn number
+- `Ruleset` and `GameMode`
+- random seed
+- bonus tiles and optional generated layout ID
+- accepted move history
+- game-over flag
+
+`Player` contains player/color/owner indexes, start corner, used piece IDs, score breakdown, pass state, active-scoring flag, and computer-control flag.
+
+`Move` is `(playerIndex, pieceId, anchorRow, anchorCol, orientationIndex)`.
+
+`BonusTile` tracks position plus optional claiming player and turn. `ScoreBreakdown` and `ScoreDelta` split placed-cell, bonus-tile, and completion points.
+
+`Ruleset` currently contains only `STANDARD`.
+
+## Modes and game configuration
+
+`GameModeConfigs` is the mode-default authority. The default mode is `FOUR_PLAYER`.
+
+| Mode | Board | Bonuses | Slots and starts | Owners | Computers | Notes |
+|---|---:|---:|---|---|---|---|
+| `SOLO` | 20 | 10 | 0 bottom-right; 1 top-left; 2 top-right; 3 bottom-left | 0,1,2,3 | slots 1–3 | local automatic opponent loop |
+| `TWO_COLOR_DUEL` | 20 | 10 | standard four corners: TL, TR, BR, BL | 0,1,0,1 | none | four color turns, two ranked owners |
+| `COMPACT_DUEL` | 14 | 6 | slot 0 TL; slot 1 BR | 0,1 | none by base config | `requiresPlayTesting=true`; Rivals converts slot 1 to computer |
+| `THREE_PLAYER` | 20 | 10 | TL, TR, BR | 0,1,2 | none | three active scoring slots |
+| `FOUR_PLAYER` | 20 | 10 | TL, TR, BR, BL | 0,1,2,3 | none | default |
+
+`GameConfig` can override board size, random seed, explicit bonus tiles, and requested bonus count. `GameEngine.newGame()` resolves the mode config, creates players, generates bonuses when explicit tiles are absent, and publishes current player 0 at turn 0.
+
+## Engine rules and data flow
+
+### Placement validation
+
+`GameEngine.applyMove()` delegates to internal `PlacementValidator.validate()` in this order:
+
+1. Reject game-over state.
+2. When turn enforcement is active, reject a non-current player.
+3. Resolve the player; reject invalid player, already-passed player, or reused piece.
+4. Resolve piece and orientation.
+5. Calculate target cells with `model.targetCells(anchor + offsets)`.
+6. Reject out-of-bounds or occupied target cells.
+7. For a first move, require the player’s start corner.
+8. Reject orthogonal edge contact with the same player.
+9. After the first move, require at least one diagonal contact with the same player.
+10. Collect distinct, unclaimed bonus tiles covered by the target.
+
+Opponent pieces may touch by edge or corner. Only contact with the moving player’s own cells is restricted.
+
+Typed rejection values are:
+
+`GAME_OVER`, `NOT_PLAYERS_TURN`, `INVALID_PLAYER`, `PLAYER_HAS_PASSED`, `UNKNOWN_PIECE`, `UNKNOWN_ORIENTATION`, `PIECE_ALREADY_USED`, `OUT_OF_BOUNDS`, `CELL_OCCUPIED`, `START_CORNER_NOT_COVERED`, `SAME_PLAYER_EDGE_TOUCH`, and `NO_DIAGONAL_TOUCH`.
+
+`previewPlacement()` uses the same validator and calculates a score preview only for a valid placement.
+
+### Accepted move
+
+An accepted move:
+
+1. Writes the player slot index to every target board cell.
+2. Adds the piece ID to `usedPieceIds`.
+3. Applies placed-cell, bonus, and possible completion score.
+4. Claims covered bonus tiles with the current turn number.
+5. Increments the turn and appends the move.
+6. Evaluates end-game state.
+7. Advances to the next active, non-passed player with a valid move.
+8. Publishes a defensive snapshot.
+
+Completion bonus is awarded when the accepted piece makes the used-piece count equal to all 21 catalog pieces.
+
+### Pass, turn advancement, and game over
+
+`GameEngine.pass()` rejects game-over or wrong-turn attempts, marks the player passed, increments the turn, recalculates game over, and advances.
+
+The game ends when every active-scoring player is either already passed or has no valid move. The engine can therefore end a game after an accepted move even if players did not manually pass, because it checks remaining legal moves.
+
+A passed player is not reactivated by turn advancement. The accepted-move path sets the moving player’s `passed` flag false, but a passed player cannot legally move.
+
+### Valid move enumeration
+
+For each unused piece and unique orientation, `CornerCache` derives target corner positions:
+
+- first move: assigned start corner
+- later moves: empty diagonal neighbors of owned cells that do not have an owned orthogonal neighbor
+
+Candidate anchors align each orientation cell with each target corner; `PlacementValidator` then performs full validation with turn enforcement disabled. This is shared by engine legal-move checks and the opponent generator.
+
+### Bonus layouts
+
+`BonusTileGenerator` owns one 20×20 standard template and one 14×14 compact template. `SeedMixer` deterministically selects the template and one of four transforms: identity, 180° rotation, vertical mirror, or horizontal mirror. Generated IDs include the base template and transform index.
+
+Explicit `GameConfig.bonusTiles` bypasses generation and leaves `bonusLayoutId` null.
+
+### Scoring and ranking
+
+`Scoring.scoreMove()` awards:
+
+- one point per placed piece cell
+- three points per newly claimed bonus tile
+- ten points when the full piece set is completed
+
+`Scoring.rankPlayers()` filters active-scoring players, groups them by `ownerIndex`, combines score breakdowns, and sorts owners by:
+
+1. total score descending
+2. placed-cell score descending
+3. claimed bonus tiles descending
+4. remaining piece count ascending
+5. owner index ascending
+
+This owner aggregation is essential for Two-color duel: color slots 0/2 belong to owner 0, and 1/3 to owner 1. A multi-slot owner is displayed as `Player N` at the engine ranking boundary and renamed/colored for UI later.
+
+## Computer opponents and Rivals
+
+### Difficulty model
+
+`OpponentDifficulty` has six tiers:
+
+| Persisted level | Enum | Temperature | Candidate cap | Key behavior |
+|---:|---|---:|---:|---|
+| 1 | `BEGINNER` | 3.0 | 10 | weak bonus awareness, no blocking |
+| 2 | `EASY` | 2.0 | 25 | light awareness |
+| 3 | `MEDIUM` | 1.0 | 80 | default |
+| 4 | `HARD` | 0.5 | 200 | stronger large-piece/bonus/blocking weights |
+| 5 | `EXPERT` | 0.2 | 500 | near-greedy selection |
+| 6 | `MASTER` | 0.1 | 500 | 12-candidate two-ply lookahead |
+
+`OpponentDifficultyMapper` clamps persisted values to 1–6. `GameSettings.DEFAULT_DIFFICULTY` is 3.
+
+### Move generation and evaluation
+
+- `MoveGenerator` asks `GameEngine.getValidMoves()`, samples evenly within each piece, alternates large/small piece groups, and caps by difficulty.
+- `MoveEvaluator` scores placed cells, bonus claims, spread from start, center access, denial of opponent attachment cells, new mobility, and late-game small-piece conservation.
+- `ComputerOpponentEngine` evaluates on an injected dispatcher, uses style/difficulty weights, optional Master lookahead, and seeded temperature-weighted selection.
+- The seed mixes game seed, turn, player, difficulty, and style, making selection deterministic for equivalent state and inputs.
+- The final choice is preview-validated; it falls back to another evaluated legal move or pass.
+
+Styles are `EXPANSIONIST`, `OPPORTUNIST`, and `BLOCKER`. Default Solo style cycles by player index.
+
+### Rivals roster
+
+`OpponentRoster` defines 12 ordered characters:
+
+`Jelly`, `Pip`, `Sprout`, `Coco`, `Dash`, `Fig`, `Blaze`, `Luna`, `Onyx`, `Nova`, `Vex`, and `Sol`.
+
+The roster covers all six difficulties in non-decreasing tiers, assigns a style and palette index to each character, unlocks the first character unconditionally, and unlocks each later character after at least one win over the previous character.
+
+`GameViewModel.startRivalMatch()`:
+
+1. Resolves the character and rejects locked/unknown IDs.
+2. Leaves Nearby and resets transient local action state.
+3. Creates a `COMPACT_DUEL` game with a current-time seed.
+4. Uses `LocalSessionFactory.createRivalMatch()` to convert slot 1 into the named computer opponent with the character’s style/difficulty and a display color that avoids the local/profile color mapping.
+5. Records the active rival ID for game-over persistence/UI.
+
+Rival win/loss counts are profile-local. A win is determined by ranked owner 0 being first. The first win can expose the next character’s name in `RivalMatchResult`.
+
+## Session layer
+
+### Shared contract
+
+`GameSession` exposes:
+
+- `sessionType`
+- current `gameMode`
+- `StateFlow<List<SessionPlayer>>`
+- `StateFlow<GameState>`
+- `StateFlow<ConnectionState>`
+- suspending `sendMove` and `sendPass`
+- `startNewGame`
+
+`NearbyGameSession` adds lobby state and one-shot session events. `replaceState` is intentionally absent from both public interfaces.
+
+### LocalSession
+
+`LocalSession` owns a single publication containing game state, projected session players, and `CONNECTED` state. A `Mutex` serializes moves and passes.
+
+Local accepted actions:
+
+- run through `GameEngine`
+- continue automatic computer turns while the current player is computer-controlled
+- delay each computer action by a random 300–700 ms
+- publish only after the human action and full automatic opponent sequence complete
+
+If a generated computer move is unexpectedly rejected, the computer passes. If no legal move exists, the opponent engine explicitly returns pass.
+
+`replacementVersion` and the mutation mutex prevent a stale in-flight action from publishing after `replaceState` or `startNewGame`. `startNewGame` generates a fresh random seed distinct from the current seed and forces bonus regeneration.
+
+`LocalSessionFactory.create()` maps persisted difficulty. `createRivalMatch()` supplies the character override and mutates only the freshly created slot-1 identity/control data through validated state replacement.
+
+## Nearby architecture and state machines
+
+### Transport boundary
+
+`ConnectionsClientFacade` defines project-owned advertising, discovery, request/accept/reject, BYTES send, stop operations, callbacks, failures, and status codes.
+
+`PlayServicesConnectionsClientFacade` is the only production file that directly uses `ConnectionsClient`, `Payload`, Play Services callbacks, and `Strategy.P2P_STAR`. It:
+
+- maps operation failures, including `ApiException.statusCode`
+- forwards authentication digits as a string
+- accepts BYTES payloads
+- closes and rejects non-BYTES payloads
+- reports transfer failure
+
+The app does not implement an app-level heartbeat. Liveness originates from Play Services connection lifecycle callbacks.
+
+### Protocol
+
+`GameProtocol` uses kotlinx.serialization JSON with:
+
+- discriminator `type`
+- defaults encoded
+- unknown keys rejected
+
+Message variants:
+
+- `PlaceMove`
+- `MoveAccepted` with full authoritative state and score delta
+- `MoveRejected` with typed reason
+- `Pass`
+- `FullSync`
+- `PlayerJoined`
+- `PlayerLeft`
+- `GameConfig`
+
+Persistence JSON is permissive toward unknown keys; Nearby protocol JSON is intentionally strict. There is no explicit protocol version, migration field, message sequence number, replay counter, app-level signature, or payload-size guard in `GameMessage.kt`.
+
+### HostGameCoordinator
+
+The host coordinator is the authority for state mutation:
+
+- applies client moves through `GameEngine`
+- broadcasts `MoveAccepted` with the full state
+- returns `MoveRejected` only to the originating endpoint
+- applies pass and broadcasts `FullSync`
+- broadcasts `PlayerJoined` and sends the joining endpoint `FullSync`
+- accepts host-only validated state replacement
+
+`HostGameCoordinator` itself does not establish endpoint authorization. `NearbyConnectionsCoordinator` authorizes before delivery.
+
+### NearbySession roles
+
+Host:
+
+- owns `HostGameCoordinator`
+- routes local host moves/passes directly through it
+- can start a new game and replace validated state
+- broadcasts outputs through `NearbyTransport`
+
+Client:
+
+- sends `PlaceMove`/`Pass` to `MessageTarget.Host`
+- does not mutate optimistically
+- applies `FullSync` and `MoveAccepted` only as authoritative state
+- emits `GameSessionEvent.MoveRejected` for a host rejection
+- ignores state replacement calls
+
+Both roles publish game state, projected players, lobby state, connection state, and events. Invalid authoritative state moves the client session to `FAILED` and emits an action-failed event.
+
+`SessionPlayer.isLocal` is role-wide in the current projection: every host-side projected player is marked local and every client-side projected player non-local. It is not a per-owner “this device controls this player” signal.
+
+### Coordinator host lifecycle
+
+`startHosting(config)`:
+
+1. Creates a host session.
+2. Clears endpoints/timeouts and increments callback generation.
+3. Sets role host and publishes a connected coordinator state.
+4. Stops previous advertising/discovery/endpoints.
+5. Starts advertising with service ID/application ID.
+
+Incoming connection initiation produces one `NearbyPendingConnection` with endpoint name and authentication digits. The UI must accept or reject it.
+
+For a host acceptance:
+
+- owner 0 is reserved for the host
+- the endpoint receives the first distinct, non-computer owner not already assigned
+- capacity exhaustion rejects the connection without failing the host session
+- Two-color duel assigns both color slots owned by remote owner 1 to the same endpoint
+- accepted connection triggers an authoritative full sync
+
+Client-originated `PlayerJoined`, `PlayerLeft`, sync, config, accepted, and rejected messages are unauthorized. Move/pass requests are accepted only when the endpoint owns the move’s player owner. Unauthorized move/pass receives `NOT_PLAYERS_TURN`.
+
+### Coordinator client lifecycle
+
+`startDiscovery()`:
+
+1. resets endpoint/session state and callback generation
+2. sets role client with no active session
+3. stops previous Nearby activity
+4. starts discovery
+
+Discovered endpoints are projected to `NearbyUiState`. Selecting one stops discovery, resets endpoint state again, stores the intended host ID, advances callback generation, and requests a connection.
+
+The client session is created only from the first valid `FullSync` sent by the selected, connected host. Full sync from another endpoint or invalid player/board index domains is rejected.
+
+### Disconnect and reconnect
+
+- Explicit coordinator `disconnect()` stops all Nearby activity, cancels reconnect jobs, clears endpoints/session, increments callback generation, and publishes `DISCONNECTED`.
+- A client losing its selected host clears its active session and becomes `DISCONNECTED`; there is no client reconnection path in the current coordinator.
+- A host losing a mapped remote endpoint marks every slot for that owner reconnecting, broadcasts internal `PlayerLeft` effects to the session, and starts a 60-second timeout.
+- Reaccepting an endpoint for that owner cancels the timeout, sends full sync, and applies `PlayerJoined` for reconnecting slots.
+- Timeout removes reconnect markers, sets session/coordinator state `FAILED`, and reports `Player reconnect timed out`.
+- Callback generation prevents stale discovery, payload, operation, or disconnect callbacks from reopening superseded state.
+- A callback mutex serializes asynchronous payload/disconnect processing.
+
+The disconnected owner mapping is removed immediately. A later accepted endpoint can claim the first free owner; endpoint identity is not a durable owner reservation.
+
+### Nearby UI surface
+
+`GameUiState.nearbyState` exposes coordinator-level status, discovered endpoints, one pending authentication decision, and an error string. The current screen does not expose `NearbyLobbyState`, connected-player/owner mappings, reconnecting player indexes, or an explicit “disconnect/leave” button. Switching to a local game or another local feature calls coordinator disconnect indirectly.
+
+## Persistence and serialization
+
+### DataStore files
+
+`app/src/main/java/com/finnvek/cornersapart/data/CornersApartDataStores.kt` creates:
+
+| File | Root type | Repository |
+|---|---|---|
+| “saved-game.json” | `SavedGameData` | `GameRepository` |
+| “profiles.json” | `ProfilesData` | `ProfileRepository` |
+| “settings.json” | `GameSettings` | `SettingsRepository` |
+
+These quoted values are runtime DataStore file names, not checked-in repository paths. Their app-private paths are managed by DataStore and are not hardcoded beyond the names.
+
+`CornersApartJson` encodes defaults and ignores unknown keys. `JsonDataStoreSerializer` converts serialization/argument errors to `CorruptionException`. No custom corruption handler is configured at the declaration sites.
+
+The app does not apply its own encryption to these JSON values. OS/app sandboxing is the current storage boundary.
+
+### Saved game
+
+`SavedGameData` stores nullable `GameState`, epoch save time, and a `GameSettings` snapshot.
+
+`GameRepository.saveGame()` rejects invalid index domains and snapshots the state. `clearSavedGame()` writes an empty root.
 
 `GameViewModel`:
 
-- Annotated with `@HiltViewModel`.
-- Injected with `LocalSessionFactory`, `GameRepository`, `ProfileRepository`, `SettingsRepository`, `StringProvider`, `TimeProvider`, and `NearbyConnectionsCoordinator`.
-- Exposes `uiState: StateFlow<GameUiState>`.
-- Exposes `effects: SharedFlow<GameEffect>`.
-- Defaults selected piece to `one-dot`.
-- Defaults orientation index to 0.
-- Collects settings from `SettingsRepository` and clamps persisted difficulty through `OpponentDifficultyMapper`.
-- Collects saved-game data from `GameRepository`.
-- Collects profiles from `ProfileRepository` and creates active default profile `local-default` when the store is empty.
-- Collects Nearby UI state from `NearbyConnectionsCoordinator`.
-- Collects `NearbyConnectionsCoordinator.currentSession`.
-- Uses `nearbySession ?: localSession` as the active `GameSession`.
-- When a Nearby session appears, resets selection/orientation/start time, marks the resume decision made, collects the Nearby session's `gameState`, and forwards the Nearby session's one-shot events to `GameEffect`.
-- When a local game is started or a saved game is resumed, calls `leaveNearbySessionForLocalPlay`, clears active Nearby jobs/session, and disconnects the coordinator.
-- Tracks game start time through `TimeProvider`.
-- Starts new local games through `LocalSessionFactory`.
-- Resets selected piece/orientation on new game.
-- Persists `preferredMode` when a new game starts.
-- Saves unfinished accepted turns through `GameRepository.saveGame(state, settings, now)`.
-- Restores saved games through `LocalSession.replaceState`.
-- Records game-over history once through `ProfileRepository.appendHistory`.
-- Clears saved game after game over.
-- Exposes profile creation, profile update, active-profile selection, and Nearby host/discovery/connect/accept/reject/disconnect methods.
-- Selects only pieces available to the current player.
-- Rotate clockwise increments orientation index modulo orientation count.
-- Rotate counterclockwise subtracts one modulo orientation count.
-- Flip normalizes horizontal flip and selects matching orientation when present.
-- Places selected piece by sending `Move` to the session.
-- Emits `GameEffect.MoveRejected` from session rejection reason names.
-- Emits `GameEffect.MoveAccepted` when score delta is positive.
-- Emits `GameEffect.GameOver` when an accepted move or pass ends the game.
-- Emits `GameEffect.ActionFailed` for failed Nearby session events.
-- Passes current player through `session.sendPass`; pass is ignored after game over.
-- Normalizes selection when the selected piece has been used by the current player.
+- auto-saves only local sessions
+- saves after a complete accepted local turn, including automatic computer replies
+- saves after an accepted local pass
+- clears the save when the local game ends
+- does not persist Nearby game state or Nearby history
+- validates stored index domains and clears invalid saves on collection/resume
 
-Current Nearby UI limitation:
+Resume replaces the local session with the saved state and restores saved settings. The resume summary currently displays `settings.preferredDifficulty` from the ViewModel’s current settings, not explicitly `savedGameData.settings.preferredDifficulty`, even though actual resume uses the saved settings snapshot.
 
-- `GameScreenActions` exposes create, find, connect endpoint, accept pending connection, and reject pending connection actions to Compose.
-- `GameUiState.nearbyState` contains discovered endpoints, pending connection auth data, errors, and connection state.
-- `GameScreenContent` renders Nearby status, errors, pending authentication code with accept/reject buttons, and discovered endpoint connect buttons.
-- There is no visible disconnect/reconnect control in `GameScreenActions` or `GameScreenContent`; `GameViewModel.disconnectNearby()` exists but is not currently surfaced by the Compose action model.
+### Settings
 
-`GameUiState`:
+`GameSettings` persists:
 
-- Contains game mode, board, bonus tiles, players, current player index, selected piece id, selected orientation index, selected cells, piece panel items, game over flag, sound/haptics flags, game duration seconds, preferred difficulty/mode, active profile history/name, saved-game resume summary, ranked scores, Nearby state, and profiles.
-- `currentPlayer` returns `players[currentPlayerIndex]`; current configs currently keep player indexes aligned with list indexes.
+- difficulty, default 3 and normalized to 1–6
+- sound enabled
+- haptics enabled
+- preferred base mode, default Four players
 
-`PlayerUiState`:
+Changing preferred difficulty/mode updates persistence and UI but does not recreate the current game. New local games use the then-current settings.
 
-- Includes index, name, color index, owner index, start row/col, score breakdown fields, claimed bonus count, placed/remaining pieces, passed/current/computer flags.
+There is no persisted reduced-motion or preferred-ruleset setting.
 
-`GameEffect`:
+### Profiles and history
 
-- `MoveRejected(reason)`.
-- `MoveAccepted(playerName, scoreDelta, bonusTileClaimed)`.
-- `GameOver`.
+`Profile` persists:
+
+- ID and name
+- color index
+- avatar style and seed metadata
+- active flag
+- up to 50 history entries
+- challenge stars
+- achievement IDs
+- up to 60 daily best-score date entries
+- best daily streak
+- Rivals wins and losses
+
+`ProfileRepository` keeps one active profile when profiles exist, refuses to delete the final profile, activates a remaining profile after deletion, never lowers a challenge star result or daily best, deduplicates achievements, increments Rivals counters, and truncates history/daily data to their configured limits.
+
+The ViewModel creates `local-default` asynchronously when no profiles exist. New profile IDs combine current epoch milliseconds and a lowercase alphanumeric name fragment. Name input is trimmed with a localized fallback, but no explicit length limit is applied in source.
+
+`LocalAvatarStyle` values are `INITIALS`, `GEOMETRIC`, `MOSAIC`, and `RINGS`. The current UI selects/persists the style, but there is no avatar generator or profile-avatar renderer in production source: the former `LocalAvatarGenerator` is not present. `avatarSeed` is retained as metadata.
+
+### Profile display mapping
+
+For local sessions, active profile owner 0 receives the profile name and selected visual color. `ProfileDisplayMapper` swaps color 0 and the selected profile color bijectively so all four visual colors remain unique. Other engine-named players are relabeled when needed.
+
+Nearby state does not apply local profile naming/color remapping in the same way because `ProfileDisplayMapper` only transforms local sessions.
+
+### History/statistics/Top 20
+
+Every completed local game produces a `HistoryEntry` for owner 0 with:
+
+- date from `TimeProvider.todayIsoDate()`
+- rank and aggregated owner score
+- score breakdown, claimed bonuses, and placed-piece count
+- difficulty from current global `settings.preferredDifficulty`
+- ruleset/mode
+- elapsed seconds measured since ViewModel game start/resume
+- full ranked score list
+
+The stored difficulty therefore describes the global preference even when a challenge level or Rival character supplies a different actual opponent difficulty.
+
+`HistoryStatsCalculator` provides total games, wins, win rate, average/best score, average rank/bonus count, completion count, favorite difficulty, last-20 score trend, and per-difficulty statistics. The current Stats tab renders only total games, wins, average score, best score, average rank, and average bonus tiles.
+
+`HallOfFameCalculator` merges all profiles, optionally filters by mode, sorts score descending then date ascending, and limits to 20. A new equal score ranks after existing equal scores. The UI caches all-mode and per-mode lists by the current profile-list object identity.
+
+## Progression features
+
+### Challenge levels
+
+`ChallengeLevels` defines 20 fixed Solo levels:
+
+- difficulty scales from 1 to 6 across level numbers
+- seed is `91_000 + level * 7`
+- two-star threshold is `55 + level`
+- three-star threshold is `70 + level`
+- a win earns at least one star
+- the first level is open; each next level requires any star on the previous level
+- stored stars only improve
+
+The UI prevents clicks on locked levels. `GameViewModel.startChallengeLevel()` itself validates only that the level exists; it does not independently enforce the unlock rule.
+
+### Daily challenge
+
+`startDailyChallenge()` creates Solo with `todayIsoDate().hashCode().toLong()` as seed and the globally preferred difficulty. The date comes from the device’s system time zone through `SystemTimeProvider`.
+
+Daily bests retain 60 newest ISO-date keys. Current streak counts consecutive days ending today or yesterday; best streak never decreases.
+
+The game-over “Play again” callback does not branch on `isDailyChallenge`; when a daily game ends, it currently starts a normal Solo base-mode game instead of replaying the date-seeded daily challenge.
+
+### Achievements
+
+`AchievementEvaluator` can award:
+
+- first win
+- at least three bonus tiles in one game
+- all 21 pieces placed
+- a win with recorded difficulty at least 5
+- three consecutive wins
+- any three-star challenge
+- at least ten cleared challenge levels
+
+New IDs are filtered against the profile’s stored IDs, persisted, shown in game-over UI, and listed locked/unlocked in the Stats tab.
+
+Because achievement evaluation consumes `HistoryEntry.difficulty`, challenge/Rival games currently inherit the global settings difficulty caveat described above.
+
+### New-best and all-time result state
+
+- `isNewBestScore` is true only when prior history is non-empty and the new score is strictly greater than the previous maximum. A first-ever result is not labeled “new best.”
+- `allTimeRank` is calculated before inserting the result and only returned if it fits the Top 20.
+- These values are transient ViewModel state for the most recently recorded local game.
+
+## ViewModel architecture
+
+### Construction and collected sources
+
+`GameViewModel` is `@HiltViewModel` and injects:
+
+- `LocalSessionFactory`
+- `GameRepository`
+- `ProfileRepository`
+- `SettingsRepository`
+- `StringProvider`
+- `TimeProvider`
+- `NearbyConnectionsCoordinator`
+- `GameEngine` for placement previews
+
+At initialization it collects settings, saved game, profiles, coordinator UI state, and coordinator current session. When a Nearby session becomes active, it separately collects authoritative game state and session events.
+
+The active session is always:
+
+```text
+nearbySession ?: localSession
+```
+
+### Public state
+
+`StateFlow<GameUiState>` contains:
+
+- board/mode/bonuses/player projections/current turn
+- selected piece/orientation/cells and full piece panel
+- game-over and ranked score state
+- sound/haptic/difficulty/preferred mode
+- duration, history, active profile, profiles
+- saved-game/resume summary
+- session type and coordinator Nearby UI
+- challenge, daily, achievement, Rival, streak, all-time-rank, and Top 20 data
+
+`currentPlayer` indexes `players[currentPlayerIndex]`; valid engine state is therefore a prerequisite.
+
+`SharedFlow<GameEffect>` emits move rejection, action failure, accepted-move score/bonus, and game-over effects.
+
+### Actions
+
+Base/local:
+
+- `startGame`
+- resume/discard saved game
+- select/rotate/flip piece
+- legality preview
+- place/pass
+- sound/haptic/difficulty/preferred mode changes
+
+Profiles:
+
+- activate, add, update, delete
+
+Nearby:
+
+- host, discover, connect, accept, reject
+
+Progression:
+
+- start challenge level
+- start daily challenge
+- start Rival match
+
+There is no public UI-bound ViewModel action that only disconnects and leaves Nearby while preserving the local game surface.
+
+### Local action cancellation and persistence
+
+Local gameplay actions run under a replaceable `SupervisorJob` attached to `viewModelScope`. Starting/restoring/replacing local play cancels the old action job so delayed computer turns cannot save over the new session.
+
+Nearby actions do not use that local job. Client move/pass methods report successful send before host acceptance; later host rejection arrives as a session event.
+
+On a client, a later `MoveAccepted` authoritative update refreshes UI through the state collector but does not itself create `GameEffect.MoveAccepted`. The immediate client send path usually sees unchanged state and therefore emits no positive score effect. Sound/haptic/score-notice parity between host/local and client acceptance is a concrete redesign/review target.
 
 ## Compose UI
 
+### Root hierarchy
+
 `GameRoute`:
 
-- Uses `hiltViewModel<GameViewModel>()`.
-- Collects state with `collectAsStateWithLifecycle()`.
-- Collects effects in `LaunchedEffect`.
-- Performs haptic feedback when enabled.
-- Plays local event sounds through `GameSoundPolicy` and `GameSoundPlayer` when sound is enabled.
-- Holds local dialog state for history/stats and accessibility announcement.
-- Owns the Nearby runtime permission launcher and continues host/discover only after required permissions are granted.
-- Passes active-profile history to `HistoryStatsDialog`.
+- lifecycle-collects `GameUiState`
+- owns permission launcher
+- collects one-shot effects
+- maps effects to accessibility announcements, status/score notices, raw sound events, and haptics
+- builds grouped action data classes
+- calls `GameScreenContent`
 
-`GameScreenContent`:
+`GameScreenContent` owns dialog visibility and renders:
 
-- Owns local `showSettings`, `showProfiles`, and `showHelp`.
-- Shows `ResumeGameDialog` when a saved game is available and no continue/new-game decision has been made.
-- Shows `HistoryStatsDialog` when requested.
-- Shows `GameSettingsDialog` for difficulty, preferred mode, sound, and haptics.
-- Shows `ProfilesDialog` for local profile selection, creation, and editing.
-- Shows `GameHelpDialog`.
-- Shows `GameOverDialog` when `state.isGameOver`.
-- Uses compact or expanded layout based on `GameLayoutPolicy.modeForWidthDp`.
+```text
+BoxWithConstraints
+  -> candyBackground + safeDrawingPadding
+  -> vertically scrollable CompactGameLayout or ExpandedGameLayout
+  -> DragGhostOverlay
+  -> RivalIntroOverlay
+  -> conditional dialogs (resume, settings, profiles, help, history, challenges, Rivals, game over)
+```
 
-Layout policy:
+The breakpoint is width-only: compact below 840 dp, expanded at 840 dp or more.
 
-- Compact below 840 dp width.
-- Expanded at 840 dp or wider.
+### Compact layout
 
-Primary visible controls:
+Order:
 
-- Mode chips: Four players, Solo, Two-color duel, Compact duel, Three players.
-- Nearby actions: Create nearby game, Find nearby game, status text, errors, discovered endpoint connect buttons, and pending connection authentication code with accept/reject buttons.
-- Utility actions: History & stats, Profiles, Settings, Help.
-- Score cards by player.
-- Canvas board.
-- Status line showing current turn or game over.
-- Rotate counterclockwise.
-- Rotate clockwise.
-- Flip selected piece.
-- Pass turn.
-- Selected piece preview.
-- Horizontal piece panel.
+1. Header, utility actions, Challenges/Rivals/Nearby actions, score cards.
+2. Square full-width board.
+3. accessibility live node.
+4. turn/status/score notice.
+5. rotate-left, rotate-right, flip, and pass controls.
+6. selected-piece preview.
+7. progress indicator and horizontally scrollable piece cards.
 
-Accessibility and haptics:
+### Expanded layout
 
-- Game board has content description `Game board`.
-- Icon buttons have semantic content descriptions.
-- Accessibility live announcement node is polite.
-- Move accepted uses text-handle haptic unless a bonus tile was claimed.
-- Bonus claim and rejection use long-press haptic.
-- Game over uses long-press haptic.
+The single vertically scrollable row divides into:
 
-`GameBoard`:
+- left weight 1.0: header/actions/score, accessibility/status, controls, selected preview
+- right weight 1.2: board and piece panel
 
-- Square Canvas in a dark board frame.
-- Draws empty board cells.
-- Draws unclaimed bonus tiles as diamond markers.
-- Draws start markers on empty start corners.
-- Draws occupied cells with glossy piece rendering.
-- Converts tap offsets to row/col by board size and calls `onPlaceCell(row, col)`.
+There is no height breakpoint, landscape-specific policy, or independent column scrolling.
 
-`PlayerScoreBar`:
+### Board rendering and interaction
 
-- Chunks player cards into rows of two.
-- Highlights current player with ghost color and border.
-- Dims passed players.
+`GameBoard` is a square Canvas inside a rounded panel. It draws:
 
-`GameSettingsDialog`:
+- empty rounded cells
+- pulsing unclaimed bonus diamonds/glows
+- unoccupied starting-corner markers
+- occupied glossy/beveled candy cells
+- placement previews and alignment bands
 
-- Difficulty selector 1-5.
-- Preferred mode selector.
-- Sound switch.
-- Haptics switch.
+Input supports:
 
-`ProfilesDialog`:
+- press/drag/release directly on the board
+- drag from a piece card to the board
+- a floating ghost outside the board
+- a board-owned preview when the finger is over the board
 
-- Lists local profiles and marks the active profile.
-- Can switch the active profile.
-- Can add or update local profile name, color index, and avatar style.
+`liftedBoardAnchor()` places the preview two cells above the finger, centers it horizontally, and clamps the full piece within board bounds. Legality comes from `GameViewModel.isPlacementLegal()` and engine preview validation. Valid previews use player colors; invalid previews use the centralized red palette.
 
-`ResumeGameDialog`:
+The board detects newly occupied cells by comparing snapshots and applies a spring “pop.” Bonus markers pulse continuously.
 
-- Shows saved time, mode, leader, claimed bonus count, and difficulty from the saved-game snapshot.
-- Continue restores saved state.
-- New game clears saved data and starts the preferred mode.
+### Header and actions
 
-`GameHelpDialog`:
+- Header shows app name, four-color accent bar, and a mode chip that opens the base-mode picker.
+- Utility row provides History & stats, Profiles, Settings, and Help icon buttons.
+- Challenges, Rivals, and Nearby are three full candy buttons.
+- Nearby expands on request or automatically when state requires attention.
+- Score cards are arranged two per row, animate numeric scores, border the active player, and dim passed players.
 
-- Goal.
-- Start in your corner.
-- Corner contact, no edge contact.
-- Scoring.
-- Bonus tiles.
-- Passing and game end.
-- Controls.
-- Nearby games.
+### Piece panel
 
-`GameOverDialog`:
+- All 21 pieces appear in one horizontal row.
+- Used pieces are dimmed and disabled.
+- Selection resets orientation to zero.
+- Selected cards scale and receive a player-color border.
+- Progress shows used/total count and an animated meter.
+- Selected-piece preview is separate from the panel.
+- Piece content descriptions use localized catalog names.
 
-- Shows winner, duration, score categories, per-player breakdown, play-again button, and stats button.
-- Does not dismiss by outside request.
-- Ranking rows are supplied as `List<PlayerScore>` from `Scoring.rankPlayers`.
+### Dialogs and overlays
 
-`HistoryStatsDialog`:
+- `ResumeGameDialog`: raw epoch save value, mode, leader, claimed bonuses, difficulty, continue/new game.
+- `GameSettingsDialog`: sound/haptics switches, 1–6 difficulty chips, all five preferred modes.
+- `ProfilesDialog`: profile selection, name, color, avatar-style metadata, save/new/delete with confirmation.
+- `GameHelpDialog`: goal, starting corner, corner/edge contact, scoring, bonus, passing/end, controls, Nearby.
+- `HistoryStatsDialog`: History, Stats/Achievements, and Top 20 tabs.
+- `ChallengeDialog`: daily action/streak and 20 sequential star chips.
+- `RivalsDialog`: 12 cards with avatar, tier pips, record, lock/defeated/next state.
+- `RivalMatchIntro`: skippable two-second VS overlay.
+- `GameOverDialog`: confetti, winner/ranking/breakdowns, duration, challenge/daily/Rival results, new best, achievements, all-time rank, stats, and replay.
 
-- Uses Material 3 `PrimaryTabRow`.
-- Has History and Stats tabs.
-- History tab shows empty message or last 20 history rows.
-- Stats tab shows total games, wins, average score, best score, average rank, and average bonus tiles.
+`CandyDialog` animates scale/alpha over 180 ms and makes its complete column vertically scrollable.
 
-## Theme And Visual Tokens
+### Sound and haptics
 
-Theme files live under `app/src/main/java/com/finnvek/cornersapart/ui/theme/`.
+`GameSoundPolicy` maps:
 
-`CornersApartColors`:
+- accepted placement -> `app/src/main/res/raw/snd_place.wav`
+- bonus claim -> `app/src/main/res/raw/snd_bonus.wav`
+- game over -> `app/src/main/res/raw/snd_game_over.wav`
+- rejection/failure -> `app/src/main/res/raw/snd_reject.wav`
 
-- Player Indigo: `0xFF4338CA`.
-- Player Indigo dark: `0xFF312E81`.
-- Player Indigo highlight: `0xFF6366F1`.
-- Player Indigo ghost: `0x4D4338CA`.
-- Player Amber: `0xFFE88C0A`.
-- Player Amber dark: `0xFFA16207`.
-- Player Amber highlight: `0xFFF5B040`.
-- Player Amber ghost: `0x4DE88C0A`.
-- Player Coral: `0xFFE8513D`.
-- Player Coral dark: `0xFF991B1B`.
-- Player Coral highlight: `0xFFF08070`.
-- Player Coral ghost: `0x4DE8513D`.
-- Player Teal: `0xFF0D9488`.
-- Player Teal dark: `0xFF134E4A`.
-- Player Teal highlight: `0xFF2DD4BF`.
-- Player Teal ghost: `0x4D0D9488`.
-- App background: `0xFFE4E4E8`.
-- Board cell gap: `0xFFDCDCE0`.
-- Board cell surface: `0xFFFAFAFA`.
-- Board frame: `0xFF2C2C30`.
-- Card surface: `0xFFFFFFFF`.
-- Bonus accent: `0xFFD8A928`.
-- Text primary: `0xFF1A1A1E`.
-- Text secondary: `0xFF4A4A52`.
-- Text muted: `0xFF8A8A92`.
-- On-player color: `0xFFFFFFFF`.
+`GameSoundPlayer` uses `SoundPool`, two streams, game/sonification audio attributes, and slight random pitch variation only for placement. The player is remembered at route scope and released on disposal.
 
-`CornersApartSpacing`:
+The implementation does not wait for an explicit SoundPool load-complete callback before allowing playback; very early event behavior is a review target.
 
-- Screen padding: 16 dp.
-- Section gap: 12 dp.
-- Compact gap: 8 dp.
-- Tiny gap: 4 dp.
-- Board cell gap: 2 dp.
-- Board frame width: 4 dp.
-- Piece inner inset: 2 dp.
-- Piece shadow offset: 1 dp.
-- Piece shadow blur: 2 dp.
-- Touch target min: 48 dp.
-- Piece card size: 64 dp.
-- Piece preview size: 84 dp.
-- Score card min height: 48 dp.
-- Active player border width: 2 dp.
+Input haptics use `TextHandleMove` for piece/transform interaction and `LongPress` for pass. Effect haptics use stronger feedback for bonus/rejection/failure/game over. Sound and haptics are independently persisted.
 
-`CornersApartAnimationTokens`:
+### Accessibility
 
-- Piece placement: 400 ms.
-- Invalid attempt shake: 400 ms.
-- Bonus tile claimed: 350 ms.
-- Active player pulse: 1500 ms.
-- Opponent thinking dot: 900 ms.
-- Dialog enter: 300 ms.
-- Piece card intro: 300 ms.
-- Piece card intro stagger: 20 ms.
-- Score increase: 250 ms.
+Implemented:
 
-`CornersApartAlpha`:
+- candy buttons/chips have minimum 48 dp targets
+- icon buttons have explicit descriptions
+- piece cards expose localized used/available descriptions
+- board exposes “Game board”
+- effect announcements use polite live regions
+- Nearby panel uses a polite live region
+- challenge/Rival/Top 20 entries build descriptions
+- drag overlay clears irrelevant semantics
 
-- Passed player: 0.40.
-- Used piece: 0.35.
-- Piece highlight: 0.35.
-- Piece shadow: 0.50.
-- Piece inner inset: 0.08.
-- Piece drop shadow: 0.12.
-- Start marker: 0.55.
+Current limitations:
 
-Typography:
+- the Canvas board is one semantic node; individual cells, coordinates, occupancy, bonuses, and direct non-pointer placement actions are not exposed as separate accessibility nodes
+- drag/touch is the only board placement mechanism
+- the launch overlay intentionally clears semantics while visible
+- several decorative/user-visible glyphs (`★`, `☆`, flame, lock, crown, VS treatment) are code constants rather than localized resource content
+- there is no reduced-motion preference, while launch, dialog, board, bonus, score, progress, ghost, Rival, and confetti animations are active
 
-- Uses bundled static Nunito TTF files in weights 600, 700, 800, and 900.
-- The Nunito copyright notice and full SIL Open Font License 1.1 are packaged at
-  `app/src/main/resources/META-INF/LICENSE-NUNITO.txt`.
-- Defines Material typography entries for displayLarge, headlineMedium, bodyLarge, labelLarge, bodySmall, and labelSmall.
+## Theme, visual tokens, and resources
 
-Shapes:
+### Theme direction
 
-- extraSmall 4 dp.
-- small 6 dp.
-- medium 8 dp.
-- large 12 dp.
-- extraLarge 16 dp.
+`CornersApartTheme` always applies one dark Material 3 scheme. It does not use system dark/light switching, dynamic color, or a light palette.
 
-## Resources And Strings
+The visual language is high-saturation candy:
 
-Resources:
+- deep indigo vertical background
+- dark violet panels/dialogs
+- pink, mango, cyan, and lime player families with dark/highlight variants
+- gold bonus accents
+- 3D gradient/bevel buttons
+- Nunito rounded typography
 
-- `app/src/main/res/values/strings.xml`: English UI strings, plurals, accessibility strings, and dialog text.
-- `app/src/main/res/values/colors.xml`: launcher icon background and foreground colors.
-- `app/src/main/res/font/nunito_*.ttf`: bundled Nunito font weights.
-- `app/src/main/resources/META-INF/LICENSE-NUNITO.txt`: Nunito copyright and OFL-1.1 license.
-- `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`: adaptive launcher icon.
-- `app/src/main/res/drawable/ic_launcher_monochrome.xml`: monochrome launcher resource.
-- `app/src/main/res/drawable/ic_flip_24.xml`, `ic_help_24.xml`, `ic_history_24.xml`, `ic_person_24.xml`, `ic_rotate_left_24.xml`, `ic_rotate_right_24.xml`, `ic_settings_24.xml`, and `ic_skip_next_24.xml`: local vector drawables for gameplay, utility, and dialog action buttons. The app does not package `material-icons-extended`; `BuildDependencyHygieneTest.appDoesNotPackageMaterialIconsExtendedForAHandfulOfIcons` guards this.
-- `app/src/main/res/xml/data_extraction_rules.xml`: backup/transfer exclusion policy.
+### Token ownership
 
-All user-facing UI strings should remain in `strings.xml`. Do not hardcode user-facing text in composables.
+`app/src/main/java/com/finnvek/cornersapart/ui/theme/Tokens.kt` centralizes:
 
-Current localization state:
+- player and surface colors
+- text, button, medal, streak, bonus, and preview colors
+- screen/section/gap/touch/piece/board/dialog/Rivals/Top 20 spacing
+- 840 dp expanded breakpoint
+- opacity values
 
-- Only the base `values/strings.xml` file is present.
-- UI text is English-first.
-- No additional locale directories are present.
+`PlayerPalette.kt` maps color indexes modulo four to base/dark/highlight triples and owns the invalid preview palette.
+
+`Shapes.kt` defines Material rounded shapes from 8 to 28 dp. `Type.kt` packages Nunito Semibold/Bold/ExtraBold/Black and defines display/headline/title/body/label styles plus a shared shadow.
+
+Some drawing-specific fractions, animation durations, sizes, and offsets remain local constants in their component files. The project’s “centralize design tokens” rule should be applied when those values become shared or need cross-screen tuning.
+
+### Packaged resources
+
+- `app/src/main/res/values/strings.xml`: 188 string entries and 8 plural entries in the base locale.
+- No translated `values-xx` directory exists; UI prose is English-first.
+- Four Nunito TTF files and `app/src/main/resources/META-INF/LICENSE-NUNITO.txt`.
+- Four custom launch WebP layers in `drawable-nodpi`.
+- Four raw WAV game effects.
+- Local vector controls and launcher artwork.
+- Adaptive launcher icon with color foreground and monochrome layer; minimum SDK 26 means only the v26 adaptive resource is required by the current platform floor.
+- System splash colors/themes plus placeholder animated-icon drawable.
+
+Most UI prose is resource-backed, but player labels, Rival names, Rival IDs, piece IDs, and some decorative glyphs are code-owned constants.
+
+## Security and privacy boundaries
+
+### Local data
+
+- Profiles, settings, saves, history, challenge/Rivals progression, and daily results remain in app-private DataStore files.
+- Backup, full backup, and device transfer are disabled.
+- Data is not app-encrypted at rest.
+- Deleting a profile permanently removes that profile and history from the DataStore root, except the final profile cannot be deleted.
+
+### Network/peer data
+
+- No `INTERNET` permission or developer-controlled API client is present.
+- No app-owned analytics, ads, tracking, or crash-reporting SDK is present in the dependency graph.
+- Nearby peers exchange player/session data, full board/game state, scores, used pieces, move history, and connection protocol messages through Google Play services Nearby.
+- Google’s current Nearby Connections documentation states that the Google Play services Nearby SDK collects usage analytics: discovery/connection performance metrics plus device model, country, build version, and application package name. Users can control this through Google usage-and-diagnostics settings. This collection is outside the app’s own source and cannot be inferred away from the absence of an `INTERNET` permission in the app manifest.
+- Authentication digits are displayed for user confirmation.
+- Endpoint IDs/tokens are not persisted by the app.
+- Host authorization maps endpoints to owner indexes before accepting move/pass requests.
+- The protocol has no app-owned cryptographic signature/version/replay layer; transport security behavior is delegated to Google Play services.
+
+`PRIVACY-POLICY.md` accurately states the app-owned local-storage and peer-exchange model, but its unconditional claims that no third-party analytics or data collection occurs need release review against Google’s documented Nearby SDK usage analytics. Store-facing privacy/data-safety disclosures remain a release/manual responsibility.
+
+### Manifest and static guards
+
+- cleartext disabled
+- only launcher intended exported
+- no broad FileProvider
+- raw transport bypasses prohibited by Semgrep/custom DeepSec matchers
+- sensitive Android logging patterns checked
+- release identity test rejects external game names and user-facing AI wording
+- build dependency test rejects remote avatar/network-image dependencies
+
+No Android log call was found in production source during this audit.
 
 ## Tests
 
-Unit tests cover:
+### Declared test inventory
 
-- Board snapshot, `BoardView`, and mutable board value behavior.
-- Game constants.
-- Game mode defaults, owners, computer slots, and compact play-testing flag.
-- Piece catalog count, total cell count, orientation normalization, uniqueness, and cap.
-- Game state JSON serialization round trip.
-- Local avatar generation and initials.
-- History stats calculation.
-- Seed mixing for deterministic non-negative indexes and unit interval selection.
-- Placement rules: start corner, diagonal contact, same-player edge rejection, opponent edge allowance.
-- Scoring: bonus tiles, completion bonus, ranking, tie-breakers, Two-Color Duel owner aggregation.
-- Bonus tile generation.
-- Local session move/publish behavior, `LocalSessionFactory`, saved-state replacement, and Solo computer turns.
-- Nearby protocol JSON messages, unknown type rejection, and clean `FAILED` handling for unknown fields.
-- Nearby permission SDK bands.
-- Nearby configuration dependency/manifest/UI terms.
-- Host coordinator accepted/rejected moves and full sync.
-- Nearby session host/client/reconnect behavior.
-- Nearby Connections coordinator facade calls, discovery state, accept/reject, BYTES decode routing, endpoint-owner authorization, host-only sync acceptance, reconnect mapping, and disconnect state.
-- Move generator legality.
-- Move evaluator bonus preference.
-- Computer opponent deterministic seed behavior, legality across difficulties, pass fallback.
-- Opponent difficulty mapper persisted `1..5` mapping and clamping.
-- Data repositories, saved-game settings snapshots, profile history cap, JSON serializer, and JVM-safe runtime providers.
-- GameViewModel initial state, placing, rejection/action-failed effects, clockwise/counterclockwise rotation, flip, Solo flow, supported modes, repository-backed settings, preferred-mode persistence, saved-game resume/discard, active Nearby session collection/delegation, local-only persistence after accepted turns, profile actions, saved-game persistence, game-over history including Two-Color Duel owner aggregation, and polish settings toggles.
-- Game layout policy and sound policy.
-- `SystemTimeProvider` epoch millis and ISO date formatting.
-- Theme token values.
-- Release identity guardrails.
-- Release/build guardrails:
-  - Gradle wrapper, AGP, detekt, detekt Compose rules, Foojay resolver, and Detekt 2 schema pins.
-  - Kotlin/Java 17 toolchain pins and absence of legacy Android Kotlin/kapt configuration.
-  - Hilt test component generation for JVM and instrumented tests.
-  - Dependency-Check conditional application and configuration-cache fallback behavior.
-  - Release signing gate behavior for real artifact task graphs, release verification tasks, and configuration-cache env changes.
-  - Repository policy: only root dependency repositories, no project/convention build-script repositories, no included builds without coverage, no committed Gradle init scripts.
-  - Dependency verification: metadata and signatures enabled, SHA-256 on every artifact, no wildcard trusted keys, and no trusted artifacts.
-  - Compose dependency policy: Compose BOM controls Compose versions, Material 3 is used instead of Material 2, and `composeOptions.kotlinCompilerExtensionVersion` is absent under AGP 9 built-in Kotlin.
-  - Unused dependency seams: no direct Navigation Compose, Hilt Navigation Compose, DataStore Preferences, or Compose Animation declarations/imports, and no Material Icons Extended package for the current icon set. Compose Animation artifacts may still resolve transitively through the Compose BOM/Material3/Foundation stack; they are not app-owned seams.
-  - Android lint policy: compile/target SDK 37, release lint enabled, and `OldTargetApi` fatal.
-  - Manifest security policy: source-set manifests disable backup, full backup, device transfer, and cleartext traffic.
-  - Guardrail hygiene: generated analyzer/report outputs ignored, theme-equivalent colors centralized under `ui/theme`, and Compose stability baselines tracked in Git.
+The checked-in source contains 279 JVM `@Test` methods and 14 instrumented `@Test` methods.
 
-Instrumented Compose tests cover:
+The full direct verification command listed at the top of this document returned `BUILD SUCCESSFUL` on 2026-07-28. Its fresh XML result contains 279 passing JVM tests with no failures, errors, or skips. The same command passed main/test ktlint, detekt, Android lint, debug assembly, and Android-test compilation. Targeted `GameScreenTest` and `MatchReviewDialogTest` executions passed on a Pixel 9 Pro API 36 emulator; this is not evidence for every connected test or a physical device.
 
-- Game screen board and accessible controls.
-- History/stats dialog tabs.
-- Settings dialog toggles.
-- Help dialog rule sections.
-- Game-over score breakdown.
+### Model and engine
 
-Test support:
+Tests cover:
 
-- `MainDispatcherRule` swaps the main dispatcher for coroutine ViewModel tests.
-- `InMemoryJsonStateStore` supports repository tests without Android DataStore.
-- Engine fixtures and score fixtures live under `app/src/test/java/com/finnvek/cornersapart/engine/`.
+- board shape/value/snapshot behavior and serialization rejection
+- shared constants and mode configuration
+- piece catalog/transforms/target cells
+- deterministic seed mixing
+- start-corner, diagonal, same-edge, opponent-contact, invalid-player/turn/game-over precedence
+- pass/game-over transitions
+- scoring, duplicate bonuses, completion, ranking, owner aggregation
+- bonus generation
+- engine purity and package dependency boundaries
+- history statistics, daily streaks, and Hall of Fame sorting/ranking
 
-## Static Analysis, Security, And CI
+### Opponents
 
-Android lint:
+Tests cover:
 
-- `abortOnError = true`.
-- `warningsAsErrors = false`.
-- `checkReleaseBuilds = true`.
-- Adds `com.android.security.lint:lint` through `lintChecks`.
-- Enables checks including permissions, hardcoded text, missing translation, unused resources, wrong thread, content descriptions, RTL hardcoded, static field leaks, and others.
-- Disables `GradleDependency` and `AndroidGradlePluginVersion`.
-- Marks `OldTargetApi` fatal; `AndroidLintPolicyTest` asserts compile/target SDK 37 and the fatal lint setting.
+- generator legality and empty-move behavior
+- evaluator bonus preference
+- deterministic action selection
+- legal action across all difficulties and pass fallback
+- difficulty parameters/mapping/clamping
+- 12-character roster identity, ordering, color range, unlocks, next challenger, and first-win progression
+- Rival session identity/style/difficulty/compact board
 
-ktlint:
+### Sessions and Nearby
 
-- Root and app module use `org.jlleitschuh.gradle.ktlint`.
-- App module sets `android = true`.
-- Ignores generated and build directories.
+Tests cover:
 
-detekt:
+- local publication coherence, concurrency, fresh restart, restore, passes, Solo/computer loops, cancellation-sensitive replacement
+- protocol round trips and strict decoding
+- host accepted/rejected move/pass/full-sync behavior
+- facade type boundary and non-BYTES payload rejection
+- permission SDK bands and manifest/dependency/UI terms
+- coordinator hosting/discovery replacement, accept/reject/capacity, ownership, Two-color mapping, payload ordering, authorization, invalid sync, status codes, disconnect/reconnect/timeout, and stale callback generations
+- NearbySession host/client requests, events, reconnect terminal state, host reset/replacement, invalid sync, client replacement denial, and mutex serialization
 
-- Config: `config/detekt/detekt.yml`.
-- `buildUponDefaultConfig = true`.
-- Parallel enabled.
-- App baseline path: `app/detekt-baseline.xml`.
-- Plugin id is `dev.detekt`.
-- Version is `2.0.0-alpha.5`.
-- Complexity rules are active with Compose-aware exclusions for annotated composables.
-- Long method threshold is 60, ignoring `@Composable`.
-- TooManyFunctions thresholds: files 30, classes 25, interfaces 15, objects 11, enums 11.
-- Compose detekt rules are active through `io.nlopez.compose.rules` version `0.6.2`.
-- `BuildToolchainCompatibilityTest.detektConfigStaysOnDetektTwoSchema` rejects obsolete Detekt 1.x config keys.
+### Data/ViewModel
 
-Compose Stability Analyzer:
+Tests cover baseline repository save/clear/settings/profile/history behavior, serializer defaults/strict required fields, ViewModel base-mode play, settings, saves, profiles, Nearby delegation, cancellation boundaries, game-over history, Two-color owner aggregation, localized fallbacks, local-only review availability, review navigation/close, repository-free analysis, and stale-emission cancellation on game replacement.
 
-- App module applies `com.github.skydoves.compose.stability.analyzer`.
-- Tracked stability dumps are `app/stability/app-debug.stability` and `app/stability/app-release.stability`.
-- The dump files are generated by `./gradlew :app:stabilityDump`.
-- Stability validation is enabled.
-- Output directory is `app/stability`.
-- `failOnStabilityChange` is true.
-- `allowMissingBaseline` is false.
-- `GuardrailHygieneTest.composeStabilityValidationKeepsTrackedStrictBaselines` asserts that the baselines exist, are tracked by Git, are not ignored, and strict validation stays enabled.
+### Match review
 
-Dependency-Check:
+Dedicated JVM tests cover exact engine replay, voluntary mid-game and finishing passes, automatic no-move skipping, identity/owner/bonus preservation, typed replay failures, scoring thresholds and accuracy edge cases, voluntary/forced pass assessment, Two-color owner 0 slots, incremental progress, and deterministic repeated analysis. The review models are deliberately not serializable.
 
-- The plugin alias is declared in the app plugins block with `apply false`.
-- If Gradle configuration cache is requested, `app/build.gradle.kts` registers a fallback `dependencyCheckAnalyze` task that fails with guidance to rerun with `--no-configuration-cache`.
-- If configuration cache is not requested, the app module applies `org.owasp.dependencycheck` and configures the real analyzer task.
-- Formats: HTML and JSON.
-- Output directory: root `reports`.
-- Suppressions file: `config/dependency-check/suppressions.xml`.
-- Current suppression marks the `compose-stability-runtime-android` GitHub Enterprise CPE match as a false positive for Skydoves Compose Stability Analyzer runtime.
-- Data directory defaults to `.gradle/dependency-check-data` but can be overridden with `DEPENDENCY_CHECK_DATA_DIRECTORY`.
-- Auto-update defaults true and can be controlled with `DEPENDENCY_CHECK_AUTO_UPDATE`.
-- Fail CVSS defaults to 7 and can be overridden with `DEPENDENCY_CHECK_FAIL_BUILD_ON_CVSS`.
-- Scans `debugRuntimeClasspath` and `releaseRuntimeClasspath`.
-- Test groups are skipped.
-- OSS Index analyzer is disabled.
-- NVD API key, delay, retry count, and valid hours can be configured by env vars.
-- The real `dependencyCheckAnalyze` task is marked `notCompatibleWithConfigurationCache`.
+Direct dedicated tests were not found for every newly added `ProfileRepository` progression mutator (`recordChallengeStars`, `recordRivalResult`, `addAchievements`, `recordDailyBest`), `AchievementEvaluator`, `ChallengeLevels`, daily/replay ViewModel flow, or finished Rival persistence/result flow. Some related calculators/roster/session pieces are tested independently, but these end-to-end gaps are important review targets.
 
-JaCoCo:
+### Compose instrumented tests
 
-- Tool version 0.8.15.
-- Report task: `jacocoDebugUnitTestReport`.
-- Depends on `testDebugUnitTest`.
-- Produces XML and HTML under `app/build/reports/jacoco/jacocoDebugUnitTestReport/`.
-- Includes Java classes, Kotlin debug classes, and AGP built-in Kotlin class paths.
-- Excludes generated Android classes, tests, previews, composable singleton artifacts, and `di`.
+`GameScreenTest` currently checks:
 
-Sonar:
+- board and accessible transform/pass controls
+- local Nearby-status hiding
+- History/Stats tabs
+- sound/haptics settings and absence of reduced-motion UI
+- help rule sections
+- Nearby endpoint/pending/error/status actions
+- game-over score breakdown
+- local-only Review game entry and immediate Game Over dialog dismissal
 
-- Project key: `Insaner1980_Corners_Apart_Android`.
-- Organization: `insaner1980`.
-- Host: `https://sonarcloud.io`.
-- Sources: `app/src/main/java`.
-- Tests: `app/src/test/java`, `app/src/androidTest/java`.
-- Coverage XML path: `app/build/reports/jacoco/jacocoDebugUnitTestReport/jacocoDebugUnitTestReport.xml`.
-- Coverage excludes app entrypoint files, UI screens, and `PlayServicesConnectionsClientFacade`.
-- Root Gradle `sonar` task depends on `:app:assembleDebug` and `:app:jacocoDebugUnitTestReport`.
-- `tools/sonar.ps1` writes `reports/sonar.txt`, optionally exports issues to `reports/sonar-issues.json`, and requires `SONAR_TOKEN` or `systemProp.sonar.token` for Gradle scanner authentication.
+`MatchReviewDialogTest` checks analyzing/progress state, completed accuracy/classification state, boundary navigation semantics/callbacks, best-move mode and board description, and closeable failure UI. The targeted review and GameScreen classes were executed on the Pixel 9 Pro API 36 emulator during the implementation pass.
 
-Semgrep:
+It does not directly test the new Challenge dialog, Rivals dialog/intro, Top 20 tab, profile editor, drag/drop coordinates, breakpoint layout, splash animation, animations at font scale, or per-cell accessibility.
 
-- Config path: `config/semgrep/corners_apart_android-security.yml`.
-- Project rules flag:
-  - `android:allowBackup="true"`.
-  - `android:usesCleartextTraffic="true"`.
-  - Unexpected exported service/receiver/provider/activity-alias.
-  - Broad FileProvider paths.
-  - Raw Nearby bypass through Bluetooth/Wi-Fi Direct/Wi-Fi Aware APIs.
-  - Sensitive Android log calls containing nearby/endpoint/payload/profile/player/save/settings/board/move/token/corners terms.
+### Build/release policy tests
 
-MobSF:
+Source-driven tests guard:
 
-- Config file `.mobsf`.
-- Ignores build/cache/report/test/deepsec-data paths.
-- Ignores `android_task_hijacking2`.
-- Filters to WARNING and ERROR severity.
+- identity/version/label and external-name/AI restrictions
+- manifest backup/cleartext/export policy
+- launcher and system/custom splash resources
+- Nunito license packaging
+- repository policy
+- AGP/Kotlin/Hilt/KSP/JaCoCo/OWASP/signing compatibility
+- dependency verification metadata/signatures/checksums
+- Compose BOM/Material 3/no-unused-seam policy
+- lint SDK/fatal policy
+- centralized colors and tracked strict stability baselines
+
+Some build-tool tests launch nested Gradle commands and depend on generated release manifest output; their success must be established by an actual test run.
+
+## Static analysis, security tooling, and CI
+
+### Android lint
+
+`app/build.gradle.kts`:
+
+- aborts on errors
+- checks release builds
+- keeps warnings non-fatal
+- marks `OldTargetApi` fatal
+- enables API, permission, resource, localization, thread, RTL, content-description, and leak checks
+- disables dependency/version freshness checks
+- adds `com.android.security.lint:lint`
+
+`app/lint.xml` limits an `ObsoleteSdkInt` exception to the v26 launcher resource.
+
+### ktlint and detekt
+
+Root/app ktlint ignore generated/build output; app uses Android mode.
+
+Detekt:
+
+- uses `config/detekt/detekt.yml`
+- builds on defaults
+- runs in parallel
+- references `app/detekt-baseline.xml` (the file is not present in the current file inventory)
+- enables Compose rules
+- allows 60-line methods with `@Composable` ignored
+- allows a 600-line class but production `GameViewModel` and `GameScreen.kt` use explicit suppressions for current size/function counts
+
+The large ViewModel and screen are therefore consciously allowed in source but remain high-risk redesign surfaces.
+
+### Compose Stability Analyzer
+
+The app tracks:
+
+- `app/stability/app-debug.stability`
+- `app/stability/app-release.stability`
+
+Validation is enabled, fails on change, rejects missing baselines, and writes to `app/stability`. Baselines are configuration evidence, not a fresh stability pass.
+
+### JaCoCo and Sonar
+
+`jacocoDebugUnitTestReport`:
+
+- depends on `testDebugUnitTest`
+- emits XML/HTML under `app/build/reports/jacoco/jacocoDebugUnitTestReport`
+- includes Java, standard Kotlin, and AGP built-in Kotlin class paths
+- excludes Android generated classes, tests, previews, composable singleton output, and `di`
+
+Sonar configuration:
+
+- project `Insaner1980_Corners_Apart_Android`
+- organization `insaner1980`
+- host `https://sonarcloud.io`
+- sources `app/src/main/java`
+- tests JVM + instrumented directories
+- coverage excludes `App.kt`, `MainActivity.kt`, all `ui/screens`, and `PlayServicesConnectionsClientFacade`
+
+The root task builds debug and coverage before analysis. `tools/sonar.ps1` is the only non-delegating repository wrapper; its current working-tree version requires the explicit `-AllowExternalUpload` switch before either the Gradle Sonar upload or direct `sonar.exe` operations, also requires `SONAR_TOKEN` or a Gradle token property for the full Gradle scan, writes `reports/sonar.txt`, and optionally exports issues with `sonar.exe`.
+
+### Dependency and security scanners
+
+OWASP Dependency-Check:
+
+- scans debug/release runtime classpaths
+- writes HTML/JSON to `reports`
+- defaults CVSS failure threshold to 7
+- supports env-controlled cache/update/NVD values
+- disables OSS Index
+- suppresses a verified false CPE match for `compose-stability-runtime-android`
+
+Semgrep rules check backup/cleartext, exported background components, broad FileProvider paths, raw Nearby transport bypasses, and sensitive logging.
+
+MobSF config excludes build/test/report/tool data and filters to warning/error.
 
 DeepSec:
 
-- Config file `.deepsec/deepsec.config.ts`.
-- Project id: `corners_apart_android`.
-- Priority paths: manifest, multiplayer, data, and model packages.
-- Prompt focus: exported components, FileProvider exports, URI grants, Nearby trust boundaries, local profile/save privacy, and raw Bluetooth/Wi-Fi Direct bypasses.
-- Custom matchers:
-  - `android-exported-component`.
-  - `android-security-boundary-surface`.
-  - `android-uri-share-without-clipdata`.
-  - `fileprovider-broad-path`.
-  - `raw-nearby-bypass`.
-  - `sensitive-android-log`.
-- DeepSec package version in `.deepsec/package.json`: `deepsec` 2.0.12.
+- private local Node tool under `.deepsec`
+- `deepsec` 2.2.8, TypeScript 7.0.2
+- project `corners_apart_android`
+- priority manifest/multiplayer/data/model paths
+- custom Android export, sharing, transport, boundary, and log matchers
 
-OSV:
+OSV configuration contains explicit build-tool-only package overrides in `gradle/osv-scanner.toml` and one time-limited DeepSec transitive ignore in `.deepsec/osv-scanner.toml`. These do not describe Android APK runtime dependencies.
 
-- `gradle/osv-scanner.toml` ignores Gradle verification metadata as an application dependency lockfile because Gradle dependencies are scanned by OWASP Dependency-Check.
-- `.deepsec/osv-scanner.toml` also exists for DeepSec-side scanning.
+Gradle dependency verification is configured in `gradle/verification-metadata.xml`; policy tests require metadata/signature verification, SHA-256 per artifact, no trusted-artifact bypass, and no wildcard trusted-key scope.
 
-Dependency verification:
+### GitHub Actions
 
-- `gradle/verification-metadata.xml` is present.
-- It uses Gradle dependency verification schema 1.3 and trusted keys.
-- Verification config requires metadata and signature verification.
-- Every artifact must have SHA-256 metadata.
-- `DependencyVerificationPolicyTest` rejects `trusted-artifacts` and wildcard/regex trusted-key scopes.
+`build.yml`, push/PR to `main`:
 
-GitHub Actions:
+1. pinned checkout
+2. Temurin JDK 17
+3. pinned Gradle setup
+4. debug assemble
+5. unit tests
+6. detekt
+7. Android lint
 
-- `.github/workflows/build.yml`:
-  - Runs on push and pull request to `main`.
-  - Checks out code with a pinned SHA for `actions/checkout`.
-  - Sets up Temurin JDK 17 with a pinned SHA for `actions/setup-java`.
-  - Uses a pinned SHA for `gradle/actions/setup-gradle`.
-  - Runs `./gradlew --no-configuration-cache assembleDebug`.
-  - Runs `./gradlew --no-configuration-cache test`.
-  - Runs `./gradlew --no-configuration-cache :app:detekt`.
-  - Runs `./gradlew --no-configuration-cache lint`.
-- `.github/workflows/sonar.yml`:
-  - Runs on push and pull request to `main`.
-  - Uses fetch depth 0.
-  - Checks for `SONAR_TOKEN`.
-  - If token exists, runs `./gradlew --no-configuration-cache assembleDebug jacocoDebugUnitTestReport sonar --no-daemon --console=plain`.
-  - Prints a Finnish GitHub Actions notice if `SONAR_TOKEN` is missing.
-- `.github/workflows/codeql.yml`:
-  - Runs on push and pull request to `main`, plus Monday 06:00 cron.
-  - Scans GitHub Actions workflows with CodeQL.
-  - Comment notes Kotlin 2.4 is not yet in the supported CodeQL Kotlin range, so Android/Kotlin source is not scanned by CodeQL here.
-- `.github/dependabot.yml`:
-  - Runs weekly update checks for Gradle dependencies.
-  - Runs weekly update checks for GitHub Actions.
+All Gradle steps disable configuration cache.
 
-## Local Tool Wrappers
+`sonar.yml`, push/PR to `main`:
 
-All wrapper scripts except `tools/sonar.ps1` are thin delegates to `C:\Dev\Android-check\tools\InvokeProjectCheck.ps1`.
+- full-depth checkout
+- JDK 17 and Gradle setup
+- mandatory `SONAR_TOKEN` check; the current working-tree workflow exits with code 2 when the secret is absent
+- `assembleDebug jacocoDebugUnitTestReport sonar`
 
-Wrapper commands:
+`codeql.yml`, push/PR plus Monday 06:00:
 
-- `tools/ac.ps1`: `android-check`.
-- `tools/cr.ps1`: `compose-rules`.
-- `tools/cs.ps1`: `compose-stability`.
-- `tools/db.ps1`: `dependabot-check`.
-- `tools/dc.ps1`: `dependency-check`.
-- `tools/ds.ps1`: `deep-sec`.
-- `tools/ga.ps1`: `google-android-security`.
-- `tools/lc.ps1`: `lint-check`.
-- `tools/ms.ps1`: `mobsf-scan`.
-- `tools/os.ps1`: `osv-scan`.
-- `tools/pc.ps1`: `pmd-check`.
-- `tools/ql.ps1`: `codeql-check`.
-- `tools/sc.ps1`: `security-check`.
-- `tools/ss.ps1`: `secret-scan`.
-- `tools/sonar.ps1`: custom Sonar helper.
+- initializes `java-kotlin` in manual-build mode
+- installs JDK 17 and Gradle support
+- builds `:app:assembleDebug` without configuration cache
+- publishes analysis under category `/language:java-kotlin`
 
-The `reports/` directory is gitignored and must not be committed.
+Dependabot weekly ecosystems:
 
-## Product Identity And Security Guardrails
+- npm in `/.deepsec`
+- Gradle at root
+- GitHub Actions at root
 
-Do:
+### Local wrapper map
 
-- Keep the app identity as Corners Apart.
-- Keep UI text English unless adding proper localization resources.
-- Keep communication with the user, commit messages, and necessary code comments in Finnish.
-- Keep theme colors, spacing, shapes, typography, alpha, and animation tokens centralized.
-- Keep pure rules under `engine/`.
-- Keep serializable game/save/domain models under `model/`; Nearby protocol messages (`GameMessage`, `GameProtocol`) live under `multiplayer/`.
-- Keep DataStore access behind repositories in `data/`.
-- Keep host-authoritative multiplayer validation in `HostGameCoordinator`.
-- Keep Nearby v1 transport on Google Play services Nearby.
-- Keep all user-facing strings in resources.
+All except Sonar delegate to `C:\Dev\Android-check\tools\InvokeProjectCheck.ps1`:
 
-Do not:
+| Script | Delegated command |
+|---|---|
+| `tools/ac.ps1` | `android-check` |
+| `tools/cr.ps1` | `compose-rules` |
+| `tools/cs.ps1` | `compose-stability` |
+| `tools/db.ps1` | `dependabot-check` |
+| `tools/dc.ps1` | `dependency-check` |
+| `tools/ds.ps1` | `deep-sec` |
+| `tools/ga.ps1` | `google-android-security` |
+| `tools/lc.ps1` | `lint-check` |
+| `tools/ms.ps1` | `mobsf-scan` |
+| `tools/os.ps1` | `osv-scan` |
+| `tools/pc.ps1` | `pmd-check` |
+| `tools/ql.ps1` | `codeql-check` |
+| `tools/sc.ps1` | `security-check` |
+| `tools/ss.ps1` | `secret-scan` |
 
-- Add Room for v1 persistence.
-- Add raw Bluetooth, Wi-Fi Direct, Wi-Fi Aware, direct sockets, or low-level transport fallbacks for v1.
-- Add remote avatar services for v1.
-- Duplicate placement, scoring, ranking, bonus, piece, or turn logic in UI/session/opponent code.
-- Hardcode theme-equivalent colors/dimensions in UI code.
-- Add user-facing external board-game names, logos, official wording, or marketing language.
-- Add user-facing claims that the app has AI; computer opponents are normal local rule-based code.
-- Commit `reports/`, local Gradle/Android-check caches, build outputs, APK/AAB outputs, or local IDE files.
+`reports/` is ignored and must not be committed. Wrapper output is not evidence of current status unless the relevant wrapper was actually run; direct analyzer/Gradle output is the stronger authority for a fresh audit.
 
-## Known Review Targets
+## Non-negotiable implementation invariants
 
-These are current-state items worth asking precise code-review questions about:
+- Keep namespace/application/service identity `com.finnvek.cornersapart` unless an intentional product migration updates every authority and release guard.
+- Keep one source of truth for each rule/config/token concept.
+- Keep `model -> engine` forbidden and the engine pure.
+- Use `GameModeConfigs` for mode starts/owners/computer slots.
+- Use `PieceCatalog` and `PieceTransforms` for all piece geometry/orientations.
+- Use `model.targetCells` for anchor-plus-offset placement coordinates.
+- Use `Scoring.rankPlayers` for final/history ranking, especially Two-color owner aggregation.
+- Keep DataStore behind repositories.
+- Keep Play Services types behind `ConnectionsClientFacade`.
+- Keep host validation authoritative and endpoint ownership checked before host delivery.
+- Validate restored/remote game-state index domains.
+- Do not persist Nearby games/history as local authoritative results without a deliberate product/security design.
+- Do not persist match-review timelines, assessments, progress, or selection; do not expose review for saved/history/Nearby games without a new product and protocol design.
+- Keep theme-equivalent colors and shared visual values centralized.
+- Keep user-facing prose in resources; if code-owned names/glyphs remain, treat them as intentional exceptions and review localization/accessibility impact.
+- Preserve Finnish user communication/commit/comment convention while keeping current app UI English until proper locale resources are added.
+- Do not add Room, raw transports, remote avatars, external board-game identity, or AI marketing to v1.
 
-- Should `NearbyConnectionsCoordinator` and the rendered Nearby UI expose enough host/client/player-owner state for two-device stress testing and reconnect debugging, or is the current status/endpoint/auth-code surface too thin?
-- Should the Compose action model surface `GameViewModel.disconnectNearby()` so users can leave a Nearby session without switching to local play?
-- Should `GameSoundPlayer` move from generated platform tones to original `res/raw` assets before release polish?
-- Should `ProfilesDialog` get a denser edit workflow or stay as a compact local v1 editor?
-- Should `NearbyPermissions` SDK 37 local-network branch be paired with an `AndroidManifest.xml` declaration and an SDK 37 unit test, now that compile/target SDK are 37?
-- Should removed dormant settings (`reducedMotionEnabled`, `preferredRuleset`) remain absent from persistence, settings UI, and serializer output?
-- Should the release-signing task-name matcher keep relying on Gradle task names, or should additional artifact-producing AGP task names be covered as AGP changes?
-- Should `:app:dependencyCheckAnalyze` remain a configuration-cache fallback failure task, and should wrapper/report flows always call the real task with `--no-configuration-cache`?
-- Should `sonar` task dependency on `assembleDebug` stay, or should analysis avoid artifact build coupling if release/signing/Firebase-style gates are added later?
+## Known limitations and exact review targets
 
-## External Docs Checked While Writing
+### Architecture and correctness
 
-These were re-checked on 2026-07-03 to avoid relying on stale Android ecosystem assumptions while refreshing this code-backed file. This section records documentation assumptions only; the project still uses the exact versions and behavior in the live checkout, especially `gradle/libs.versions.toml`, `gradle/wrapper/gradle-wrapper.properties`, `settings.gradle.kts`, and `app/build.gradle.kts`.
+- `GameViewModel.kt` is approximately 1,000 lines and `GameScreen.kt` approximately 1,400 lines. Their explicit detekt suppressions are a signal to examine ownership before adding more features.
+- Challenge and Rival opponent difficulty is not written into history; history uses global settings. This also feeds difficulty-based achievements/statistics.
+- Daily game-over replay routes to normal Solo instead of the daily seed.
+- Locked challenge enforcement exists in UI, not in `startChallengeLevel()`.
+- New profile progression collections are not all defensively copied by `Profile.toSnapshotCopy()`.
+- The first completed game cannot be labeled “new best” because prior history must be non-empty.
+- Resume summary difficulty is sourced from current settings rather than the saved settings root.
+- Profile name length/content beyond trim/fallback is not constrained.
 
-- Android Gradle Plugin release notes for AGP 9.x compatibility and built-in Kotlin behavior: <https://developer.android.com/build/releases/agp-9-2-0-release-notes> and <https://developer.android.com/build/releases/agp-9-0-0-release-notes>.
-- Gradle configuration cache user manual for the configuration-cache behavior that the local OWASP fallback avoids: <https://docs.gradle.org/current/userguide/configuration_cache.html>.
-- OWASP Dependency-Check Gradle task documentation and plugin portal version page for the current `dependencyCheckAnalyze` task name and plugin version surface: <https://dependency-check.github.io/DependencyCheck/dependency-check-gradle/configuration.html> and <https://plugins.gradle.org/plugin/org.owasp.dependencycheck>.
+### Nearby
 
-For future dependency upgrades, re-check official Android, Google, JetBrains, Gradle, and library release notes before changing version numbers or API usage.
+- No explicit leave/disconnect control is wired to the screen.
+- SDK 31 requests both coarse and fine location although the current official Nearby sample lists only fine location for SDK 29–31; verify the actual Play Services/device requirement before release.
+- Lobby players, owner assignments, and reconnecting indexes are not exposed in `GameUiState`.
+- `SessionPlayer.isLocal` is role-wide, not true controller ownership.
+- Client accepted moves do not produce the same positive `GameEffect` path as local/host accepted moves.
+- Client host loss is terminal `DISCONNECTED`; only host-side remote-owner timeout/rejoin exists.
+- Owner reservation is not endpoint-identity durable.
+- One pending authentication decision is represented at a time.
+- No app protocol version/migration, replay/sequence guard, size guard, or app-level integrity/authentication layer.
+- Physical P2P_STAR capacity, discovery, permission, and reconnect behavior remains unverified.
+
+### UI and redesign
+
+- Fixed dark theme only; no light/dynamic color.
+- Width-only 840 dp breakpoint; no compact-height/fold/posture policy.
+- Entire screen scrolls as one container; expanded columns do not scroll independently.
+- A full 20×20 board remains square/full-width in compact mode, so physical cell size can become very small.
+- Canvas board is not cell-addressable to accessibility services.
+- No non-pointer board placement flow.
+- No reduced-motion setting despite several continuous/entrance animations.
+- Profile avatar styles are metadata-only and have no visual generator.
+- Several glyphs/names are code-owned rather than resource-owned.
+- Resume displays raw epoch milliseconds instead of a formatted local date/time.
+- Sound playback does not wait for load completion.
+- New Challenge, Rivals, Top 20, launch, breakpoint, drag, and large-font accessibility paths need more direct Compose/device tests.
+
+### Release/manual
+
+- Compact Duel play testing.
+- Two-device and multi-client Nearby stress/background/permission tests.
+- Emulator/device screenshots at phone/tablet widths, landscape, large font, display scaling, RTL, and TalkBack.
+- Release signing/minification/resource shrinking and final manifest inspection.
+- Fresh lint/detekt/stability/security/Sonar/coverage evidence.
+- Privacy policy/store data-safety alignment for the final artifact and Play Services behavior.
+
+## UI redesign planning map
+
+For a future redesign, preserve behavioral ownership and separate visual restructuring from rule/session changes:
+
+| Redesign area | Current owner | Must remain stable |
+|---|---|---|
+| App shell/launch | `MainActivity.kt`, `CornersApartLaunch.kt` | Hilt entry, system splash, input block until overlay ends |
+| Screen state wiring | `GameRoute`, action data classes | lifecycle collection, permission gate, effects |
+| Layout | `GameScreenContent`, compact/expanded functions | dialog ownership, board/session actions |
+| Board | `GameBoard.kt`, `BoardDragController` | engine-backed legality, lifted/clamped anchor, slot-to-color mapping |
+| Game header/actions | `Header`, `UtilityActions`, `NearbyActions` | all current entry points and permission gating |
+| Pieces | `PiecePanel`, `PieceCard`, `SelectedPiecePreview` | catalog IDs, used/selected state, transform actions |
+| Score/status | `PlayerScoreBar`, `StatusLine` | owner-aware names/colors, passed/current state |
+| Progression | Challenge/Rivals/History/Top 20 dialogs | profile-local persistence and result semantics |
+| Visual system | `ui/theme/*`, candy components | centralized tokens and 48 dp controls |
+| Accessibility | route announcements, semantics, resources | rejection reason specificity and live feedback |
+
+Before changing navigation or screen ownership, explicitly decide:
+
+1. Whether the single surface becomes a real navigation graph.
+2. Whether game state survives route changes only in ViewModel or through save/restore.
+3. Where Nearby lobby/leave/reconnect controls live.
+4. Whether Challenges, Rivals, Profiles, and Top 20 become screens rather than modal dialogs.
+5. How board placement works for TalkBack/keyboard/switch access.
+6. How reduced motion affects launch, pulse, pop, confetti, dialog, score, progress, and Rival animations.
+7. Whether profile avatar metadata becomes a real local renderer or is removed.
+8. Whether daily/challenge/Rival result semantics are corrected before visual redesign so UI does not fossilize current inconsistencies.
+
+Any redesign should first add focused tests for the behavior being moved, then keep `GameEngine`, repositories, sessions, and protocol ownership unchanged unless the change is explicitly architectural.

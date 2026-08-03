@@ -56,6 +56,44 @@ fun CandyChip(
 ) {
     val face = if (selected) CornersApartColors.ButtonPrimaryFace else CornersApartColors.PanelSurface
     val bevel = if (selected) CornersApartColors.ButtonPrimaryBevel else CornersApartColors.ButtonNeutralBevel
+    CandyChipBody(
+        label = label,
+        face = face,
+        bevel = bevel,
+        textColor =
+            if (selected) {
+                CornersApartColors.TextOnDarkPrimary
+            } else {
+                CornersApartColors.TextOnDarkSecondary
+            },
+        modifier = modifier.selectable(selected = selected, role = Role.Button, onClick = onClick),
+    )
+}
+
+@Composable
+fun CandyStatusChip(
+    label: String,
+    face: androidx.compose.ui.graphics.Color,
+    bevel: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+) {
+    CandyChipBody(
+        label = label,
+        face = face,
+        bevel = bevel,
+        textColor = CornersApartColors.TextOnDarkPrimary,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun CandyChipBody(
+    label: String,
+    face: androidx.compose.ui.graphics.Color,
+    bevel: androidx.compose.ui.graphics.Color,
+    textColor: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier =
             modifier
@@ -68,8 +106,7 @@ fun CandyChip(
                             colors = listOf(lerp(face, CornersApartColors.GlossTint, CHIP_TOP_LIGHTEN), face),
                         ),
                     shape = CircleShape,
-                ).selectable(selected = selected, role = Role.Button, onClick = onClick)
-                .padding(
+                ).padding(
                     horizontal = CornersApartSpacing.SectionGap,
                     vertical = CornersApartSpacing.CompactGap,
                 ),
@@ -78,12 +115,7 @@ fun CandyChip(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color =
-                if (selected) {
-                    CornersApartColors.TextOnDarkPrimary
-                } else {
-                    CornersApartColors.TextOnDarkSecondary
-                },
+            color = textColor,
         )
     }
 }

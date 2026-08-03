@@ -66,7 +66,10 @@ class LocalSession(
                         Result.failure(IllegalStateException(SESSION_REPLACED_MESSAGE))
                     }
                 }
-                is MoveResult.Rejected -> Result.failure(MoveRejectedException(result.reason))
+
+                is MoveResult.Rejected -> {
+                    Result.failure(MoveRejectedException(result.reason))
+                }
             }
         }
 

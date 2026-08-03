@@ -18,13 +18,20 @@ object NearbyPermissions {
     fun requiredRuntimePermissions(sdkInt: Int = Build.VERSION.SDK_INT): List<String> =
         buildList {
             when {
-                sdkInt <= ANDROID_9 -> add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                sdkInt in ANDROID_10 until ANDROID_12 -> add(Manifest.permission.ACCESS_FINE_LOCATION)
+                sdkInt <= ANDROID_9 -> {
+                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                }
+
+                sdkInt in ANDROID_10 until ANDROID_12 -> {
+                    add(Manifest.permission.ACCESS_FINE_LOCATION)
+                }
+
                 sdkInt == ANDROID_12 -> {
                     add(Manifest.permission.ACCESS_COARSE_LOCATION)
                     add(Manifest.permission.ACCESS_FINE_LOCATION)
                     addBluetoothPermissions()
                 }
+
                 sdkInt >= ANDROID_12L -> {
                     addBluetoothPermissions()
                     add(NEARBY_WIFI_DEVICES)

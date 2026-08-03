@@ -9,15 +9,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,12 +19,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -44,7 +34,11 @@ import com.finnvek.cornersapart.model.BoardSnapshot
 import com.finnvek.cornersapart.model.CellOffset
 import com.finnvek.cornersapart.model.CellPosition
 import com.finnvek.cornersapart.model.targetCells
+import com.finnvek.cornersapart.ui.components.BoardVisualPlayer
+import com.finnvek.cornersapart.ui.components.candyBoardPanel
+import com.finnvek.cornersapart.ui.components.drawBoardBase
 import com.finnvek.cornersapart.ui.components.drawCandyCell
+import com.finnvek.cornersapart.ui.components.drawCellPerimeter
 import com.finnvek.cornersapart.ui.theme.CornersApartAlpha
 import com.finnvek.cornersapart.ui.theme.CornersApartColors
 import com.finnvek.cornersapart.ui.theme.CornersApartPlayerPalette
@@ -58,7 +52,7 @@ fun GameBoard(
     onPlaceCell: (row: Int, col: Int) -> Unit,
     modifier: Modifier = Modifier,
     externalPreviewAnchor: CellPosition? = null,
-    onCanvasPositioned: (LayoutCoordinates) -> Unit = {},
+    onCanvasPositionChange: (LayoutCoordinates) -> Unit = {},
     isPlacementLegal: (row: Int, col: Int) -> Boolean = { _, _ -> true },
 ) {
     val boardDescription = stringResource(R.string.game_board_content_description)
@@ -108,24 +102,24 @@ fun GameBoard(
         remember(activeAnchor, state.board, state.selectedCells) {
             activeAnchor?.let { anchor -> isPlacementLegal(anchor.row, anchor.col) } ?: true
         }
+    val visualPlayers =
+        remember(state.players) {
+            state.players.map { player ->
+                BoardVisualPlayer(
+                    index = player.index,
+                    colorIndex = player.colorIndex,
+                    startCorner = CellPosition(player.startRow, player.startCol),
+                )
+            }
+        }
     Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(CornersApartSpacing.BoardPanelRadius))
-                .background(CornersApartColors.BoardPanel)
-                .border(
-                    width = CornersApartSpacing.BoardPanelBorderWidth,
-                    color = CornersApartColors.PanelSurfaceRaised,
-                    shape = RoundedCornerShape(CornersApartSpacing.BoardPanelRadius),
-                ).padding(CornersApartSpacing.BoardPanelPadding),
+        modifier = modifier.candyBoardPanel(),
     ) {
         Canvas(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .onGloballyPositioned(onCanvasPositioned)
+                    .onGloballyPositioned(onCanvasPositionChange)
                     .semantics { contentDescription = boardDescription }
                     .pointerInput(state.board.size, state.selectedCells) {
                         // Paina näyttääksesi esikatselun sormen yläpuolella, raahaa
@@ -177,10 +171,16 @@ fun GameBoard(
             val boardSize = state.board.size
             val cellSize = (size.minDimension - gapPx * (boardSize - 1)) / boardSize
             val pitch = cellSize + gapPx
-            drawEmptyCells(state.board, cellSize, pitch)
-            drawBonusTiles(state, cellSize, pitch, bonusAlpha)
-            drawStartMarkers(state, cellSize, pitch)
-            drawOccupiedCells(state, cellSize, pitch, popCells, placementPop.value)
+            drawBoardBase(
+                board = state.board,
+                bonusTiles = state.bonusTiles,
+                players = visualPlayers,
+                cellSize = cellSize,
+                pitch = pitch,
+                bonusAlpha = bonusAlpha,
+                popCells = popCells,
+                popScale = placementPop.value,
+            )
             drawPlacementPreview(state, previewCells, previewIsValid, cellSize, pitch)
         }
     }
@@ -226,110 +226,6 @@ internal fun liftedBoardAnchor(
     )
 }
 
-private fun DrawScope.drawEmptyCells(
-    board: BoardSnapshot,
-    cellSize: Float,
-    pitch: Float,
-) {
-    val corner = CornerRadius(cellSize * EMPTY_CELL_CORNER_FRACTION)
-    for (row in 0 until board.size) {
-        for (col in 0 until board.size) {
-            drawRoundRect(
-                color = CornersApartColors.BoardCellEmpty,
-                topLeft = Offset(col * pitch, row * pitch),
-                size = Size(cellSize, cellSize),
-                cornerRadius = corner,
-            )
-        }
-    }
-}
-
-private fun DrawScope.drawBonusTiles(
-    state: GameUiState,
-    cellSize: Float,
-    pitch: Float,
-    pulseAlpha: Float,
-) {
-    state.bonusTiles
-        .filter { tile -> tile.claimedByPlayerIndex == null }
-        .forEach { tile ->
-            val center = Offset(tile.col * pitch + cellSize / 2f, tile.row * pitch + cellSize / 2f)
-            val radius = cellSize * BONUS_MARKER_RADIUS_FRACTION
-            drawCircle(
-                color =
-                    CornersApartColors.BonusAccentBright.copy(
-                        alpha = CornersApartAlpha.BonusGlow * pulseAlpha,
-                    ),
-                radius = cellSize * BONUS_GLOW_RADIUS_FRACTION,
-                center = center,
-            )
-            drawPath(diamondPath(center, radius), CornersApartColors.BonusAccentBright.copy(alpha = pulseAlpha))
-            drawPath(
-                diamondPath(center, radius * BONUS_INNER_DIAMOND_FRACTION),
-                CornersApartColors.BonusAccent.copy(alpha = pulseAlpha),
-            )
-        }
-}
-
-private fun diamondPath(
-    center: Offset,
-    radius: Float,
-): Path =
-    Path().apply {
-        moveTo(center.x, center.y - radius)
-        lineTo(center.x + radius, center.y)
-        lineTo(center.x, center.y + radius)
-        lineTo(center.x - radius, center.y)
-        close()
-    }
-
-private fun DrawScope.drawStartMarkers(
-    state: GameUiState,
-    cellSize: Float,
-    pitch: Float,
-) {
-    state.players.forEach { player ->
-        val position = CellPosition(player.startRow, player.startCol)
-        if (state.board.get(position) == BoardSnapshot.EMPTY) {
-            val colors = CornersApartPlayerPalette.colorsFor(player.colorIndex)
-            val center = Offset(position.col * pitch + cellSize / 2f, position.row * pitch + cellSize / 2f)
-            drawCircle(
-                color = colors.base.copy(alpha = CornersApartAlpha.BonusGlow),
-                radius = cellSize * START_MARKER_GLOW_RADIUS_FRACTION,
-                center = center,
-            )
-            drawCircle(
-                color = colors.highlight.copy(alpha = CornersApartAlpha.StartMarker),
-                radius = cellSize * START_MARKER_RADIUS_FRACTION,
-                center = center,
-            )
-        }
-    }
-}
-
-private fun DrawScope.drawOccupiedCells(
-    state: GameUiState,
-    cellSize: Float,
-    pitch: Float,
-    popCells: Set<CellPosition>,
-    popScale: Float,
-) {
-    for (row in 0 until state.board.size) {
-        for (col in 0 until state.board.size) {
-            val playerIndex = state.board.get(row, col)
-            if (playerIndex != BoardSnapshot.EMPTY) {
-                val colorIndex = state.players.getOrNull(playerIndex)?.colorIndex ?: playerIndex
-                drawCandyCell(
-                    topLeft = Offset(col * pitch, row * pitch),
-                    cellSize = cellSize,
-                    colors = CornersApartPlayerPalette.colorsFor(colorIndex),
-                    scale = if (CellPosition(row, col) in popCells) popScale else 1f,
-                )
-            }
-        }
-    }
-}
-
 /**
  * Piirtää sijoituksen esikatselun: himmentää muun laudan, piirtää palan rivien
  * ja sarakkeiden tähtäysviivat laudan reunoihin, palan oikeina candy-laattoina
@@ -361,7 +257,12 @@ private fun DrawScope.drawPlacementPreview(
             alpha = CornersApartAlpha.PreviewCell,
         )
     }
-    drawPreviewPerimeter(visibleCells, cellSize, pitch)
+    drawCellPerimeter(
+        cells = visibleCells,
+        cellSize = cellSize,
+        pitch = pitch,
+        color = CornersApartColors.TextOnDarkPrimary.copy(alpha = CornersApartAlpha.PreviewOutline),
+    )
 }
 
 /** Vaaleat tähtäysviivat: palan rivi- ja sarakekaistat koko laudan yli. */
@@ -385,44 +286,10 @@ private fun DrawScope.drawAlignmentGuides(
     drawLine(lineColor, Offset(right, 0f), Offset(right, size.height), lineWidth)
 }
 
-/** Paksu vaalea ääriviiva palan ulkoreunoille — vain reunoihin, joilla ei ole naapurisolua. */
-private fun DrawScope.drawPreviewPerimeter(
-    cells: List<CellPosition>,
-    cellSize: Float,
-    pitch: Float,
-) {
-    val cellSet = cells.toSet()
-    val color = CornersApartColors.TextOnDarkPrimary.copy(alpha = CornersApartAlpha.PreviewOutline)
-    val stroke = cellSize * PERIMETER_STROKE_FRACTION
-    cells.forEach { cell ->
-        val x = cell.col * pitch
-        val y = cell.row * pitch
-        if (CellPosition(cell.row - 1, cell.col) !in cellSet) {
-            drawLine(color, Offset(x, y), Offset(x + cellSize, y), stroke, StrokeCap.Round)
-        }
-        if (CellPosition(cell.row + 1, cell.col) !in cellSet) {
-            drawLine(color, Offset(x, y + cellSize), Offset(x + cellSize, y + cellSize), stroke, StrokeCap.Round)
-        }
-        if (CellPosition(cell.row, cell.col - 1) !in cellSet) {
-            drawLine(color, Offset(x, y), Offset(x, y + cellSize), stroke, StrokeCap.Round)
-        }
-        if (CellPosition(cell.row, cell.col + 1) !in cellSet) {
-            drawLine(color, Offset(x + cellSize, y), Offset(x + cellSize, y + cellSize), stroke, StrokeCap.Round)
-        }
-    }
-}
-
 /** Montako solua esikatselu kelluu sormen yläpuolella. */
 internal const val PREVIEW_LIFT_CELLS = 2
 
 private const val PLACEMENT_POP_START_SCALE = 0.55f
 private const val BONUS_PULSE_MIN_ALPHA = 0.72f
 private const val BONUS_PULSE_DURATION_MS = 1200
-private const val BONUS_MARKER_RADIUS_FRACTION = 0.24f
-private const val BONUS_GLOW_RADIUS_FRACTION = 0.42f
-private const val BONUS_INNER_DIAMOND_FRACTION = 0.55f
-private const val START_MARKER_RADIUS_FRACTION = 0.18f
-private const val START_MARKER_GLOW_RADIUS_FRACTION = 0.40f
-private const val EMPTY_CELL_CORNER_FRACTION = 0.12f
 private const val GUIDE_LINE_WIDTH_FRACTION = 0.05f
-private const val PERIMETER_STROKE_FRACTION = 0.12f

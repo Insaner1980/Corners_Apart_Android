@@ -53,6 +53,8 @@ data class GameUiState(
     val bestDailyStreak: Int = 0,
     val allTimeRank: Int? = null,
     val hallOfFameByMode: Map<GameMode?, List<HallOfFameEntry>> = emptyMap(),
+    val canReviewFinishedGame: Boolean = false,
+    val matchReview: MatchReviewUiState? = null,
 ) {
     val currentPlayer: PlayerUiState
         get() = players[currentPlayerIndex]

@@ -37,8 +37,8 @@ jobs:
           if [ -n "$SONAR_TOKEN" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::SONAR_TOKEN secret puuttuu. Lisaa se GitHubin repository secrets -asetuksiin, jotta SonarCloud-scan kaynnistyy."
-            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::error::SONAR_TOKEN secret puuttuu; vaadittua SonarCloud-analyysia ei voida suorittaa."
+            exit 2
           fi
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

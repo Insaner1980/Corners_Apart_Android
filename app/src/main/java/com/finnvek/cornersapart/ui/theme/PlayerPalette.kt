@@ -19,29 +19,36 @@ object CornersApartPlayerPalette {
 
     fun colorsFor(colorIndex: Int): PlayerPieceColors =
         when (colorIndex.mod(GameConstants.PLAYER_COLORS.size)) {
-            0 ->
+            0 -> {
                 PlayerPieceColors(
                     base = CornersApartColors.PlayerPink,
                     dark = CornersApartColors.PlayerPinkDark,
                     highlight = CornersApartColors.PlayerPinkHighlight,
                 )
-            1 ->
+            }
+
+            1 -> {
                 PlayerPieceColors(
                     base = CornersApartColors.PlayerMango,
                     dark = CornersApartColors.PlayerMangoDark,
                     highlight = CornersApartColors.PlayerMangoHighlight,
                 )
-            2 ->
+            }
+
+            2 -> {
                 PlayerPieceColors(
                     base = CornersApartColors.PlayerCyan,
                     dark = CornersApartColors.PlayerCyanDark,
                     highlight = CornersApartColors.PlayerCyanHighlight,
                 )
-            else ->
+            }
+
+            else -> {
                 PlayerPieceColors(
                     base = CornersApartColors.PlayerLime,
                     dark = CornersApartColors.PlayerLimeDark,
                     highlight = CornersApartColors.PlayerLimeHighlight,
                 )
+            }
         }
 }

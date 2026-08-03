@@ -118,6 +118,11 @@ data class GameScreenActions(
     val onShowHistoryStats: () -> Unit = {},
     val onResumeSavedGame: () -> Unit = {},
     val onDiscardSavedGameAndStartNewGame: () -> Unit = {},
+    val onStartMatchReview: () -> Unit = {},
+    val onReviewStepForward: () -> Unit = {},
+    val onReviewStepBack: () -> Unit = {},
+    val onReviewJumpTo: (Int) -> Unit = {},
+    val onCloseMatchReview: () -> Unit = {},
 )
 
 data class GamePieceActions(
@@ -299,6 +304,7 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
             is AccessibilityAnnouncement.MoveRejected,
             is AccessibilityAnnouncement.ActionFailed,
             -> accessibilityAnnouncementText
+
             else -> null
         }
     val scoreNotice =
@@ -339,6 +345,11 @@ fun GameRoute(viewModel: GameViewModel = hiltViewModel()) {
                 onShowHistoryStats = { showHistoryStats = true },
                 onResumeSavedGame = viewModel::resumeSavedGame,
                 onDiscardSavedGameAndStartNewGame = viewModel::discardSavedGameAndStartNewGame,
+                onStartMatchReview = viewModel::startMatchReview,
+                onReviewStepForward = viewModel::reviewStepForward,
+                onReviewStepBack = viewModel::reviewStepBack,
+                onReviewJumpTo = viewModel::reviewJumpTo,
+                onCloseMatchReview = viewModel::closeMatchReview,
             ),
         pieceActions =
             GamePieceActions(
@@ -413,40 +424,60 @@ private sealed interface AccessibilityAnnouncement {
 
 private fun GameEffect.toAccessibilityAnnouncement(): AccessibilityAnnouncement =
     when (this) {
-        is GameEffect.MoveAccepted ->
+        is GameEffect.MoveAccepted -> {
             AccessibilityAnnouncement.ScoreGained(
                 playerName = playerName,
                 scoreDelta = scoreDelta,
                 bonusTileClaimed = bonusTileClaimed,
             )
-        is GameEffect.MoveRejected -> AccessibilityAnnouncement.MoveRejected(reason)
-        is GameEffect.ActionFailed -> AccessibilityAnnouncement.ActionFailed(message)
-        GameEffect.GameOver -> AccessibilityAnnouncement.GameOver
+        }
+
+        is GameEffect.MoveRejected -> {
+            AccessibilityAnnouncement.MoveRejected(reason)
+        }
+
+        is GameEffect.ActionFailed -> {
+            AccessibilityAnnouncement.ActionFailed(message)
+        }
+
+        GameEffect.GameOver -> {
+            AccessibilityAnnouncement.GameOver
+        }
     }
 
 private fun GameEffect.hapticFeedbackType(): HapticFeedbackType =
     when (this) {
-        is GameEffect.MoveAccepted ->
+        is GameEffect.MoveAccepted -> {
             if (bonusTileClaimed) {
                 HapticFeedbackType.LongPress
             } else {
                 HapticFeedbackType.TextHandleMove
             }
+        }
+
         is GameEffect.MoveRejected,
         is GameEffect.ActionFailed,
         GameEffect.GameOver,
-        -> HapticFeedbackType.LongPress
+        -> {
+            HapticFeedbackType.LongPress
+        }
     }
 
 @StringRes
 private fun MoveRejectionReason.messageRes(): Int =
     when (this) {
         MoveRejectionReason.START_CORNER_NOT_COVERED -> R.string.move_rejected_start_corner
+
         MoveRejectionReason.SAME_PLAYER_EDGE_TOUCH -> R.string.move_rejected_edge_touch
+
         MoveRejectionReason.NO_DIAGONAL_TOUCH -> R.string.move_rejected_no_diagonal
+
         MoveRejectionReason.CELL_OCCUPIED -> R.string.move_rejected_occupied
+
         MoveRejectionReason.OUT_OF_BOUNDS -> R.string.move_rejected_out_of_bounds
+
         MoveRejectionReason.PIECE_ALREADY_USED -> R.string.move_rejected_piece_used
+
         MoveRejectionReason.GAME_OVER,
         MoveRejectionReason.NOT_PLAYERS_TURN,
         MoveRejectionReason.INVALID_PLAYER,
@@ -478,9 +509,18 @@ private fun AccessibilityAnnouncement.toAnnouncementText(): String =
                 stringResource(R.string.accessibility_score_gained, playerName, scoreText)
             }
         }
-        is AccessibilityAnnouncement.MoveRejected -> stringResource(reason.messageRes())
-        is AccessibilityAnnouncement.ActionFailed -> stringResource(R.string.accessibility_action_failed, message)
-        AccessibilityAnnouncement.GameOver -> stringResource(R.string.accessibility_game_over)
+
+        is AccessibilityAnnouncement.MoveRejected -> {
+            stringResource(reason.messageRes())
+        }
+
+        is AccessibilityAnnouncement.ActionFailed -> {
+            stringResource(R.string.accessibility_action_failed, message)
+        }
+
+        AccessibilityAnnouncement.GameOver -> {
+            stringResource(R.string.accessibility_game_over)
+        }
     }
 
 @Composable
@@ -498,6 +538,7 @@ fun GameScreenContent(
     var showProfiles by remember { mutableStateOf(false) }
     var showChallenges by remember { mutableStateOf(false) }
     var showRivals by remember { mutableStateOf(false) }
+    var gameOverDismissedForReview by rememberSaveable(state.isGameOver) { mutableStateOf(false) }
     if (showRivals) {
         RivalsDialog(
             rivals = state.rivals,
@@ -558,7 +599,16 @@ fun GameScreenContent(
     if (showHelp) {
         GameHelpDialog(onDismiss = { showHelp = false })
     }
-    if (state.isGameOver) {
+    state.matchReview?.let { review ->
+        MatchReviewDialog(
+            state = review,
+            onStepBack = screenActions.onReviewStepBack,
+            onStepForward = screenActions.onReviewStepForward,
+            onJumpTo = screenActions.onReviewJumpTo,
+            onClose = screenActions.onCloseMatchReview,
+        )
+    }
+    if (state.isGameOver && !gameOverDismissedForReview && state.matchReview == null) {
         GameOverDialog(
             rankedScores = state.rankedScores,
             durationSeconds = state.gameDurationSeconds,
@@ -580,6 +630,15 @@ fun GameScreenContent(
             allTimeRank = state.allTimeRank,
             allTimeRankModeLabel = stringResource(state.gameMode.labelRes()),
             dailyStreak = state.dailyStreak,
+            onReviewGame =
+                if (state.canReviewFinishedGame) {
+                    {
+                        gameOverDismissedForReview = true
+                        screenActions.onStartMatchReview()
+                    }
+                } else {
+                    null
+                },
         )
     }
     val dragController = remember { BoardDragController() }
@@ -615,16 +674,19 @@ fun GameScreenContent(
                 .verticalScroll(scrollState)
                 .padding(CornersApartSpacing.ScreenPadding)
         when (layoutMode) {
-            GameLayoutMode.COMPACT ->
+            GameLayoutMode.COMPACT -> {
                 CompactGameLayout(
                     content = layoutContent,
                     modifier = layoutModifier,
                 )
-            GameLayoutMode.EXPANDED ->
+            }
+
+            GameLayoutMode.EXPANDED -> {
                 ExpandedGameLayout(
                     content = layoutContent,
                     modifier = layoutModifier,
                 )
+            }
         }
         DragGhostOverlay(
             dragController = dragController,
@@ -718,7 +780,7 @@ private fun CompactGameLayout(
             state = content.state,
             onPlaceCell = content.pieceActions.onPlaceCell,
             externalPreviewAnchor = content.dragController.previewAnchor,
-            onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
+            onCanvasPositionChange = { coordinates -> content.dragController.boardCoordinates = coordinates },
             isPlacementLegal = content.pieceActions.isPlacementLegal,
         )
         AccessibilityAnnouncementNode(content.accessibilityAnnouncement)
@@ -762,7 +824,7 @@ private fun ExpandedGameLayout(
                 state = content.state,
                 onPlaceCell = content.pieceActions.onPlaceCell,
                 externalPreviewAnchor = content.dragController.previewAnchor,
-                onCanvasPositioned = { coordinates -> content.dragController.boardCoordinates = coordinates },
+                onCanvasPositionChange = { coordinates -> content.dragController.boardCoordinates = coordinates },
                 isPlacementLegal = content.pieceActions.isPlacementLegal,
             )
             PiecePanel(
@@ -779,7 +841,7 @@ private fun ExpandedGameLayout(
 @Composable
 private fun GameHeaderActions(content: GameLayoutContent) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
-        Header(state = content.state, onModeSelected = content.screenActions.onModeSelected)
+        Header(state = content.state, onSelectMode = content.screenActions.onModeSelected)
         UtilityActions(
             onShowHistoryStats = content.screenActions.onShowHistoryStats,
             onShowSettings = content.onShowSettings,
@@ -814,15 +876,15 @@ private fun ControlBar(pieceActions: GamePieceActions) {
 @Composable
 private fun Header(
     state: GameUiState,
-    onModeSelected: (GameMode) -> Unit,
+    onSelectMode: (GameMode) -> Unit,
 ) {
     var showModePicker by rememberSaveable { mutableStateOf(false) }
     if (showModePicker) {
         GameModePickerDialog(
             currentMode = state.gameMode,
-            onModeSelected = { mode ->
+            onSelectMode = { mode ->
                 showModePicker = false
-                onModeSelected(mode)
+                onSelectMode(mode)
             },
             onDismiss = { showModePicker = false },
         )
@@ -870,7 +932,7 @@ private fun Header(
 @Composable
 private fun GameModePickerDialog(
     currentMode: GameMode,
-    onModeSelected: (GameMode) -> Unit,
+    onSelectMode: (GameMode) -> Unit,
     onDismiss: () -> Unit,
 ) {
     CandyDialog(
@@ -881,7 +943,7 @@ private fun GameModePickerDialog(
             CandyChip(
                 label = stringResource(mode.labelRes()),
                 selected = currentMode == mode,
-                onClick = { onModeSelected(mode) },
+                onClick = { onSelectMode(mode) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

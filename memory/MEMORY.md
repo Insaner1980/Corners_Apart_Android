@@ -33,6 +33,7 @@
 - `PlacementValidator`, `CornerCache`, `BonusTileGenerator`, and `Scoring` own rule validation, corner candidates, bonus layouts, and higher-is-better ranking.
 - Two-Color Duel keeps turn order as color slots 0-3 while `Player.ownerIndex` maps colors 0/2 to Player 1 and 1/3 to Player 2; rankings aggregate by owner.
 - `opponents/` owns local computer turns through `MoveGenerator`, `MoveEvaluator`, and `ComputerOpponentEngine`.
+- `review/` owns transient replay and coaching for the just-finished local game. `GameReplayer` rebuilds engine state from `moveHistory` and explicitly reconstructs finishing manual passes that history omits; `MatchReviewAnalyzer` scores every owner 0 action with a fresh MASTER/BLOCKER `MoveEvaluator`. Review state stays in `GameViewModel` memory and is neither persisted nor supported for Nearby/history games.
 - Opponent decisions use seeded randomness from `GameState.randomSeed`, support 3 styles and 5 difficulty levels, and always return a legal move or pass.
 - `OpponentDifficultyMapper` maps persisted difficulty `1..5` to `OpponentDifficulty` and clamps invalid values.
 - `LocalSessionFactory` creates `LocalSession` instances from a `GameConfig` and persisted difficulty; ViewModels should not call `LocalSession()` directly.
@@ -51,5 +52,10 @@
 
 ## Verification Notes
 
+- Android check coverage comes from `config/android-check.json`; scanner exceptions come from the validated `config/check-exceptions.json`.
+- MobSF:n targetSdk-lähdemanifestin false positive suodatetaan yhteisessä Android-check-moottorissa vain säännön `android_task_hijacking2` ja polun `app/src/main/AndroidManifest.xml` yhdistelmälle. `.mobsf` ei sisällä globaalia rule-ignorea.
+- Shared wrappers delegate to `C:\Dev\Android-check`, publish atomic run reports, and use exit 0 for clean, 1 for findings, and 2 for technical/configuration errors.
+- 2026-08-03: Tavallinen `ql` tarkistaa GitHubin oletushaaran CodeQL-baselinen ja nykyiset paikalliset Java/Kotlin/Gradle-inputit; lukittu paikallinen CLI ajetaan automaattisesti, ellei sama puhdas HEAD ole jo varmennetun remote-SHA:n kattama. `-CurrentCommit` säilyy legacy remote-scope -valintana. Sonar upload requires explicit `-AllowExternalUpload`.
 - Do not run `lc` or `sc`; the user runs those wrappers.
 - Use `.\gradlew.bat test` and `.\gradlew.bat assembleDebug` for milestone verification unless the user asks for narrower checks.
+- 2026-07-28: Projektikohtainen DeepSec päivitettiin täsmälleen versioon `2.2.9` sekä `package.json`issa että pnpm-lukituksessa. `tsc --noEmit` ja matcher-testit 10/10 läpäisivät; ulkoista AI-analyysiä ei ajettu.

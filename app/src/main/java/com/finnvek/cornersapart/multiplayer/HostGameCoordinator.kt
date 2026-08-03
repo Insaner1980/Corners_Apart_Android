@@ -21,9 +21,13 @@ class HostGameCoordinator(
     ): List<HostMessage> =
         when (message) {
             is GameMessage.PlaceMove -> handleMove(endpointId, message.move)
+
             is GameMessage.Pass -> handlePass(endpointId, message.playerIndex)
+
             is GameMessage.PlayerJoined -> handlePlayerJoined(endpointId, message.player)
+
             is GameMessage.PlayerLeft -> listOf(HostMessage(MessageTarget.Broadcast, message))
+
             is GameMessage.FullSync,
             is GameMessage.GameConfig,
             is GameMessage.MoveAccepted,
@@ -50,13 +54,15 @@ class HostGameCoordinator(
                     ),
                 )
             }
-            is MoveResult.Rejected ->
+
+            is MoveResult.Rejected -> {
                 listOf(
                     HostMessage(
                         target = MessageTarget.Endpoint(endpointId),
                         message = GameMessage.MoveRejected(move = move, reason = result.reason),
                     ),
                 )
+            }
         }
 
     private fun handlePass(

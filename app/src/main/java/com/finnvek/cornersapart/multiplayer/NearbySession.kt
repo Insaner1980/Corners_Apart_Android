@@ -144,19 +144,29 @@ internal class NearbySession private constructor(
 
     private fun applyClientMessage(message: GameMessage): Result<Unit> =
         when (message) {
-            is GameMessage.FullSync -> publishAuthoritativeState(message.state)
-            is GameMessage.MoveAccepted -> publishAuthoritativeState(message.state)
+            is GameMessage.FullSync -> {
+                publishAuthoritativeState(message.state)
+            }
+
+            is GameMessage.MoveAccepted -> {
+                publishAuthoritativeState(message.state)
+            }
+
             is GameMessage.PlayerJoined,
             is GameMessage.PlayerLeft,
             -> {
                 applyLobbyMessage(message)
                 Result.success(Unit)
             }
+
             is GameMessage.MoveRejected -> {
                 _events.tryEmit(GameSessionEvent.MoveRejected(message.reason))
                 Result.failure(MoveRejectedException(message.reason))
             }
-            else -> Result.success(Unit)
+
+            else -> {
+                Result.success(Unit)
+            }
         }
 
     private fun publishAuthoritativeState(state: GameState): Result<Unit> {

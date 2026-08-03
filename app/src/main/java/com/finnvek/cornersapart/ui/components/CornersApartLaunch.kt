@@ -40,17 +40,17 @@ fun CornersApartLaunch(
     Box(modifier = modifier.fillMaxSize()) {
         content()
         if (splashVisible) {
-            LaunchSplashOverlay(onFinished = { splashVisible = false })
+            LaunchSplashOverlay(onFinish = { splashVisible = false })
         }
     }
 }
 
 @Composable
-private fun LaunchSplashOverlay(onFinished: () -> Unit) {
+private fun LaunchSplashOverlay(onFinish: () -> Unit) {
     val assemblyProgress = remember { Animatable(0f) }
     val logoScale = remember { Animatable(LOGO_INITIAL_SCALE) }
     val overlayAlpha = remember { Animatable(1f) }
-    val currentOnFinished by rememberUpdatedState(onFinished)
+    val currentOnFinish by rememberUpdatedState(onFinish)
 
     LaunchedEffect(Unit) {
         assemblyProgress.animateTo(
@@ -74,7 +74,7 @@ private fun LaunchSplashOverlay(onFinished: () -> Unit) {
             targetValue = 0f,
             animationSpec = tween(OVERLAY_FADE_MILLIS),
         )
-        currentOnFinished()
+        currentOnFinish()
     }
 
     Box(

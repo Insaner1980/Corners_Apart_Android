@@ -194,16 +194,19 @@ class PlayServicesConnectionsClientFacade(
 
     private fun Exception.toNearbyOperationFailure(): NearbyOperationFailure =
         when (this) {
-            is ApiException ->
+            is ApiException -> {
                 NearbyOperationFailure(
                     statusCode = statusCode,
                     message = statusCode.toNearbyStatusMessage(),
                 )
-            else ->
+            }
+
+            else -> {
                 NearbyOperationFailure(
                     statusCode = null,
                     message = message,
                 )
+            }
         }
 
     private fun Int.toNearbyStatusMessage(): String = ConnectionsStatusCodes.getStatusCodeString(this)

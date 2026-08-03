@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "exceptions": [
+    {
+      "id": "corners-mobsf-target-sdk",
+      "tool": "mobsfscan",
+      "rule": "android_task_hijacking2",
+      "scope": "app/src/main/AndroidManifest.xml targetSdk inference",
+      "reason": "mobsfscan reads the source manifest and does not resolve the Gradle targetSdk value.",
+      "owner": "project-maintainers",
+      "added": "2026-07-28",
+      "expires": "2026-10-31",
+      "tracking": "local-review:corners-mobsf-target-sdk",
+      "sourcePath": "app/build.gradle.kts",
+      "selector": "targetSdk = 37",
+      "findingPath": "app/src/main/AndroidManifest.xml"
+    },
+    {
+      "id": "corners-mobsf-hardcoded-build-cache-test-key",
+      "tool": "mobsfscan",
+      "rule": "android_kotlin_hardcoded",
+      "scope": "Build-cache fixture key in BuildToolchainCompatibilityTest.kt",
+      "reason": "The exact MobSF match is a local test map key, not a credential or secret.",
+      "owner": "project-maintainers",
+      "added": "2026-07-31",
+      "expires": "2026-10-31",
+      "tracking": "local-review:corners-mobsf-hardcoded-build-cache-test-key",
+      "sourcePath": "app/src/test/java/com/finnvek/cornersapart/release/BuildToolchainCompatibilityTest.kt",
+      "selector": "configuration-cache-signing-env",
+      "findingPath": "app/src/test/java/com/finnvek/cornersapart/release/BuildToolchainCompatibilityTest.kt"
+    },
+    {
+      "id": "corners-owasp-compose-stability",
+      "tool": "owasp-dependency-check",
+      "rule": "cpe:/a:github:github",
+      "scope": "pkg:maven/com.github.skydoves/compose-stability-runtime-android@0.11.1",
+      "reason": "The Maven group is not GitHub Enterprise Server.",
+      "owner": "project-maintainers",
+      "added": "2026-07-28",
+      "expires": "2026-10-31",
+      "tracking": "local-review:corners-owasp-compose-stability",
+      "sourcePath": "config/dependency-check/suppressions.xml",
+      "selector": "compose-stability-runtime-android@0.11.1"
+    },
+    {
+      "id": "corners-osv-build-tool-metadata",
+      "tool": "osv-scanner",
+      "rule": "PackageOverrides",
+      "scope": "exact build-tool package versions in gradle/osv-scanner.toml",
+      "reason": "The listed packages are verification metadata for build tools and are not application runtime dependencies.",
+      "owner": "project-maintainers",
+      "added": "2026-07-28",
+      "expires": "2026-10-31",
+      "tracking": "local-review:corners-osv-build-tool-metadata",
+      "sourcePath": "gradle/osv-scanner.toml",
+      "selector": "com.fasterxml.jackson.core:jackson-databind"
+    }
+  ]
+}

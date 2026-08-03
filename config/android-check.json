@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "exceptionsFile": "config/check-exceptions.json",
+  "projectId": "corners-apart",
+  "modules": [
+    {
+      "path": ":app",
+      "relativePath": "app",
+      "kind": "android-application",
+      "required": true,
+      "variants": ["debug", "release"],
+      "sourceSets": ["main", "debug", "test", "androidTest"]
+    }
+  ],
+  "buildTasks": [":app:assembleDebug"],
+  "testTasks": [":app:testDebugUnitTest"],
+  "includedBuilds": [],
+  "checks": {
+    "ktlintTasks": [":app:ktlintCheck"],
+    "detektTasks": [":app:detekt"],
+    "lintTasks": [":app:lintDebug"],
+    "stabilityTasks": [":app:stabilityCheck"],
+    "dependencyConfigurations": ["debugRuntimeClasspath", "releaseRuntimeClasspath"],
+    "dependencyCheckTasks": [":app:dependencyCheckAggregate"],
+    "semgrepConfig": "config/semgrep/corners_apart_android-security.yml"
+  }
+}

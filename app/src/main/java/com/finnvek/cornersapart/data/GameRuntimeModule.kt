@@ -7,6 +7,8 @@ import com.finnvek.cornersapart.multiplayer.ConnectionsClientFacade
 import com.finnvek.cornersapart.multiplayer.NearbyConnectionsCoordinator
 import com.finnvek.cornersapart.multiplayer.PlayServicesConnectionsClientFacade
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
+import com.finnvek.cornersapart.review.GameReplayer
+import com.finnvek.cornersapart.review.MatchReviewAnalyzer
 import com.finnvek.cornersapart.runtime.StringProvider
 import com.finnvek.cornersapart.runtime.SystemTimeProvider
 import com.finnvek.cornersapart.runtime.TimeProvider
@@ -15,6 +17,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
 
 @Module
@@ -28,6 +31,22 @@ object GameRuntimeModule {
     @Singleton
     fun provideComputerOpponentEngine(gameEngine: GameEngine): ComputerOpponentEngine =
         ComputerOpponentEngine(gameEngine = gameEngine)
+
+    @Provides
+    @Singleton
+    fun provideGameReplayer(gameEngine: GameEngine): GameReplayer = GameReplayer(gameEngine)
+
+    @Provides
+    @Singleton
+    fun provideMatchReviewAnalyzer(
+        gameEngine: GameEngine,
+        gameReplayer: GameReplayer,
+    ): MatchReviewAnalyzer =
+        MatchReviewAnalyzer(
+            gameEngine = gameEngine,
+            gameReplayer = gameReplayer,
+            dispatcher = Dispatchers.Default,
+        )
 
     @Provides
     @Singleton

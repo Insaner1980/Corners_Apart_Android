@@ -8,6 +8,7 @@ name = "com.fasterxml.jackson.core:jackson-databind"
 version = "2.21.3"
 ecosystem = "Maven"
 vulnerability.ignore = true
+effectiveUntil = 2026-10-31
 reason = "Build-tool-only dependency from the OWASP Dependency-Check Gradle plugin; app runtime classpaths do not contain it."
 
 [[PackageOverrides]]
@@ -15,6 +16,7 @@ name = "ch.qos.logback:logback-core"
 version = "1.3.14"
 ecosystem = "Maven"
 vulnerability.ignore = true
+effectiveUntil = 2026-10-31
 reason = "Build-tool-only dependency from Gradle verification metadata; app runtime dependencies are checked separately."
 
 [[PackageOverrides]]
@@ -23,6 +25,7 @@ nameIsRegex = true
 version = "4.1.110.Final"
 ecosystem = "Maven"
 vulnerability.ignore = true
+effectiveUntil = 2026-10-31
 reason = "Build-tool-only dependency from Gradle verification metadata; app runtime dependencies are checked separately."
 
 [[PackageOverrides]]
@@ -31,6 +34,7 @@ nameIsRegex = true
 version = "4.1.93.Final"
 ecosystem = "Maven"
 vulnerability.ignore = true
+effectiveUntil = 2026-10-31
 reason = "Build-tool-only dependency from Gradle verification metadata; app runtime dependencies are checked separately."
 
 [[PackageOverrides]]
@@ -38,10 +42,12 @@ name = "org.apache.commons:commons-lang3"
 version = "3.16.0"
 ecosystem = "Maven"
 vulnerability.ignore = true
+effectiveUntil = 2026-10-31
 reason = "Build-tool-only dependency from Gradle verification metadata."
 [[PackageOverrides]]
 name = "org.apache.httpcomponents:httpclient"
 version = "4.5.6"
 ecosystem = "Maven"
 vulnerability.ignore = true
+effectiveUntil = 2026-10-31
 reason = "Build-tool-only dependency from Gradle verification metadata."

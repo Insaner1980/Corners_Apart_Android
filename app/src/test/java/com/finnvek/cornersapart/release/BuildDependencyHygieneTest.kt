@@ -175,11 +175,17 @@ class BuildDependencyHygieneTest {
                         activeLine.contains("""name = "material"""")
 
                 when {
-                    isComposeLibraryAlias && hasExplicitVersion ->
+                    isComposeLibraryAlias && hasExplicitVersion -> {
                         "gradle/libs.versions.toml:${index + 1}: $activeLine"
-                    isObsoleteMaterialAlias ->
+                    }
+
+                    isObsoleteMaterialAlias -> {
                         "gradle/libs.versions.toml:${index + 1}: $activeLine"
-                    else -> null
+                    }
+
+                    else -> {
+                        null
+                    }
                 }
             }
 

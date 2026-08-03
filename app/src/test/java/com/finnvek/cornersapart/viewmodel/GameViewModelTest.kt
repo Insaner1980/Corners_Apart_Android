@@ -35,6 +35,8 @@ import com.finnvek.cornersapart.multiplayer.NearbyOperationFailureCallback
 import com.finnvek.cornersapart.multiplayer.NearbyPayloadCallback
 import com.finnvek.cornersapart.multiplayer.SessionType
 import com.finnvek.cornersapart.opponents.ComputerOpponentEngine
+import com.finnvek.cornersapart.review.GameReplayer
+import com.finnvek.cornersapart.review.MatchReviewAnalyzer
 import com.finnvek.cornersapart.runtime.TimeProvider
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +48,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -53,6 +57,7 @@ import org.junit.Test
 import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass")
 class GameViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -620,6 +625,139 @@ class GameViewModelTest {
         }
 
     @Test
+    fun finishedLocalGameCanBeReviewedWithoutRepositoryWrites() =
+        runTest {
+            val harness = createViewModelHarness()
+            repeat(GameModeConfigs.forMode(GameMode.FOUR_PLAYER).playerSlots.size) {
+                harness.viewModel.passCurrentPlayer()
+                advanceUntilIdle()
+            }
+            val historyBeforeReview =
+                harness.profileRepository.activeProfile
+                    .first()
+                    ?.history
+            val savedBeforeReview = harness.gameRepository.savedGameData.first()
+
+            assertTrue(harness.viewModel.uiState.value.canReviewFinishedGame)
+            harness.viewModel.startMatchReview()
+            advanceUntilIdle()
+
+            val review = checkNotNull(harness.viewModel.uiState.value.matchReview)
+            assertEquals(MatchReviewPhase.COMPLETE, review.phase)
+            assertTrue(review.timeline.isNotEmpty())
+            assertEquals(
+                historyBeforeReview,
+                harness.profileRepository.activeProfile
+                    .first()
+                    ?.history,
+            )
+            assertEquals(savedBeforeReview, harness.gameRepository.savedGameData.first())
+        }
+
+    @Test
+    fun reviewNavigationClampsAndCloseKeepsFinishedGameReviewable() =
+        runTest {
+            val harness = createViewModelHarness()
+            repeat(GameModeConfigs.forMode(GameMode.FOUR_PLAYER).playerSlots.size) {
+                harness.viewModel.passCurrentPlayer()
+                advanceUntilIdle()
+            }
+            harness.viewModel.startMatchReview()
+            advanceUntilIdle()
+            val lastIndex = checkNotNull(harness.viewModel.uiState.value.matchReview).timeline.lastIndex
+
+            harness.viewModel.reviewJumpTo(Int.MAX_VALUE)
+            assertEquals(
+                lastIndex,
+                harness.viewModel.uiState.value.matchReview
+                    ?.currentStepIndex,
+            )
+            harness.viewModel.reviewStepForward()
+            assertEquals(
+                lastIndex,
+                harness.viewModel.uiState.value.matchReview
+                    ?.currentStepIndex,
+            )
+            harness.viewModel.reviewJumpTo(Int.MIN_VALUE)
+            assertEquals(
+                0,
+                harness.viewModel.uiState.value.matchReview
+                    ?.currentStepIndex,
+            )
+            harness.viewModel.reviewStepBack()
+            assertEquals(
+                0,
+                harness.viewModel.uiState.value.matchReview
+                    ?.currentStepIndex,
+            )
+
+            harness.viewModel.closeMatchReview()
+
+            assertNull(harness.viewModel.uiState.value.matchReview)
+            assertTrue(harness.viewModel.uiState.value.canReviewFinishedGame)
+        }
+
+    @Test
+    fun startingNewGameCancelsReviewAndPreventsStaleEmission() =
+        runTest {
+            val reviewDispatcher = PausingDispatcher()
+            val harness = createViewModelHarness(reviewDispatcher = reviewDispatcher)
+            repeat(GameModeConfigs.forMode(GameMode.FOUR_PLAYER).playerSlots.size) {
+                harness.viewModel.passCurrentPlayer()
+                advanceUntilIdle()
+            }
+            harness.viewModel.startMatchReview()
+            advanceUntilIdle()
+            assertEquals(
+                MatchReviewPhase.ANALYZING,
+                harness.viewModel.uiState.value.matchReview
+                    ?.phase,
+            )
+
+            harness.viewModel.startGame(GameMode.COMPACT_DUEL)
+            while (reviewDispatcher.runNext()) {
+                mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+            }
+            advanceUntilIdle()
+
+            assertFalse(harness.viewModel.uiState.value.canReviewFinishedGame)
+            assertNull(harness.viewModel.uiState.value.matchReview)
+            assertEquals(GameMode.COMPACT_DUEL, harness.viewModel.uiState.value.gameMode)
+        }
+
+    @Test
+    fun nearbyFinishedGameIsNotReviewable() =
+        runTest {
+            val facade = RecordingConnectionsClientFacade()
+            val harness = createViewModelHarness(facade = facade)
+            val engine = GameEngine()
+            var endedState =
+                engine.newGame(
+                    GameConfig(
+                        mode = GameMode.FOUR_PLAYER,
+                        randomSeed = 109L,
+                        bonusTiles = emptyList(),
+                    ),
+                )
+            repeat(endedState.players.size) {
+                if (!endedState.isGameOver) {
+                    endedState = engine.pass(endedState, endedState.currentPlayerIndex)
+                }
+            }
+            connectNearbyClientToHost(harness, facade, endedState)
+            advanceUntilIdle()
+
+            assertEquals(SessionType.NEARBY, harness.viewModel.uiState.value.sessionType)
+            assertTrue(harness.viewModel.uiState.value.isGameOver)
+            assertFalse(harness.viewModel.uiState.value.canReviewFinishedGame)
+
+            harness.viewModel.startMatchReview()
+            advanceUntilIdle()
+
+            assertNull(harness.viewModel.uiState.value.matchReview)
+        }
+
+    @Test
     fun twoColorDuelHistoryAggregatesScoresByOwner() =
         runTest {
             val harness = createViewModelHarness()
@@ -693,6 +831,7 @@ class GameViewModelTest {
         initialSavedGameData: SavedGameData = SavedGameData(),
         facade: ConnectionsClientFacade = NoOpConnectionsClientFacade(),
         opponentDispatcher: CoroutineDispatcher = mainDispatcherRule.testDispatcher,
+        reviewDispatcher: CoroutineDispatcher = mainDispatcherRule.testDispatcher,
     ): GameViewModelHarness {
         val engine = GameEngine()
         val sessionFactory =
@@ -722,6 +861,8 @@ class GameViewModelTest {
                 settingsRepository = settingsRepository,
                 timeProvider = FixedTimeProvider,
                 nearbyConnectionsCoordinator = nearbyConnectionsCoordinator,
+                gameEngine = engine,
+                reviewDispatcher = reviewDispatcher,
             )
         harness.viewModel = harness.createViewModel()
         return harness
@@ -734,6 +875,8 @@ class GameViewModelTest {
         val settingsRepository: SettingsRepository,
         private val timeProvider: TimeProvider,
         val nearbyConnectionsCoordinator: NearbyConnectionsCoordinator,
+        private val gameEngine: GameEngine,
+        private val reviewDispatcher: CoroutineDispatcher,
     ) {
         lateinit var viewModel: GameViewModel
 
@@ -752,7 +895,13 @@ class GameViewModelTest {
                 },
                 timeProvider = timeProvider,
                 nearbyConnectionsCoordinator = nearbyConnectionsCoordinator,
-                gameEngine = GameEngine(),
+                gameEngine = gameEngine,
+                matchReviewAnalyzer =
+                    MatchReviewAnalyzer(
+                        gameEngine = gameEngine,
+                        gameReplayer = GameReplayer(gameEngine),
+                        dispatcher = reviewDispatcher,
+                    ),
             )
     }
 

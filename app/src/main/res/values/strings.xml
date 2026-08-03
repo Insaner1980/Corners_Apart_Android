@@ -169,6 +169,50 @@
     <string name="game_over_ranked_player">%1$d. %2$s, %3$s</string>
     <string name="game_over_ranked_score_breakdown">Placed: %1$d · Bonus: %2$d · Completion: %3$d · Claimed: %4$d</string>
     <string name="game_over_play_again">Play again</string>
+    <string name="match_review_title">Match review</string>
+    <string name="match_review_review_game">Review game</string>
+    <string name="match_review_analyzing">Analyzing match</string>
+    <string name="match_review_progress">%1$d of %2$d moves analyzed</string>
+    <string name="match_review_error">Match review could not be completed.</string>
+    <string name="match_review_no_moves">No moves to assess</string>
+    <string name="match_review_step">Step %1$d of %2$d</string>
+    <string name="match_review_action">%1$s %2$s</string>
+    <string name="match_review_placement">placed %1$s</string>
+    <string name="match_review_pass">passed</string>
+    <string name="match_review_analyzing_move">Analyzing this move</string>
+    <string name="match_review_accuracy">Accuracy: %1$d%%</string>
+    <string name="match_review_great">Great</string>
+    <string name="match_review_good">Good</string>
+    <string name="match_review_inaccuracy">Inaccuracy</string>
+    <string name="match_review_mistake">Mistake</string>
+    <plurals name="match_review_great_count">
+        <item quantity="one">%d Great</item>
+        <item quantity="other">%d Great</item>
+    </plurals>
+    <plurals name="match_review_good_count">
+        <item quantity="one">%d Good</item>
+        <item quantity="other">%d Good</item>
+    </plurals>
+    <plurals name="match_review_inaccuracy_count">
+        <item quantity="one">%d Inaccuracy</item>
+        <item quantity="other">%d Inaccuracies</item>
+    </plurals>
+    <plurals name="match_review_mistake_count">
+        <item quantity="one">%d Mistake</item>
+        <item quantity="other">%d Mistakes</item>
+    </plurals>
+    <string name="match_review_show_best_move">Show best move</string>
+    <string name="match_review_hide_best_move">Hide best move</string>
+    <string name="match_review_first_step">First step</string>
+    <string name="match_review_previous_step">Previous step</string>
+    <string name="match_review_next_step">Next step</string>
+    <string name="match_review_last_step">Last step</string>
+    <plurals name="match_review_bonus_claims">
+        <item quantity="one">%d bonus tile claimed</item>
+        <item quantity="other">%d bonus tiles claimed</item>
+    </plurals>
+    <string name="match_review_board_description">Review board, step %1$d of %2$d, %3$s %4$s</string>
+    <string name="match_review_board_description_best">Review board, step %1$d of %2$d, %3$s %4$s, showing best move</string>
     <string name="accessibility_score_gained">%1$s gained %2$s</string>
     <string name="accessibility_bonus_claimed">%1$s gained %2$s. Bonus tile claimed, plus %3$s.</string>
     <string name="accessibility_move_rejected">Move rejected — that placement is not allowed</string>

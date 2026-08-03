@@ -76,16 +76,21 @@ fun HistoryStatsDialog(
                 )
             }
             when (selectedTabIndex) {
-                0 -> HistoryTab(history)
+                0 -> {
+                    HistoryTab(history)
+                }
+
                 1 -> {
                     StatsTab(stats)
                     AchievementsSection(unlockedAchievements)
                 }
-                else ->
+
+                else -> {
                     HallOfFameTab(
                         hallOfFameByMode = hallOfFameByMode,
                         activeProfileName = activeProfileName,
                     )
+                }
             }
         }
     }

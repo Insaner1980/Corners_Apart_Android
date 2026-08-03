@@ -55,6 +55,16 @@ object CornersApartColors {
     val MedalBronzeDark = Color(0xFF9C6134)
     val StreakFlameFace = Color(0xFFFF8A3C)
     val StreakFlameDeep = Color(0xFFE8513D)
+
+    val ReviewGreatFace = ButtonPositiveFace
+    val ReviewGreatBevel = ButtonPositiveBevel
+    val ReviewGoodFace = PlayerCyan
+    val ReviewGoodBevel = PlayerCyanDark
+    val ReviewInaccuracyFace = BonusAccentBright
+    val ReviewInaccuracyBevel = BonusAccent
+    val ReviewMistakeFace = ButtonWarnFace
+    val ReviewMistakeBevel = ButtonWarnBevel
+    val ReviewCurrentMoveOutline = TextOnDarkPrimary
 }
 
 object CornersApartSpacing {
@@ -118,4 +128,5 @@ object CornersApartAlpha {
     const val PreviewDim = 0.30f
     const val GuideBand = 0.08f
     const val GuideLine = 0.30f
+    const val BestMoveGhost = 0.62f
 }

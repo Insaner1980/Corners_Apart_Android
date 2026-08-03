@@ -117,11 +117,11 @@ fun GameSettingsDialog(
     ) {
         DifficultySelector(
             selectedDifficulty = settings.preferredDifficulty,
-            onDifficultySelected = actions.onPreferredDifficultyChange,
+            onSelectDifficulty = actions.onPreferredDifficultyChange,
         )
         ModeSelector(
             selectedMode = settings.preferredMode,
-            onModeSelected = actions.onPreferredModeChange,
+            onSelectMode = actions.onPreferredModeChange,
         )
         SettingSwitchRow(
             label = stringResource(R.string.settings_sound),
@@ -139,14 +139,14 @@ fun GameSettingsDialog(
 @Composable
 private fun DifficultySelector(
     selectedDifficulty: Int,
-    onDifficultySelected: (Int) -> Unit,
+    onSelectDifficulty: (Int) -> Unit,
 ) {
     SelectorSection(title = stringResource(R.string.settings_difficulty)) {
         for (level in 1..GameConstants.DIFFICULTY_LEVELS) {
             CandyChip(
                 label = stringResource(R.string.settings_difficulty_level, level),
                 selected = selectedDifficulty == level,
-                onClick = { onDifficultySelected(level) },
+                onClick = { onSelectDifficulty(level) },
             )
         }
     }
@@ -155,7 +155,7 @@ private fun DifficultySelector(
 @Composable
 private fun ModeSelector(
     selectedMode: GameMode,
-    onModeSelected: (GameMode) -> Unit,
+    onSelectMode: (GameMode) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
         SelectorTitle(stringResource(R.string.settings_preferred_mode))
@@ -163,7 +163,7 @@ private fun ModeSelector(
             CandyChip(
                 label = stringResource(mode.labelRes()),
                 selected = selectedMode == mode,
-                onClick = { onModeSelected(mode) },
+                onClick = { onSelectMode(mode) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -315,11 +315,11 @@ fun ProfilesDialog(
         )
         ProfileColorSelector(
             selectedColorIndex = draftColorIndex,
-            onColorSelected = { draftColorIndex = it },
+            onSelectColor = { draftColorIndex = it },
         )
         ProfileAvatarStyleSelector(
             selectedStyle = draftAvatarStyle,
-            onStyleSelected = { draftAvatarStyle = it },
+            onSelectStyle = { draftAvatarStyle = it },
         )
         Row(horizontalArrangement = Arrangement.spacedBy(CornersApartSpacing.CompactGap)) {
             CandyButton(
@@ -347,7 +347,7 @@ fun ProfilesDialog(
 @Composable
 private fun ProfileColorSelector(
     selectedColorIndex: Int,
-    onColorSelected: (Int) -> Unit,
+    onSelectColor: (Int) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CornersApartSpacing.TinyGap)) {
         SelectorTitle(stringResource(R.string.profile_color_label))
@@ -356,7 +356,7 @@ private fun ProfileColorSelector(
                 ColorSwatch(
                     colorIndex = colorIndex,
                     selected = selectedColorIndex == colorIndex,
-                    onClick = { onColorSelected(colorIndex) },
+                    onClick = { onSelectColor(colorIndex) },
                 )
             }
         }
@@ -400,14 +400,14 @@ private fun ColorSwatch(
 @Composable
 private fun ProfileAvatarStyleSelector(
     selectedStyle: LocalAvatarStyle,
-    onStyleSelected: (LocalAvatarStyle) -> Unit,
+    onSelectStyle: (LocalAvatarStyle) -> Unit,
 ) {
     SelectorSection(title = stringResource(R.string.profile_avatar_label)) {
         LocalAvatarStyle.entries.forEach { style ->
             CandyChip(
                 label = stringResource(style.labelRes()),
                 selected = selectedStyle == style,
-                onClick = { onStyleSelected(style) },
+                onClick = { onSelectStyle(style) },
             )
         }
     }
@@ -522,6 +522,7 @@ fun GameOverDialog(
     allTimeRank: Int? = null,
     allTimeRankModeLabel: String = "",
     dailyStreak: Int = 0,
+    onReviewGame: (() -> Unit)? = null,
 ) {
     val duration = pluralStringResource(R.plurals.seconds_count, durationSeconds, durationSeconds)
     val winner = rankedScores.firstOrNull()
@@ -542,6 +543,14 @@ fun GameOverDialog(
             )
         },
     ) {
+        if (onReviewGame != null) {
+            CandyButton(
+                text = stringResource(R.string.match_review_review_game),
+                onClick = onReviewGame,
+                modifier = Modifier.fillMaxWidth(),
+                style = CandyButtonStyle.Primary,
+            )
+        }
         if (challengeResult != null) {
             Text(
                 text =
