@@ -110,7 +110,7 @@ AGP 9 built-in Kotlin is the project baseline. The app does not apply `org.jetbr
 |---|---:|
 | Gradle wrapper | 9.6.1 |
 | Android Gradle Plugin | 9.3.1 |
-| Kotlin | 2.4.20-Beta2 |
+| Kotlin | 2.4.10 |
 | KSP | 2.3.10 |
 | Hilt | 2.60.1 |
 | AndroidX Hilt lifecycle/ViewModel Compose | 1.4.0 |
