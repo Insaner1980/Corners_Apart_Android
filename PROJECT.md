@@ -110,12 +110,12 @@ AGP 9 built-in Kotlin is the project baseline. The app does not apply `org.jetbr
 |---|---:|
 | Gradle wrapper | 9.6.1 |
 | Android Gradle Plugin | 9.3.1 |
-| Kotlin | 2.4.20-Beta1 |
+| Kotlin | 2.4.20-Beta2 |
 | KSP | 2.3.10 |
 | Hilt | 2.60.1 |
 | AndroidX Hilt lifecycle/ViewModel Compose | 1.4.0 |
 | Compose BOM | 2026.06.01 |
-| Compose Stability Analyzer | 0.10.0 |
+| Compose Stability Analyzer | 0.11.1 |
 | Android security lint checks | 1.0.4 |
 | Lifecycle | 2.11.0 |
 | Coroutines | 1.11.0 |
@@ -128,7 +128,7 @@ AGP 9 built-in Kotlin is the project baseline. The app does not apply `org.jetbr
 | JaCoCo | 0.8.15 |
 | ktlint Gradle plugin | 14.2.0 |
 | detekt | 2.0.0-alpha.5 |
-| detekt Compose rules | 0.6.2 |
+| detekt Compose rules | 0.6.3 |
 | OWASP Dependency-Check | 12.2.2 |
 | SonarQube Gradle plugin | 7.3.1.8318 |
 | JUnit | 4.13.2 |
@@ -1305,7 +1305,7 @@ MobSF config excludes build/test/report/tool data and filters to warning/error.
 DeepSec:
 
 - private local Node tool under `.deepsec`
-- `deepsec` 2.2.8, TypeScript 7.0.2
+- `deepsec` 2.2.9, TypeScript 7.0.2
 - project `corners_apart_android`
 - priority manifest/multiplayer/data/model paths
 - custom Android export, sharing, transport, boundary, and log matchers

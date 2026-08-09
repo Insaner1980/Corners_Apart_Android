@@ -36,7 +36,7 @@ class BuildToolchainCompatibilityTest {
         assertTrue(wrapperProperties.contains("distributionSha256Sum="))
         assertTrue(versionsCatalog.contains("agp = \"9.3.1\""))
         assertTrue(versionsCatalog.contains("detekt = \"2.0.0-alpha.5\""))
-        assertTrue(versionsCatalog.contains("detektComposeRules = \"0.6.2\""))
+        assertTrue(versionsCatalog.contains("detektComposeRules = \"0.6.3\""))
         assertTrue(versionsCatalog.contains("detekt = { id = \"dev.detekt\", version.ref = \"detekt\" }"))
     }
 
