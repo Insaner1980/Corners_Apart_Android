@@ -26,7 +26,7 @@ ktlintGradle = "14.2.0"
 ktlint = "1.8.0"
 detekt = "2.0.0-alpha.5"
 detektComposeRules = "0.6.3"
-owaspDependencyCheck = "12.2.2"
+owaspDependencyCheck = "13.0.0"
 sonarqube = "7.3.1.8318"
 
 # Uncomment when needed:
